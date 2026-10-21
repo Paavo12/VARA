@@ -50,7 +50,7 @@
         modal: null, signup: { name: '', contact: '', password: '', photo: null }, contacts: [{ name: '', phone: '' }],
         consent: { sos: true, rideCheck: true, shareEta: true }, idPreview: null, selfiePreview: null,
         rating: { stars: 0, tags: [], favourite: false, comment: '' }, payMethod: null, chat: '', newContact: { name: '', phone: '' },
-        callStart: 0, forOther: false, guest: { name: '', phone: '' },
+        callStart: 0, forOther: false, guest: { name: '', phone: '' }, seats: 1,
       };
     }
 
@@ -133,7 +133,7 @@
             '<div class="welcome-art"><div class="brand-orb">' + ic('shieldCheck') + '</div></div>' +
             '<div class="brand-word">FUber</div>' +
             '<h1 class="h1">Rides by women,<br>for women.</h1>' +
-            '<p class="muted">Every driver and every rider on FUber is a verified woman. One passenger per trip, always.</p>' +
+            '<p class="muted">Every driver and every rider on FUber is a verified woman. Ride alone or with up to ' + E.CFG.MAX_SEATS + ' women passengers.</p>' +
             '<ul class="trust-list">' +
             '<li>' + ic('shieldCheck') + '<span><b>Verified women only</b><br>ID and selfie checks for drivers and riders</span></li>' +
             '<li>' + ic('user') + '<span><b>No shared rides</b><br>Just you in the car, every time</span></li>' +
@@ -316,17 +316,18 @@
           '<button data-a="rideFor" data-v="other"' + (u.forOther ? ' aria-pressed="true"' : '') + '>' + ic('users') + 'Someone else</button></div>' +
           (u.forOther ? '<div class="grid2">' + this.field('Passenger name', 'guest.name', 'text', 'e.g. Meme Ndapandula') + this.field('Passenger phone', 'guest.phone', 'tel', '+264 81 …') + '</div>' +
             '<div class="note">' + ic('message') + '<span>They do not need the app or internet. We text them the PIN and driver details by SMS. Set the pickup pin to where they are. <button class="btn-link" data-a="fillGuest">Fill sample</button></span></div>' : '') +
+          '<div class="eyebrow">Passengers · women only</div><div class="seg">' + [1, 2, 3, 4].map((n) => '<button data-a="seats" data-v="' + n + '"' + (u.seats === n ? ' aria-pressed="true"' : '') + '>' + ic(n > 1 ? 'users' : 'user') + n + '</button>').join('') + '</div>' +
           '<div class="opt-list">' + opts.map((x) => '<button class="opt-card" data-a="opt" data-v="' + x.o.id + '"' + (x.o.id === u.option ? ' aria-pressed="true"' : '') + (x.avail ? '' : ' disabled') + '>' +
             '<div class="opt-car">' + carSVG(x.o.id === 'softlife' ? '#6b2c91' : x.o.id === 'comfort' ? '#47506a' : '#e0457b', u.wav) + '</div>' +
             '<div class="opt-main"><div class="opt-name">' + esc(x.o.name) + '</div><div class="tiny muted">' + esc(x.o.blurb) + '</div><div class="tiny strong" data-b="eta_' + x.o.id + '"></div></div>' +
-            '<div class="opt-price">' + range(x.est.low, x.est.high) + (s.surge > 1 ? '<span class="tiny surge-txt">incl. ' + s.surge.toFixed(1) + '×</span>' : '') + '</div></button>').join('') + '</div>' +
+            '<div class="opt-price">' + money(x.est.total) + (s.surge > 1 ? '<span class="tiny surge-txt">incl. ' + s.surge.toFixed(1) + '×</span>' : '') + '</div></button>').join('') + '</div>' +
           '<div class="seg"><button data-a="when" data-v="now"' + (u.when === 'now' ? ' aria-pressed="true"' : '') + '>' + ic('zap') + 'Now</button>' +
           '<button data-a="when" data-v="later"' + (u.when === 'later' ? ' aria-pressed="true"' : '') + '>' + ic('calendar') + 'Schedule</button></div>' +
           (u.when === 'later' ? '<label class="field"><span>Pickup time</span><input class="input" type="datetime-local" data-m="schedAt" value="' + esc(u.schedAt) + '"></label>' : '') +
           '<div class="row gap"><button class="pay-chip" data-a="cyclePay">' + ic(PAY[pay].icon) + PAY[pay].label + (pay === 'wallet' ? ' · ' + money(s.rider.wallet) : '') + ic('chevronRight') + '</button>' +
           '<span class="badge-wo">' + ic('shieldCheck') + 'Women-only</span></div>' +
-          '<button class="btn btn-primary btn-block btn-lg" data-a="request"' + (sel.avail ? '' : ' disabled') + '>' + (u.when === 'later' ? 'Schedule ' : 'Request ') + esc(sel.o.short) + ' · ' + range(sel.est.low, sel.est.high) + '</button>' +
-          '<p class="tiny muted center">One passenger only · no shared rides · price locked at request</p></div>',
+          '<button class="btn btn-primary btn-block btn-lg" data-a="request"' + (sel.avail ? '' : ' disabled') + '>' + (u.when === 'later' ? 'Schedule ' : 'Request ') + esc(sel.o.short) + ' · ' + money(sel.est.total) + '</button>' +
+          '<p class="tiny muted center">Up to ' + E.CFG.MAX_SEATS + ' passengers · no shared rides with strangers · price locked at request</p></div>',
       };
     }
 
@@ -370,8 +371,8 @@
             : (r.driverCancelled ? '<div class="note warn">' + ic('info') + '<span>' + esc(r.driverCancelled.name) + ' had to cancel. We\'re finding you another driver — no charge.</span></div>' : '') +
             '<div class="searching-head"><div class="radar"><span></span><span></span>' + ic('car') + '</div><div><div class="h2">Finding your driver…</div><div class="small muted" data-b="searchSub"></div></div></div>' +
             '<div class="offer-timer" data-bshow="offerShow"><div data-bw="offerPct"></div></div>' +
-            '<ul class="check-list"><li>' + ic('check') + 'Only verified women drivers</li><li>' + ic('check') + 'Single passenger — no shared rides</li><li>' + ic('check') + 'Your exact address is shared only on arrival</li></ul>' +
-            '<div class="trip-mini">' + ic('car') + '<span><b>' + esc(opt.short) + '</b> to ' + esc(r.dest.name) + (r.passenger ? ' · for ' + esc(firstName(r.passenger.name)) : '') + '</span><span class="grow"></span><b>' + range(r.estimate.low, r.estimate.high) + '</b></div>' +
+            '<ul class="check-list"><li>' + ic('check') + 'Only verified women drivers</li><li>' + ic('check') + 'No shared rides with strangers</li><li>' + ic('check') + 'Your exact address is shared only on arrival</li></ul>' +
+            '<div class="trip-mini">' + ic('car') + '<span><b>' + esc(opt.short) + '</b> to ' + esc(r.dest.name) + (r.passenger ? ' · for ' + esc(firstName(r.passenger.name)) : '') + ' · ' + r.seats + ' passenger' + (r.seats > 1 ? 's' : '') + '</span><span class="grow"></span><b>' + money(r.estimate.total) + '</b></div>' +
             '<button class="btn btn-ghost btn-block" data-a="cancelRide">Cancel request</button>') +
           '</div>',
       };
@@ -514,7 +515,7 @@
         key: 'trips:' + rd.history.length + ':' + rd.scheduled.length + ':' + rd.history.map((h) => h.rating).join(),
         html: () => this.sos() + '<div class="page with-tabs"><div class="h1 page-title">Your trips</div>' +
           '<div class="eyebrow">Upcoming</div>' +
-          (rd.scheduled.length ? rd.scheduled.map((x) => '<div class="card sched"><div class="row gap">' + ic('calendar') + '<div class="grow"><b>' + esc(whenLabel(x.when)) + '</b><div class="tiny muted">' + esc(E.OPTIONS[x.option].short) + ' to ' + esc(x.dest.name) + ' · ' + range(x.low, x.high) + '</div></div></div>' +
+          (rd.scheduled.length ? rd.scheduled.map((x) => '<div class="card sched"><div class="row gap">' + ic('calendar') + '<div class="grow"><b>' + esc(whenLabel(x.when)) + '</b><div class="tiny muted">' + esc(E.OPTIONS[x.option].short) + ' to ' + esc(x.dest.name) + ' · ' + (x.total != null ? money(x.total) : range(x.low, x.high)) + '</div></div></div>' +
             '<div class="row gap"><button class="btn btn-sm btn-soft" data-a="cancelSched" data-v="' + x.id + '">Cancel</button><button class="btn btn-sm btn-primary" data-a="dispatchSched" data-v="' + x.id + '">' + ic('zap') + 'Simulate: it\'s time</button></div></div>').join('')
             : '<div class="empty small muted">' + ic('calendar') + 'No scheduled rides. Choose “Schedule” when booking.</div>') +
           '<div class="eyebrow">Past trips</div>' +
@@ -541,7 +542,7 @@
           '<div class="eyebrow">Preferences</div>' +
           this.consentToggle(rd, 'rideCheck', 'RideCheck automatic check-ins') + this.consentToggle(rd, 'sos', 'Share live location during SOS') + this.consentToggle(rd, 'shareEta', 'Allow live trip sharing links') +
           '<div class="eyebrow">How FUber keeps you safe</div><ul class="check-list">' +
-          ['Every driver passes ID, gender, licence and criminal-record checks', 'Riders are verified with ID + selfie', 'One passenger per trip — no carpooling', 'Drivers see your exact address only on arrival, and your destination only after PIN check', 'Masked phone numbers for calls and messages'].map((t) => '<li>' + ic('check') + t + '</li>').join('') +
+          ['Every driver passes ID, gender, licence and criminal-record checks', 'Riders are verified with ID + selfie', 'Up to ' + E.CFG.MAX_SEATS + ' women passengers per trip — never shared with strangers', 'Drivers see your exact address only on arrival, and your destination only after PIN check', 'Masked phone numbers for calls and messages'].map((t) => '<li>' + ic('check') + t + '</li>').join('') +
           '</ul></div>' + this.tabbar('safety'),
       };
     }
@@ -698,6 +699,7 @@
         }
         case 'opt': this.set({ option: v }); break;
         case 'rideFor': this.set({ forOther: v === 'other' }); break;
+        case 'seats': this.set({ seats: Number(v) }); break;
         case 'fillGuest': this.set({ guest: { name: 'Meme Ndapandula', phone: '+264 81 555 0177' } }); break;
         case 'when': this.set({ when: v }); break;
         case 'cyclePay': {
@@ -708,7 +710,7 @@
         case 'request': {
           if (u.forOther && (!u.guest.name.trim() || !u.guest.phone.trim())) return toast(this.phone, "Enter the passenger's name and phone number", 'err');
           const passenger = u.forOther ? { name: u.guest.name.trim(), phone: u.guest.phone.trim() } : null;
-          const payload = { option: u.option, wav: u.wav, dest: u.dest, payment: u.payMethod || s.rider.payment, passenger };
+          const payload = { option: u.option, wav: u.wav, seats: u.seats, dest: u.dest, payment: u.payMethod || s.rider.payment, passenger };
           if (u.when === 'later') {
             const r = await this.act('R_SCHEDULE', { ...payload, when: u.schedAt });
             if (r.ok) this.set({ flow: 'idle', tab: 'trips', dest: null });

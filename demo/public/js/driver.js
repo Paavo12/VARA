@@ -42,6 +42,10 @@
     return firstName(p ? p.name : s.rider.profile.name);
   }
 
+  const seatsLabel = (r) => (r.seats || 1) + ' passenger' + ((r.seats || 1) > 1 ? 's' : '');
+  // The fare is locked at request, so the driver's take is known before she accepts.
+  const earnFor = (r) => r2(r.estimate.total * (1 - E.OPTIONS[r.option].serviceFee));
+
   function getPath(obj, path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj); }
 
   /** Cut a path where it first enters the approximate pickup circle (privacy). */
@@ -299,7 +303,8 @@
           (mine ? '<div class="offer-top"><span class="eyebrow">New request · ' + esc(E.OPTIONS[r.option].short) + (r.wav ? ' · ' + ic('wheelchair') : '') + '</span><b class="offer-sec" data-b="offerSec"></b></div><div class="offer-timer"><div data-bw="offerPct"></div></div>'
             : '<div class="offer-top"><span class="eyebrow">Being offered to a better-matched driver</span></div>') +
           '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><b>' + esc(paxName(s)) + '</b> <span class="tiny">' + ic('star', 'star-ic', true) + rd.rating.toFixed(2) + '</span>' +
-          '<div class="tiny muted">' + ic('shieldCheck', 'ic-xs') + (r.passenger ? 'Booked by ' + esc(firstName(rd.profile.name)) + ' (verified) · 1 passenger' : 'Verified rider · 1 passenger') + '</div></div><b class="req-fare">' + range(r.estimate.low, r.estimate.high) + '</b></div>' +
+          '<div class="tiny muted">' + ic('shieldCheck', 'ic-xs') + (r.passenger ? 'Booked by ' + esc(firstName(rd.profile.name)) + ' (verified)' : 'Verified rider') + ' · ' + seatsLabel(r) + '</div></div>' +
+          '<div class="req-fare"><b>' + money(r.estimate.total) + '</b><div class="tiny muted">you earn ' + money(earnFor(r)) + '</div></div></div>' +
           '<div class="req-loc">' + ic('pin') + '<div><b>' + esc(r.pickup.near) + '</b><div class="tiny muted">Approximate pickup area</div></div></div>' +
           '<div class="req-grid"><div><span class="tiny muted">To pickup</span><b data-b="reqDist"></b></div><div><span class="tiny muted">Trip length</span><b>~' + mins(r.estimate.durMin) + '</b></div><div><span class="tiny muted">Destination</span><b>' + ic('lock', 'ic-xs') + 'Hidden</b></div></div>' +
           (mine ? '<div class="privacy-note">' + ic('lock') + 'Exact pickup is revealed within 50 m, destination after PIN check.</div>' +
@@ -346,7 +351,7 @@
 
     riderLine(s, label) {
       const rd = s.rider;
-      return '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><div class="tiny muted">' + label + '</div><b>' + esc(paxName(s)) + '</b> <span class="tiny">' + ic('star', 'star-ic', true) + rd.rating.toFixed(2) + ' · ' + ic('shieldCheck', 'ic-xs') + 'Verified</span></div>';
+      return '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><div class="tiny muted">' + label + '</div><b>' + esc(paxName(s)) + '</b> <span class="tiny">' + ic('star', 'star-ic', true) + rd.rating.toFixed(2) + ' · ' + ic('shieldCheck', 'ic-xs') + 'Verified · ' + seatsLabel(s.ride) + '</span></div>';
     }
 
     toPickup(s, r, d) {

@@ -498,7 +498,7 @@ textarea.input { resize: none; }
 .req-rider { display: flex; align-items: center; gap: 10px; }
 .initial { width: 38px; height: 38px; border-radius: 50%; background: var(--plum-100); color: var(--plum); font-weight: 800; display: grid; place-items: center; flex: none; font-size: 15px; }
 .initial.xl { width: 84px; height: 84px; font-size: 34px; }
-.req-fare { font-size: 15px; white-space: nowrap; }
+.req-fare { font-size: 15px; white-space: nowrap; text-align: right; }
 .req-loc { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
 .req-loc > .ic { color: var(--rose); }
 .req-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }

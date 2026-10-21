@@ -80,6 +80,7 @@
     STOP_SIM_MS: 2 * 60 * 1000, // RideCheck: unexpected stop length (sim time)
     WAIT_FREE_SIM_MS: 5 * 60 * 1000, // free waiting at pickup (sim time)
     ETA_NORM_MIN: 12, // ETA at which the ETA score reaches 0
+    MAX_SEATS: 4, // passengers per trip (every car seats four)
     FAV_BONUS: 0.08,
     // Priority points: hidden from riders and drivers, only the presenter panel shows them.
     PRIORITY_START: 100,
@@ -651,6 +652,8 @@
   // ---------------------------------------------------------------------------
   // Ride lifecycle
   // ---------------------------------------------------------------------------
+  const seatsOf = (n) => clamp(Math.round(Number(n) || 1), 1, CFG.MAX_SEATS);
+
   function newRide(s, p) {
     const rider = s.rider;
     const dp = snap(p.dest);
@@ -660,7 +663,7 @@
     const est = estimate(s, pickup, dest, p.option);
     const r = {
       id: 'HR-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
-      option: p.option, wav: !!p.wav, pickup, dest, pin: String(randInt(1000, 9999)), payment: p.payment || rider.payment,
+      option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), pickup, dest, pin: String(randInt(1000, 9999)), payment: p.payment || rider.payment,
       // Booked on behalf of someone without internet: they get the PIN and driver details by SMS.
       passenger: p.passenger ? { name: String(p.passenger.name).slice(0, 40), phone: String(p.passenger.phone).slice(0, 30) } : null,
       surge: s.surge, estimate: est, createdWall: Date.now(), scheduled: !!p.scheduled,
@@ -672,7 +675,7 @@
       riderRating: null, driverRating: null, cancel: null, share: null, driverShare: null, reports: [], driverDone: false, driverCancelled: null,
     };
     s.ride = r;
-    log(s, 'Ride ' + r.id + ' requested: ' + OPTIONS[r.option].short + (r.wav ? ' (wheelchair accessible)' : '') + ' to ' + dest.name + ' · PIN ' + r.pin, 'state');
+    log(s, 'Ride ' + r.id + ' requested: ' + OPTIONS[r.option].short + (r.wav ? ' (wheelchair accessible)' : '') + ' to ' + dest.name + ' · ' + r.seats + ' passenger' + (r.seats > 1 ? 's' : '') + ' · N$' + est.total.toFixed(2) + ' · PIN ' + r.pin, 'state');
     if (r.passenger) {
       notify(s, 'rider', 'PIN ' + r.pin + ' sent by SMS to ' + r.passenger.name + ' (' + r.passenger.phone + ')', 'ok');
       log(s, 'Booked for ' + r.passenger.name + ' · PIN and driver details sent by SMS to ' + r.passenger.phone + ' (no app needed)', 'info');
@@ -824,7 +827,9 @@
     if (r.state !== 'IN_TRIP') return fail('Trip is not in progress');
     const durMin = Math.max(1, (s.simT - r.tripStartSim) / 60000);
     const distKm = Math.max(0.3, r.tripMeters / 1000);
-    r.fare = fareFor(r.option, distKm, durMin, r.surge);
+    // The price is locked at request: the rider pays the quote, and the driver earns the quote minus
+    // the service fee, however long the trip actually took (detours, traffic or a skipped demo trip).
+    r.fare = fareFor(r.option, r.estimate.distKm, r.estimate.durMin, r.surge);
     r.durMin = durMin;
     r.distKm = distKm;
     r.rideCheck = null;
@@ -1190,7 +1195,7 @@
       if (!OPTIONS[p.option] || !p.dest || !p.when) return fail('Choose a destination, ride type and time');
       const dp = snap(p.dest);
       const est = estimate(s, s.rider.pickup, dp, p.option);
-      s.rider.scheduled.push({ id: 'S' + s.seq++, when: p.when, option: p.option, wav: !!p.wav, payment: p.payment, passenger: p.passenger || null, dest: { x: dp.x, y: dp.y, name: p.dest.name || addressOf(dp) }, low: est.low, high: est.high });
+      s.rider.scheduled.push({ id: 'S' + s.seq++, when: p.when, option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), payment: p.payment, total: est.total, passenger: p.passenger || null, dest: { x: dp.x, y: dp.y, name: p.dest.name || addressOf(dp) }, low: est.low, high: est.high });
       notify(s, 'rider', 'Ride scheduled — we will dispatch a driver 10 minutes before pickup', 'ok');
       log(s, 'Ride scheduled for ' + p.when + ' → ' + (p.dest.name || 'dropped pin'), 'state');
     },
