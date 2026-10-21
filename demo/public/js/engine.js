@@ -696,7 +696,9 @@
       notify(s, 'rider', 'No driver accepted nearby. Try again or pick another ride type.', 'err');
       return;
     }
-    const c = m.candidates[0], d = byId(s, c.driverId);
+    // A driver signed in on a phone gets the request before any simulated driver, so the trip and
+    // its earnings land on that phone instead of on a simulated driver it would then follow.
+    const c = m.candidates.find((x) => isManual(s, x.driverId)) || m.candidates[0], d = byId(s, c.driverId);
     const manual = isManual(s, d.id);
     r.search.offer = {
       driverId: d.id, startedAt: s.realT, expiresAt: s.realT + CFG.OFFER_MS, manual,
