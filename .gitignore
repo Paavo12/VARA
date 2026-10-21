@@ -1,0 +1,16 @@
+# Dependencies and build output
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.dart_tool/
+.gradle/
+
+# Local settings and secrets
+.env
+local.properties
+.idea/
+*.iml
+
+# Empty repo folder the backend was created with (kept aside, not uploaded)
+.git-empty-backup/

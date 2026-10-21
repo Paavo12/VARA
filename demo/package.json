@@ -1,0 +1,12 @@
+{
+  "name": "hera-ride-demo",
+  "version": "1.0.0",
+  "description": "Hera — women-only ride-hailing demo (Rider + Driver portals with simulated dispatch)",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
