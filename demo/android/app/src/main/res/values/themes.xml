@@ -1,0 +1,6 @@
+<resources>
+    <style name="HeraTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/hera_bg</item>
+        <item name="android:colorAccent">@color/hera_plum</item>
+    </style>
+</resources>

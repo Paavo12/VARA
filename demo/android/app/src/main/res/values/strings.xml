@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">FUber</string>
+    <string name="rider_label">FUber Rider</string>
+    <string name="driver_label">FUber Driver</string>
+</resources>
