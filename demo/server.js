@@ -44,7 +44,13 @@ function readBody(req) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer((req, res) => handle(req, res).catch((e) => {
+  console.error('Request failed:', e);
+  if (!res.headersSent) res.writeHead(500);
+  res.end();
+}));
+
+async function handle(req, res) {
   const url = new URL(req.url, 'http://localhost');
 
   if (url.pathname === '/api/events') {
@@ -75,15 +81,18 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Static files
-  let file = path.normalize(path.join(PUBLIC, decodeURIComponent(url.pathname)));
-  if (!file.startsWith(PUBLIC)) { res.writeHead(403); return res.end(); }
+  // A malformed address (e.g. /%E0%A4%A) makes decodeURIComponent throw; answer 400 instead of crashing the server.
+  let pathname;
+  try { pathname = decodeURIComponent(url.pathname); } catch (e) { res.writeHead(400); return res.end('Bad request'); }
+  let file = path.normalize(path.join(PUBLIC, pathname));
+  if (file !== PUBLIC && !file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end(); }
   if (url.pathname === '/' || (fs.existsSync(file) && fs.statSync(file).isDirectory())) file = path.join(PUBLIC, 'index.html');
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
     res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(data);
   });
-});
+}
 
 server.listen(PORT, () => {
   const lan = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);

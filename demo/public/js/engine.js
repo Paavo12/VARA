@@ -453,9 +453,12 @@
 
   function estimate(s, pickup, dest, optionId) {
     const roadM = roadDist(pickup, dest);
-    const durMin = roadM / speedMs(s) / 60;
-    const f = fareFor(optionId, roadM / 1000, durMin, s.surge);
-    return { distKm: roadM / 1000, durMin, total: f.total, low: r2(f.total * 0.93), high: r2(f.total * 1.12), surge: s.surge };
+    const durMin = roadM / speedMs(s) / 60; // live ETA: follows traffic jitter
+    // The price uses the demand level's base traffic, not the live jitter, so the quote the rider sees
+    // on the options screen is exactly what she is charged when she taps Request.
+    const priceMin = roadM / (CFG.SPEED_KMH / 3.6 / DEMAND[s.settings.demand].traffic) / 60;
+    const f = fareFor(optionId, roadM / 1000, priceMin, s.surge);
+    return { distKm: roadM / 1000, durMin, priceMin, total: f.total, low: r2(f.total * 0.93), high: r2(f.total * 1.12), surge: s.surge };
   }
 
   /**
@@ -506,12 +509,12 @@
   // Seed data
   // ---------------------------------------------------------------------------
   // Four demo drivers, each a demo account on the driver app; every phone signs in as one of them.
-  // Rauna starts online so a ride can be matched with nobody signed in; the others go online
+  // Hilma starts online so a ride can be matched with nobody signed in; the others go online
   // when someone signs in as them. Anyone who applies to drive is added to this list.
   // Each home is an offset from the rider's location in metres (east, south), snapped to the nearest road.
   const DEMO_DRIVER_ID = 'd1';
   const SEED_DRIVERS = [
-    { id: DEMO_DRIVER_ID, name: 'Rauna Shilongo', phone: '+264 81 765 4321', type: 'classic', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Lavender', hex: '#b9a3e3', plate: 'N 9090 W', acc: 0.9, rating: 4.92, n: 214, home: nearHome(900, -700), wander: 1, av: ['#8d5524', '#1b1410', '#f3e8ff', 'long'] },
+    { id: DEMO_DRIVER_ID, name: 'Hilma Nangolo', phone: '+264 81 640 2219', type: 'classic', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver', hex: '#c9ccd1', plate: 'N 6152 W', acc: 0.9, rating: 4.92, n: 214, home: nearHome(900, -700), wander: 1, av: ['#8d5524', '#1b1410', '#f3e8ff', 'long'] },
     { id: 'd2', name: 'Selma Nghipandulwa', phone: '+264 81 432 1987', type: 'classic', make: 'Volkswagen', model: 'Polo Vivo', year: 2021, color: 'Pearl White', hex: '#f1ede4', plate: 'N 4471 W', acc: 0.88, rating: 4.88, n: 167, home: nearHome(-800, 600), wander: 1, offline: true, av: ['#c68642', '#120d0b', '#fde8ef', 'bun'] },
     { id: 'd3', name: 'Ndapewa Haufiku', phone: '+264 85 610 2245', type: 'comfort', make: 'Toyota', model: 'Corolla Cross', year: 2023, color: 'Midnight Blue', hex: '#26375f', plate: 'N 2318 W', acc: 0.92, rating: 4.95, n: 301, home: nearHome(700, 900), wander: 1, offline: true, av: ['#6b3e26', '#0d0a08', '#e8f4ff', 'bob'] },
     { id: 'd4', name: 'Martha van Wyk', phone: '+264 81 298 7730', type: 'softlife', make: 'Mercedes-Benz', model: 'C-Class', year: 2023, color: 'Graphite', hex: '#5b5f66', plate: 'N 7705 W', acc: 0.85, rating: 4.97, n: 122, home: nearHome(-900, -600), wander: 1, offline: true, av: ['#e0ac69', '#6b3e26', '#eafaf1', 'long'] },
@@ -523,7 +526,7 @@
     const o = OPTIONS[type], now = Date.now(), recent = [];
     for (let i = randInt(3, 6); i > 0; i--) {
       const fare = r2(Math.max(o.min, o.base + o.perKm * rand(2, 9) + o.perMin * rand(6, 22)));
-      recent.push({ rideId: 'HR-' + randInt(3000, 3999), rider: pick(PAST_RIDERS), fare, earned: r2(fare * (1 - o.serviceFee)), at: now - (recent.length + 1) * rand(30, 55) * 60000, to: pick(PLACES).name, ratingFromRider: pick([4, 5, 5, 5]), ratingGiven: 5 });
+      recent.push({ rideId: 'FU-' + randInt(3000, 3999), rider: pick(PAST_RIDERS), fare, earned: r2(fare * (1 - o.serviceFee)), at: now - (recent.length + 1) * rand(30, 55) * 60000, to: pick(PLACES).name, ratingFromRider: pick([4, 5, 5, 5]), ratingGiven: 5 });
     }
     return {
       today: r2(recent.reduce((t, x) => t + x.earned, 0)), trips: recent.length, onlineMs: rand(2, 6) * 3600000, recent,
@@ -662,7 +665,7 @@
     const pickup = { x: pk.x, y: pk.y, address: addressOf(pk), area: zoneOf(pk), near: approxArea(pk), street: streetOf(pk) };
     const est = estimate(s, pickup, dest, p.option);
     const r = {
-      id: 'HR-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
+      id: 'FU-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
       option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), pickup, dest, pin: String(randInt(1000, 9999)), payment: p.payment || rider.payment,
       // Booked on behalf of someone without internet: they get the PIN and driver details by SMS.
       passenger: p.passenger ? { name: String(p.passenger.name).slice(0, 40), phone: String(p.passenger.phone).slice(0, 30) } : null,
@@ -831,7 +834,7 @@
     const distKm = Math.max(0.3, r.tripMeters / 1000);
     // The price is locked at request: the rider pays the quote, and the driver earns the quote minus
     // the service fee, however long the trip actually took (detours, traffic or a skipped demo trip).
-    r.fare = fareFor(r.option, r.estimate.distKm, r.estimate.durMin, r.surge);
+    r.fare = fareFor(r.option, r.estimate.distKm, r.estimate.priceMin != null ? r.estimate.priceMin : r.estimate.durMin, r.surge);
     r.durMin = durMin;
     r.distKm = distKm;
     r.rideCheck = null;
@@ -1048,7 +1051,7 @@
       s.surge = DEMAND[p.level].surge;
       refreshEta(s);
       const w = DEMAND[p.level].weights;
-      log(s, DEMAND[p.level].label + ' → surge ' + s.surge.toFixed(1) + '×, matching weights ETA ' + w.eta * 100 + '% / acceptance ' + w.acc * 100 + '%', 'system');
+      log(s, DEMAND[p.level].label + ' → surge ' + s.surge.toFixed(1) + '×, matching weights ETA ' + Math.round(w.eta * 100) + '% / acceptance ' + Math.round(w.acc * 100) + '%', 'system');
     },
     X_FORCE_OFFER(s, p) {
       const r = rideFor(s);
