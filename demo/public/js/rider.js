@@ -314,7 +314,7 @@
           this.toggle('wav', ic('wheelchair') + ' Wheelchair-accessible vehicle', 'wav') +
           '<div class="seg"><button data-a="rideFor" data-v="me"' + (u.forOther ? '' : ' aria-pressed="true"') + '>' + ic('user') + 'For me</button>' +
           '<button data-a="rideFor" data-v="other"' + (u.forOther ? ' aria-pressed="true"' : '') + '>' + ic('users') + 'Someone else</button></div>' +
-          (u.forOther ? '<div class="grid2">' + this.field('Passenger name', 'guest.name', 'text', 'e.g. Meme Ndapandula') + this.field('Passenger phone', 'guest.phone', 'tel', '+264 81 …') + '</div>' +
+          (u.forOther ? '<div class="grid2">' + this.field('Passenger name', 'guest.name', 'text', 'e.g. Ndapandula Shikongo') + this.field('Passenger phone', 'guest.phone', 'tel', '+264 81 …') + '</div>' +
             '<div class="note">' + ic('message') + '<span>They do not need the app or internet. We text them the PIN and driver details by SMS. Set the pickup pin to where they are. <button class="btn-link" data-a="fillGuest">Fill sample</button></span></div>' : '') +
           '<div class="eyebrow">Passengers · women only</div><div class="seg">' + [1, 2, 3, 4].map((n) => '<button data-a="seats" data-v="' + n + '"' + (u.seats === n ? ' aria-pressed="true"' : '') + '>' + ic(n > 1 ? 'users' : 'user') + n + '</button>').join('') + '</div>' +
           '<div class="opt-list">' + opts.map((x) => '<button class="opt-card" data-a="opt" data-v="' + x.o.id + '"' + (x.o.id === u.option ? ' aria-pressed="true"' : '') + (x.avail ? '' : ' disabled') + '>' +
@@ -700,7 +700,7 @@
         case 'opt': this.set({ option: v }); break;
         case 'rideFor': this.set({ forOther: v === 'other' }); break;
         case 'seats': this.set({ seats: Number(v) }); break;
-        case 'fillGuest': this.set({ guest: { name: 'Meme Ndapandula', phone: '+264 81 555 0177' } }); break;
+        case 'fillGuest': this.set({ guest: { name: 'Ndapandula Shikongo', phone: '+264 81 555 0177' } }); break;
         case 'when': this.set({ when: v }); break;
         case 'cyclePay': {
           const keys = Object.keys(PAY), cur = u.payMethod || s.rider.payment;

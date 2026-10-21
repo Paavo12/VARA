@@ -1,7 +1,7 @@
 {
-  "name": "hera-ride-demo",
+  "name": "fuber-ride-demo",
   "version": "1.0.0",
-  "description": "Hera — women-only ride-hailing demo (Rider + Driver portals with simulated dispatch)",
+  "description": "FUber — women-only ride-hailing demo (Rider + Driver portals with simulated dispatch)",
   "private": true,
   "scripts": {
     "start": "node server.js"
