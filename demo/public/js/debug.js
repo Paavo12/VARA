@@ -94,7 +94,8 @@
         metrics += m('Ride type', esc(E.OPTIONS[r.option].name)) + m('Rider PIN', '<span class="mono">' + r.pin + '</span>') +
           m('Driver', d ? esc(d.short) : 'searching…') + m('Driver arrives in', eta.pickupMin != null ? mins(eta.pickupMin) : '—') +
           m('Trip length', mins(eta.tripMin) + (eta.tripM ? ' · ' + km(eta.tripM) : '')) +
-          m('Passenger', r.passenger ? esc(r.passenger.name) + ' (booked for)' : esc(s.rider.profile.name || 'Rider'));
+          m('Passenger', (r.passenger ? esc(r.passenger.name) + ' (booked for)' : esc(s.rider.profile.name || 'Rider')) + ' · ' + (r.seats || 1) + ' in total') +
+          m('Locked fare', 'N$' + r.estimate.total.toFixed(2));
       } else {
         const online = s.drivers.filter((x) => x.online && !x.busy).length;
         metrics += m('Ride', 'none yet') + m('Drivers online', online + ' of ' + s.drivers.length) +
