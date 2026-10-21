@@ -133,7 +133,7 @@
             '<div class="welcome-art"><div class="brand-orb">' + ic('shieldCheck') + '</div></div>' +
             '<div class="brand-word">FUber</div>' +
             '<h1 class="h1">Rides by women,<br>for women.</h1>' +
-            '<p class="muted">Every driver and every rider on FUber is a verified woman. Ride alone or with up to ' + E.CFG.MAX_SEATS + ' women passengers.</p>' +
+            '<p class="muted">Every driver and every rider on FUber is a verified woman. Up to ' + E.CFG.MAX_SEATS + ' women riders per trip.</p>' +
             '<ul class="trust-list">' +
             '<li>' + ic('shieldCheck') + '<span><b>Verified women only</b><br>ID and selfie checks for drivers and riders</span></li>' +
             '<li>' + ic('user') + '<span><b>No shared rides</b><br>Just you in the car, every time</span></li>' +
@@ -237,7 +237,7 @@
           '<div class="quick-places">' + recent.map((p) => '<button class="qp" data-a="pickPlace" data-v="' + p.id + '">' + ic('clock') + '<span>' + esc(p.name) + '</span></button>').join('') + '</div>' +
           (upcoming ? '<div class="sched-card">' + ic('calendar') + '<div class="grow"><div class="tiny muted">Scheduled</div><b>' + esc(whenLabel(upcoming.when)) + '</b><div class="tiny muted">To ' + esc(upcoming.dest.name) + '</div></div>' +
             '<button class="btn btn-sm btn-soft" data-a="tab" data-v="trips">View</button></div>' : '') +
-          '<div class="safety-strip">' + ic('shieldCheck') + '<span data-b="nearby"></span><span class="sep">·</span><span>One rider per trip</span></div>' +
+          '<div class="safety-strip">' + ic('shieldCheck') + '<span data-b="nearby"></span><span class="sep">·</span><span>Up to ' + E.CFG.MAX_SEATS + ' riders per trip</span></div>' +
           '</div>' + this.tabbar('home'),
       };
     }
