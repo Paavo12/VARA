@@ -1,7 +1,7 @@
 /* Driver portal */
 (function () {
   'use strict';
-  const { E, Store, esc, money, mins, km, arriveAt, mmss, firstName, range, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner } = Hera;
+  const { E, Store, esc, money, mins, km, arriveAt, mmss, firstName, range, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm } = Hera;
 
   const byId = (s, id) => s.drivers.find((d) => d.id === id);
   // This screen's own sign-in; other phones running the driver app have their own.
@@ -519,7 +519,8 @@
       let key = '', html = () => '', vals = {};
       const sheet = (title, body) => '<div class="modal-back" data-a="closeModal" data-self><div class="modal sheet-modal"><div class="modal-head"><b>' + title + '</b><button class="icon-btn sm" data-a="closeModal">' + ic('x') + '</button></div>' + body + '</div></div>';
       if (sos) {
-        key = 'sos:' + sos.status;
+        const ems = u.ems === sos.at;
+        key = 'sos:' + sos.status + (ems ? ':ems' : '');
         vals = { sosCount: String(Math.max(1, Math.ceil((3000 - (s.realT - sos.at)) / 1000))) };
         html = () => sos.status === 'sending'
           ? '<div class="modal-back sos-back"><div class="modal center-modal sos-modal"><div class="sos-count" data-b="sosCount"></div><div class="h2">Sending SOS…</div><p class="small">Alerting the FUber Safety Team with your live location.</p>' +
@@ -527,7 +528,8 @@
           : '<div class="modal-back sos-back"><div class="modal center-modal sos-modal sent"><div class="big-check">' + ic('check') + '</div><div class="h2">Alert sent</div>' +
           '<ul class="sos-list"><li>' + ic('shieldCheck') + '<span>FUber Safety Team alerted — an agent is calling you now</span></li><li>' + ic('users') + '<span>Your emergency contact has been notified</span></li>' +
           '<li>' + ic('pin') + '<span>Live location' + (r && r.driverId === vid ? ' and trip ' + esc(r.id) : '') + ' shared</span></li></ul>' +
-          '<button class="btn btn-danger btn-block btn-lg" data-a="call911">' + ic('phone') + 'Call emergency services</button><button class="btn btn-light btn-block" data-a="sosCancel">I\'m safe — close alert</button></div></div>';
+          (ems ? emsConfirm() : '<button class="btn btn-danger btn-block btn-lg" data-a="call911">' + ic('phone') + 'Call emergency services</button>') +
+          '<button class="btn btn-light btn-block" data-a="sosCancel">I\'m safe — close alert</button></div></div>';
       } else if (u.modal && r && d) {
         if (u.modal === 'chat') {
           key = 'chat:' + r.messages.length;
@@ -678,7 +680,8 @@
         case 'sendMsg': if (u.chat.trim()) { this.act('D_MESSAGE', { text: u.chat.trim() }); u.chat = ''; this.set({}); } break;
         case 'sos': this.act('D_SOS', { driverId: vid }); break;
         case 'sosCancel': this.act('D_SOS_CANCEL', { driverId: vid }); break;
-        case 'call911': toast(this.phone, 'Simulated: connecting to emergency services…', 'warn'); break;
+        // Placeholder until a real emergency-services integration exists: just confirm the notification.
+        case 'call911': if (s.sos.driver) { this.set({ ems: s.sos.driver.at }); toast(this.phone, 'Emergency services have been notified', 'ok'); } break;
         case 'signOut': this.act('D_SIGN_OUT'); break;
       }
     }

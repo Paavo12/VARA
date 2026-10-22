@@ -1,0 +1,262 @@
+From 7b6891d4d428187d53c466d5261599cd797b4eb2 Mon Sep 17 00:00:00 2001
+From: Paavo <Shikuloph1@gmail.com>
+Date: Wed, 21 Oct 2026 14:41:15 +0200
+Subject: [PATCH] Fix demo bugs found in a live run-through
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- server: a malformed URL (e.g. /%E0%A4%A) threw in decodeURIComponent and
+  crashed the server; now answers 400. Unexpected handler errors return 500
+  instead of killing the process. Tighter static-path check.
+- pricing: the fare's time component used the jittered live traffic, so the
+  price on the options screen drifted a few cents before Request. It now uses
+  the demand level's base traffic: the quote shown is exactly what is charged.
+  ETAs still follow live traffic.
+- driver app: a guest booked via "Someone else" was shown as "Verified" with
+  the booker's rating. Now shows "Guest · booked by <name> (verified)".
+- sample guest renamed from "Meme Ndapandula" (Meme is a title, so the app
+  called her "Meme") to "Ndapandula Shikongo".
+- background demo driver renamed Rauna Shilongo / N 9090 W -> Hilma Nangolo /
+  N 6152 W so "Apply to drive -> Fill sample details" no longer creates a
+  second driver with the same name and plate.
+- panel log: "acceptance 55.00000000000001%" -> "55%".
+- ride ids HR-xxxx (old name Hera) -> FU-xxxx; package.json name/description.
+- root README explaining demo/, rider_app/ and ride-hailing-backend/.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Ei8RspsGUmtoSL5MBkKnDr
+---
+ README.md                | 20 ++++++++++++++++++++
+ demo/README.md           |  2 +-
+ demo/package.json        |  4 ++--
+ demo/public/js/driver.js |  8 ++++++--
+ demo/public/js/engine.js | 21 ++++++++++++---------
+ demo/public/js/rider.js  |  4 ++--
+ demo/server.js           | 17 +++++++++++++----
+ 7 files changed, 56 insertions(+), 20 deletions(-)
+ create mode 100644 README.md
+
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..64e2cfb
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,20 @@
++# FUber
++
++FUber is a women-only ride-hailing app for Windhoek, Namibia: every rider and every driver is a verified woman.
++
++## What's in this repo
++
++| Folder | What it is | Status |
++| --- | --- | --- |
++| [`demo/`](demo/) | The working prototype: a Rider app, a Driver app and a presentation panel on one live simulation, set on Windhoek's real road network. Also an Android wrapper (`demo/android/`). | **Use this.** Runs with Node.js 16+ and nothing else. |
++| [`rider_app/`](rider_app/) | A Flutter project for a future native rider app. | Not started: still the default Flutter template. |
++| [`ride-hailing-backend/`](ride-hailing-backend/) | A NestJS + PostgreSQL API for a future production backend (`docker-compose.yml` starts Postgres and Redis for it). | Early stub: create and list rides only. Not used by the demo. |
++
++## Run the demo
++
++```bash
++cd demo
++npm start
++```
++
++Then open http://localhost:3100. See [`demo/README.md`](demo/README.md) for the demo script, features, pricing and how matching works.
+diff --git a/demo/README.md b/demo/README.md
+index 52b95b3..984f1a7 100644
+--- a/demo/README.md
++++ b/demo/README.md
+@@ -4,7 +4,7 @@ A working prototype with two portals, a **Rider app** and a **Driver app**, runn
+ 
+ - **Zero dependencies.** It needs Node.js 16+ and nothing else: no `npm install`, no database and no API keys. Internet is optional: with it you get the OpenStreetMap map and the web font; without it the app draws Windhoek's roads itself and uses the system font.
+ - **Set in real Windhoek.** All prices are in **Namibian dollars (N$)**. The map is the free OpenStreetMap map, and cars drive Windhoek's real roads: routes, ETAs, street names, addresses and turn-by-turn directions come from OpenStreetMap road data built into the app, and landmarks (Post Street Mall, Maerua Mall, Grove Mall, Katutura State Hospital, Eros Airport…) sit at their real locations. Plates look like Windhoek plates (`N 9090 W`), and phone numbers use +264.
+-- **One rider, four drivers.** The demo starts with a single rider (Ndeshi, the rider phone's demo account) and four women drivers with demo accounts: Rauna (Classic), Selma (Classic), Ndapewa (Comfort) and Martha (Soft Life). Rauna starts online, so a ride is matched even when no driver phone is signed in. The others go online when someone signs in as them. Anyone who signs up through *Apply to drive* is added as another driver.
++- **One rider, four drivers.** The demo starts with a single rider (Ndeshi, the rider phone's demo account) and four women drivers with demo accounts: Hilma (Classic), Selma (Classic), Ndapewa (Comfort) and Martha (Soft Life). Hilma starts online, so a ride is matched even when no driver phone is signed in. The others go online when someone signs in as them. Anyone who signs up through *Apply to drive* is added as another driver.
+ - **One driver per phone.** Each phone, emulator or browser tab running the driver app signs in separately, so two emulators (or more) can each be a different driver at the same time. Signing in as a driver who is already signed in elsewhere signs her out on the other screen.
+ - **Two ways to run.** Run it through the server so screens on several devices stay in sync, or open `public/index.html` directly from disk to run everything in one browser tab.
+ 
+diff --git a/demo/package.json b/demo/package.json
+index c19b267..bd17826 100644
+--- a/demo/package.json
++++ b/demo/package.json
+@@ -1,7 +1,7 @@
+ {
+-  "name": "hera-ride-demo",
++  "name": "fuber-ride-demo",
+   "version": "1.0.0",
+-  "description": "Hera — women-only ride-hailing demo (Rider + Driver portals with simulated dispatch)",
++  "description": "FUber — women-only ride-hailing demo (Rider + Driver portals with simulated dispatch)",
+   "private": true,
+   "scripts": {
+     "start": "node server.js"
+diff --git a/demo/public/js/driver.js b/demo/public/js/driver.js
+index 11202f1..fdce2db 100644
+--- a/demo/public/js/driver.js
++++ b/demo/public/js/driver.js
+@@ -43,6 +43,10 @@
+   }
+ 
+   const seatsLabel = (r) => (r.seats || 1) + ' passenger' + ((r.seats || 1) > 1 ? 's' : '');
++  // A guest booked by someone else has no account: she is not ID-verified and has no rating of her own.
++  const riderBadge = (s, r) => (r && r.passenger
++    ? ic('user', 'ic-xs') + 'Guest · booked by ' + esc(firstName(s.rider.profile.name)) + ' (verified)'
++    : ic('star', 'star-ic', true) + s.rider.rating.toFixed(2) + ' · ' + ic('shieldCheck', 'ic-xs') + 'Verified');
+   // The fare is locked at request, so the driver's take is known before she accepts.
+   const earnFor = (r) => r2(r.estimate.total * (1 - E.OPTIONS[r.option].serviceFee));
+ 
+@@ -302,7 +306,7 @@
+         realCard = '<div class="req-card' + (mine ? ' offer' : ' muted-card') + '">' +
+           (mine ? '<div class="offer-top"><span class="eyebrow">New request · ' + esc(E.OPTIONS[r.option].short) + (r.wav ? ' · ' + ic('wheelchair') : '') + '</span><b class="offer-sec" data-b="offerSec"></b></div><div class="offer-timer"><div data-bw="offerPct"></div></div>'
+             : '<div class="offer-top"><span class="eyebrow">Being offered to a better-matched driver</span></div>') +
+-          '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><b>' + esc(paxName(s)) + '</b> <span class="tiny">' + ic('star', 'star-ic', true) + rd.rating.toFixed(2) + '</span>' +
++          '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><b>' + esc(paxName(s)) + '</b>' + (r.passenger ? '' : ' <span class="tiny">' + ic('star', 'star-ic', true) + rd.rating.toFixed(2) + '</span>') +
+           '<div class="tiny muted">' + ic('shieldCheck', 'ic-xs') + (r.passenger ? 'Booked by ' + esc(firstName(rd.profile.name)) + ' (verified)' : 'Verified rider') + ' · ' + seatsLabel(r) + '</div></div>' +
+           '<div class="req-fare"><b>' + money(r.estimate.total) + '</b><div class="tiny muted">you earn ' + money(earnFor(r)) + '</div></div></div>' +
+           '<div class="req-loc">' + ic('pin') + '<div><b>' + esc(r.pickup.near) + '</b><div class="tiny muted">Approximate pickup area</div></div></div>' +
+@@ -351,7 +355,7 @@
+ 
+     riderLine(s, label) {
+       const rd = s.rider;
+-      return '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><div class="tiny muted">' + label + '</div><b>' + esc(paxName(s)) + '</b> <span class="tiny">' + ic('star', 'star-ic', true) + rd.rating.toFixed(2) + ' · ' + ic('shieldCheck', 'ic-xs') + 'Verified · ' + seatsLabel(s.ride) + '</span></div>';
++      return '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><div class="tiny muted">' + label + '</div><b>' + esc(paxName(s)) + '</b> <span class="tiny">' + riderBadge(s, s.ride) + ' · ' + seatsLabel(s.ride) + '</span></div>';
+     }
+ 
+     toPickup(s, r, d) {
+diff --git a/demo/public/js/engine.js b/demo/public/js/engine.js
+index f815c2b..0b3652a 100644
+--- a/demo/public/js/engine.js
++++ b/demo/public/js/engine.js
+@@ -453,9 +453,12 @@
+ 
+   function estimate(s, pickup, dest, optionId) {
+     const roadM = roadDist(pickup, dest);
+-    const durMin = roadM / speedMs(s) / 60;
+-    const f = fareFor(optionId, roadM / 1000, durMin, s.surge);
+-    return { distKm: roadM / 1000, durMin, total: f.total, low: r2(f.total * 0.93), high: r2(f.total * 1.12), surge: s.surge };
++    const durMin = roadM / speedMs(s) / 60; // live ETA: follows traffic jitter
++    // The price uses the demand level's base traffic, not the live jitter, so the quote the rider sees
++    // on the options screen is exactly what she is charged when she taps Request.
++    const priceMin = roadM / (CFG.SPEED_KMH / 3.6 / DEMAND[s.settings.demand].traffic) / 60;
++    const f = fareFor(optionId, roadM / 1000, priceMin, s.surge);
++    return { distKm: roadM / 1000, durMin, priceMin, total: f.total, low: r2(f.total * 0.93), high: r2(f.total * 1.12), surge: s.surge };
+   }
+ 
+   /**
+@@ -506,12 +509,12 @@
+   // Seed data
+   // ---------------------------------------------------------------------------
+   // Four demo drivers, each a demo account on the driver app; every phone signs in as one of them.
+-  // Rauna starts online so a ride can be matched with nobody signed in; the others go online
++  // Hilma starts online so a ride can be matched with nobody signed in; the others go online
+   // when someone signs in as them. Anyone who applies to drive is added to this list.
+   // Each home is an offset from the rider's location in metres (east, south), snapped to the nearest road.
+   const DEMO_DRIVER_ID = 'd1';
+   const SEED_DRIVERS = [
+-    { id: DEMO_DRIVER_ID, name: 'Rauna Shilongo', phone: '+264 81 765 4321', type: 'classic', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Lavender', hex: '#b9a3e3', plate: 'N 9090 W', acc: 0.9, rating: 4.92, n: 214, home: nearHome(900, -700), wander: 1, av: ['#8d5524', '#1b1410', '#f3e8ff', 'long'] },
++    { id: DEMO_DRIVER_ID, name: 'Hilma Nangolo', phone: '+264 81 640 2219', type: 'classic', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver', hex: '#c9ccd1', plate: 'N 6152 W', acc: 0.9, rating: 4.92, n: 214, home: nearHome(900, -700), wander: 1, av: ['#8d5524', '#1b1410', '#f3e8ff', 'long'] },
+     { id: 'd2', name: 'Selma Nghipandulwa', phone: '+264 81 432 1987', type: 'classic', make: 'Volkswagen', model: 'Polo Vivo', year: 2021, color: 'Pearl White', hex: '#f1ede4', plate: 'N 4471 W', acc: 0.88, rating: 4.88, n: 167, home: nearHome(-800, 600), wander: 1, offline: true, av: ['#c68642', '#120d0b', '#fde8ef', 'bun'] },
+     { id: 'd3', name: 'Ndapewa Haufiku', phone: '+264 85 610 2245', type: 'comfort', make: 'Toyota', model: 'Corolla Cross', year: 2023, color: 'Midnight Blue', hex: '#26375f', plate: 'N 2318 W', acc: 0.92, rating: 4.95, n: 301, home: nearHome(700, 900), wander: 1, offline: true, av: ['#6b3e26', '#0d0a08', '#e8f4ff', 'bob'] },
+     { id: 'd4', name: 'Martha van Wyk', phone: '+264 81 298 7730', type: 'softlife', make: 'Mercedes-Benz', model: 'C-Class', year: 2023, color: 'Graphite', hex: '#5b5f66', plate: 'N 7705 W', acc: 0.85, rating: 4.97, n: 122, home: nearHome(-900, -600), wander: 1, offline: true, av: ['#e0ac69', '#6b3e26', '#eafaf1', 'long'] },
+@@ -523,7 +526,7 @@
+     const o = OPTIONS[type], now = Date.now(), recent = [];
+     for (let i = randInt(3, 6); i > 0; i--) {
+       const fare = r2(Math.max(o.min, o.base + o.perKm * rand(2, 9) + o.perMin * rand(6, 22)));
+-      recent.push({ rideId: 'HR-' + randInt(3000, 3999), rider: pick(PAST_RIDERS), fare, earned: r2(fare * (1 - o.serviceFee)), at: now - (recent.length + 1) * rand(30, 55) * 60000, to: pick(PLACES).name, ratingFromRider: pick([4, 5, 5, 5]), ratingGiven: 5 });
++      recent.push({ rideId: 'FU-' + randInt(3000, 3999), rider: pick(PAST_RIDERS), fare, earned: r2(fare * (1 - o.serviceFee)), at: now - (recent.length + 1) * rand(30, 55) * 60000, to: pick(PLACES).name, ratingFromRider: pick([4, 5, 5, 5]), ratingGiven: 5 });
+     }
+     return {
+       today: r2(recent.reduce((t, x) => t + x.earned, 0)), trips: recent.length, onlineMs: rand(2, 6) * 3600000, recent,
+@@ -662,7 +665,7 @@
+     const pickup = { x: pk.x, y: pk.y, address: addressOf(pk), area: zoneOf(pk), near: approxArea(pk), street: streetOf(pk) };
+     const est = estimate(s, pickup, dest, p.option);
+     const r = {
+-      id: 'HR-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
++      id: 'FU-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
+       option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), pickup, dest, pin: String(randInt(1000, 9999)), payment: p.payment || rider.payment,
+       // Booked on behalf of someone without internet: they get the PIN and driver details by SMS.
+       passenger: p.passenger ? { name: String(p.passenger.name).slice(0, 40), phone: String(p.passenger.phone).slice(0, 30) } : null,
+@@ -831,7 +834,7 @@
+     const distKm = Math.max(0.3, r.tripMeters / 1000);
+     // The price is locked at request: the rider pays the quote, and the driver earns the quote minus
+     // the service fee, however long the trip actually took (detours, traffic or a skipped demo trip).
+-    r.fare = fareFor(r.option, r.estimate.distKm, r.estimate.durMin, r.surge);
++    r.fare = fareFor(r.option, r.estimate.distKm, r.estimate.priceMin != null ? r.estimate.priceMin : r.estimate.durMin, r.surge);
+     r.durMin = durMin;
+     r.distKm = distKm;
+     r.rideCheck = null;
+@@ -1048,7 +1051,7 @@
+       s.surge = DEMAND[p.level].surge;
+       refreshEta(s);
+       const w = DEMAND[p.level].weights;
+-      log(s, DEMAND[p.level].label + ' → surge ' + s.surge.toFixed(1) + '×, matching weights ETA ' + w.eta * 100 + '% / acceptance ' + w.acc * 100 + '%', 'system');
++      log(s, DEMAND[p.level].label + ' → surge ' + s.surge.toFixed(1) + '×, matching weights ETA ' + Math.round(w.eta * 100) + '% / acceptance ' + Math.round(w.acc * 100) + '%', 'system');
+     },
+     X_FORCE_OFFER(s, p) {
+       const r = rideFor(s);
+diff --git a/demo/public/js/rider.js b/demo/public/js/rider.js
+index 1a7546f..ea230fa 100644
+--- a/demo/public/js/rider.js
++++ b/demo/public/js/rider.js
+@@ -314,7 +314,7 @@
+           this.toggle('wav', ic('wheelchair') + ' Wheelchair-accessible vehicle', 'wav') +
+           '<div class="seg"><button data-a="rideFor" data-v="me"' + (u.forOther ? '' : ' aria-pressed="true"') + '>' + ic('user') + 'For me</button>' +
+           '<button data-a="rideFor" data-v="other"' + (u.forOther ? ' aria-pressed="true"' : '') + '>' + ic('users') + 'Someone else</button></div>' +
+-          (u.forOther ? '<div class="grid2">' + this.field('Passenger name', 'guest.name', 'text', 'e.g. Meme Ndapandula') + this.field('Passenger phone', 'guest.phone', 'tel', '+264 81 …') + '</div>' +
++          (u.forOther ? '<div class="grid2">' + this.field('Passenger name', 'guest.name', 'text', 'e.g. Ndapandula Shikongo') + this.field('Passenger phone', 'guest.phone', 'tel', '+264 81 …') + '</div>' +
+             '<div class="note">' + ic('message') + '<span>They do not need the app or internet. We text them the PIN and driver details by SMS. Set the pickup pin to where they are. <button class="btn-link" data-a="fillGuest">Fill sample</button></span></div>' : '') +
+           '<div class="eyebrow">Passengers · women only</div><div class="seg">' + [1, 2, 3, 4].map((n) => '<button data-a="seats" data-v="' + n + '"' + (u.seats === n ? ' aria-pressed="true"' : '') + '>' + ic(n > 1 ? 'users' : 'user') + n + '</button>').join('') + '</div>' +
+           '<div class="opt-list">' + opts.map((x) => '<button class="opt-card" data-a="opt" data-v="' + x.o.id + '"' + (x.o.id === u.option ? ' aria-pressed="true"' : '') + (x.avail ? '' : ' disabled') + '>' +
+@@ -700,7 +700,7 @@
+         case 'opt': this.set({ option: v }); break;
+         case 'rideFor': this.set({ forOther: v === 'other' }); break;
+         case 'seats': this.set({ seats: Number(v) }); break;
+-        case 'fillGuest': this.set({ guest: { name: 'Meme Ndapandula', phone: '+264 81 555 0177' } }); break;
++        case 'fillGuest': this.set({ guest: { name: 'Ndapandula Shikongo', phone: '+264 81 555 0177' } }); break;
+         case 'when': this.set({ when: v }); break;
+         case 'cyclePay': {
+           const keys = Object.keys(PAY), cur = u.payMethod || s.rider.payment;
+diff --git a/demo/server.js b/demo/server.js
+index bbb3bda..83449e3 100644
+--- a/demo/server.js
++++ b/demo/server.js
+@@ -44,7 +44,13 @@ function readBody(req) {
+   });
+ }
+ 
+-const server = http.createServer(async (req, res) => {
++const server = http.createServer((req, res) => handle(req, res).catch((e) => {
++  console.error('Request failed:', e);
++  if (!res.headersSent) res.writeHead(500);
++  res.end();
++}));
++
++async function handle(req, res) {
+   const url = new URL(req.url, 'http://localhost');
+ 
+   if (url.pathname === '/api/events') {
+@@ -75,15 +81,18 @@ const server = http.createServer(async (req, res) => {
+   }
+ 
+   // Static files
+-  let file = path.normalize(path.join(PUBLIC, decodeURIComponent(url.pathname)));
+-  if (!file.startsWith(PUBLIC)) { res.writeHead(403); return res.end(); }
++  // A malformed address (e.g. /%E0%A4%A) makes decodeURIComponent throw; answer 400 instead of crashing the server.
++  let pathname;
++  try { pathname = decodeURIComponent(url.pathname); } catch (e) { res.writeHead(400); return res.end('Bad request'); }
++  let file = path.normalize(path.join(PUBLIC, pathname));
++  if (file !== PUBLIC && !file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end(); }
+   if (url.pathname === '/' || (fs.existsSync(file) && fs.statSync(file).isDirectory())) file = path.join(PUBLIC, 'index.html');
+   fs.readFile(file, (err, data) => {
+     if (err) { res.writeHead(404); return res.end('Not found'); }
+     res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+     res.end(data);
+   });
+-});
++}
+ 
+ server.listen(PORT, () => {
+   const lan = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
+-- 
+2.43.0
+
