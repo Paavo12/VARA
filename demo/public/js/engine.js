@@ -919,10 +919,34 @@
     return { ok: true };
   }
 
+  // What a rider's SOS sends along with the alert: the car, the driver and the trip, frozen at the moment SOS was pressed.
+  function rideDetails(s) {
+    const r = s.ride;
+    if (!r || ['COMPLETED', 'RATED', 'CANCELLED', 'NO_DRIVERS'].includes(r.state)) return null;
+    const d = r.driverId && byId(s, r.driverId);
+    const where = toLatLng(d && r.state === 'IN_TRIP' ? d : r.pickup);
+    return {
+      rideId: r.id, state: r.state, option: OPTIONS[r.option].name, pin: r.pin,
+      pickup: r.pickup.address, dest: r.dest.name,
+      location: where.lat.toFixed(5) + ', ' + where.lon.toFixed(5),
+      driver: d ? { name: d.name, rating: d.rating } : null,
+      vehicle: d ? { make: d.vehicle.make, model: d.vehicle.model, year: d.vehicle.year, color: d.vehicle.color, plate: d.vehicle.plate } : null,
+    };
+  }
+
   function startSos(s, who, via, driverId) {
     const sent = via === 'RideCheck';
-    s.sos[who] = { status: sent ? 'sent' : 'sending', at: s.realT, via: via || 'button', rideId: s.ride ? s.ride.id : null, driverId: driverId || null };
+    s.sos[who] = { status: sent ? 'sent' : 'sending', at: s.realT, via: via || 'button', rideId: s.ride ? s.ride.id : null, driverId: driverId || null, details: who === 'rider' ? rideDetails(s) : null };
     log(s, 'SOS pressed by ' + who + (via === 'RideCheck' ? ' via RideCheck' : '') + (sent ? ' → alert sent' : ' → 3 s to cancel'), 'safety');
+    if (sent) logSosDetails(s, s.sos[who]);
+  }
+
+  function logSosDetails(s, a) {
+    const t = a.details;
+    if (!t) return;
+    const v = t.vehicle;
+    log(s, 'SOS ride details sent: ' + t.rideId + (v ? ' · ' + v.color + ' ' + v.make + ' ' + v.model + ' (' + v.year + ') · plate ' + v.plate + ' · driver ' + t.driver.name : ' · no driver assigned yet') +
+      ' · ' + t.pickup + ' → ' + t.dest + ' · GPS ' + t.location, 'safety');
   }
 
   function tickSos(s) {
@@ -932,6 +956,7 @@
         a.status = 'sent';
         a.sentAt = s.realT;
         log(s, 'SOS from ' + who + ': alert + live location sent to emergency contacts and the FUber Safety Team', 'safety');
+        logSosDetails(s, a);
       }
     }
   }

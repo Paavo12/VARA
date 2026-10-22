@@ -605,6 +605,15 @@ button.list-item:hover { background: var(--gold-50); }
 .sos-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 13px; width: 100%; }
 .sos-list li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 12px; background: var(--bg); }
 .sos-list .ic { color: var(--green); }
+.sos-modal.sent { max-height: calc(100% - 100px); overflow-y: auto; scrollbar-width: none; gap: 10px; }
+.sos-details { width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 16px; text-align: left; background: var(--gold-50); box-shadow: inset 0 0 0 1.5px var(--gold-100); }
+.sos-details .eyebrow { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--gold-700); }
+.sos-details .eyebrow .ic { width: 15px; height: 15px; }
+.sos-plate { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.sos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sos-grid > div { display: flex; flex-direction: column; min-width: 0; padding: 6px 8px; border-radius: 10px; background: #fff; font-size: 12.5px; }
+.sos-grid span { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.sos-grid b { overflow-wrap: anywhere; }
 .ems-confirm { display: flex; gap: 12px; align-items: flex-start; width: 100%; padding: 13px 14px; border-radius: 16px; text-align: left; background: var(--green-50); color: #0b5e47; box-shadow: inset 0 0 0 1.5px rgba(15, 157, 118, .35); animation: pop .35s cubic-bezier(.2, 1.4, .4, 1); }
 .ems-confirm > .ic { width: 26px; height: 26px; padding: 4px; border-radius: 50%; background: var(--green); color: #fff; stroke-width: 2.6; flex: none; }
 .ems-confirm b { display: block; font-size: 14.5px; color: #064e3b; }
