@@ -573,7 +573,8 @@
       const r = s.ride, sos = s.sos.rider, u = this.ui;
       let key = '', html = () => '', vals = {};
       if (sos) {
-        const d = r && r.driverId && byId(s, r.driverId);
+        const t = sos.details, v = t && t.vehicle;
+        const row = (label, value) => '<div><span>' + label + '</span><b>' + esc(value) + '</b></div>';
         const ems = u.ems === sos.at;
         key = 'sos:' + sos.status + (ems ? ':ems' : '');
         vals = { sosCount: String(Math.max(1, Math.ceil((3000 - (s.realT - sos.at)) / 1000))) };
@@ -583,8 +584,13 @@
           : '<div class="modal-back sos-back"><div class="modal center-modal sos-modal sent"><div class="big-check">' + ic('check') + '</div><div class="h2">Alert sent</div>' +
           '<ul class="sos-list"><li>' + ic('users') + '<span>Emergency contacts notified: ' + esc(s.rider.contacts.map((c) => c.name).join(', ') || '—') + '</span></li>' +
           '<li>' + ic('shieldCheck') + '<span>FUber Safety Team alerted — an agent will call you within 60 s</span></li>' +
-          '<li>' + ic('pin') + '<span>Live location' + (d ? ' + trip ' + esc(r.id) + ' (' + esc(d.name) + ', ' + esc(d.vehicle.plate) + ')' : '') + ' shared</span></li>' +
+          '<li>' + ic('pin') + '<span>Live location shared' + (t ? ' · ' + esc(t.location) : '') + '</span></li>' +
           (sos.via === 'RideCheck' ? '<li>' + ic('info') + '<span>Triggered from RideCheck</span></li>' : '') + '</ul>' +
+          (t ? '<div class="sos-details"><div class="eyebrow">' + ic('car') + 'Ride details sent</div>' +
+            (v ? '<div class="sos-plate"><span class="plate">' + esc(v.plate) + '</span><b>' + esc(v.color + ' ' + v.make + ' ' + v.model) + '</b></div>' : '') +
+            '<div class="sos-grid">' + (v ? row('Make', v.make) + row('Model', v.model) + row('Colour', v.color) + row('Year', String(v.year)) : '') +
+            (t.driver ? row('Driver', t.driver.name) : row('Driver', 'Not assigned yet')) + row('Trip', t.rideId + ' · ' + t.option) +
+            row('Pickup', t.pickup) + row('Destination', t.dest) + '</div></div>' : '') +
           (ems ? emsConfirm() : '<button class="btn btn-danger btn-block btn-lg" data-a="call911">' + ic('phone') + 'Call emergency services</button>') +
           '<button class="btn btn-light btn-block" data-a="sosCancel">I\'m safe — close alert</button></div></div>';
       } else if (r && r.rideCheck) {
