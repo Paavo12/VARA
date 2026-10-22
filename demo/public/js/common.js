@@ -280,6 +280,11 @@
     const m = STATE_META[state];
     return '<div class="status-banner" data-tone="' + m.tone + '"><span class="pulse-dot"></span><span>' + m[who] + '</span></div>';
   }
+  // Shown in the SOS modal after "Call emergency services". Placeholder: nothing is dialled yet.
+  function emsConfirm() {
+    return '<div class="ems-confirm" role="status">' + ic('shieldCheck') + '<div><b>Emergency services have been notified</b>' +
+      '<div class="tiny">They have your live location. Keep your phone with you — help is on the way.</div></div></div>';
+  }
 
   // ---------------------------------------------------------------------------
   // Map — SVG overlays on OpenStreetMap tiles of Windhoek, with smooth camera + marker interpolation.
@@ -523,6 +528,6 @@
 
   window.Hera = {
     E, Store, esc, money, mins, km, clock, arriveAt, dateShort, mmss, firstName, initials, range, greeting,
-    ic, stars, avatar, photoOf, avatarURI, carSVG, readImage, patch, bind, toast, statusBanner, STATE_META, MapView,
+    ic, stars, avatar, photoOf, avatarURI, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm, STATE_META, MapView,
   };
 })();

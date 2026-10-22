@@ -1,7 +1,7 @@
 /* Rider portal */
 (function () {
   'use strict';
-  const { E, Store, esc, money, mins, km, arriveAt, dateShort, mmss, firstName, range, greeting, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner } = Hera;
+  const { E, Store, esc, money, mins, km, arriveAt, dateShort, mmss, firstName, range, greeting, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm } = Hera;
 
   const PAY = {
     card: { icon: 'card', label: 'Visa •••• 4242' },
@@ -574,7 +574,8 @@
       let key = '', html = () => '', vals = {};
       if (sos) {
         const d = r && r.driverId && byId(s, r.driverId);
-        key = 'sos:' + sos.status;
+        const ems = u.ems === sos.at;
+        key = 'sos:' + sos.status + (ems ? ':ems' : '');
         vals = { sosCount: String(Math.max(1, Math.ceil((3000 - (s.realT - sos.at)) / 1000))) };
         html = () => sos.status === 'sending'
           ? '<div class="modal-back sos-back"><div class="modal center-modal sos-modal"><div class="sos-count" data-b="sosCount"></div><div class="h2">Sending SOS…</div>' +
@@ -584,7 +585,7 @@
           '<li>' + ic('shieldCheck') + '<span>FUber Safety Team alerted — an agent will call you within 60 s</span></li>' +
           '<li>' + ic('pin') + '<span>Live location' + (d ? ' + trip ' + esc(r.id) + ' (' + esc(d.name) + ', ' + esc(d.vehicle.plate) + ')' : '') + ' shared</span></li>' +
           (sos.via === 'RideCheck' ? '<li>' + ic('info') + '<span>Triggered from RideCheck</span></li>' : '') + '</ul>' +
-          '<button class="btn btn-danger btn-block btn-lg" data-a="call911">' + ic('phone') + 'Call emergency services</button>' +
+          (ems ? emsConfirm() : '<button class="btn btn-danger btn-block btn-lg" data-a="call911">' + ic('phone') + 'Call emergency services</button>') +
           '<button class="btn btn-light btn-block" data-a="sosCancel">I\'m safe — close alert</button></div></div>';
       } else if (r && r.rideCheck) {
         const rc = r.rideCheck;
@@ -738,7 +739,8 @@
         case 'fav': this.act('R_TOGGLE_FAV', { driverId: v }); break;
         case 'sos': this.act('R_SOS'); break;
         case 'sosCancel': this.act('R_SOS_CANCEL'); break;
-        case 'call911': toast(this.phone, 'Simulated: connecting to emergency services…', 'warn'); break;
+        // Placeholder until a real emergency-services integration exists: just confirm the notification.
+        case 'call911': if (s.sos.rider) { this.set({ ems: s.sos.rider.at }); toast(this.phone, 'Emergency services have been notified', 'ok'); } break;
         case 'rcOk': this.act('R_RIDECHECK', { answer: 'ok' }); break;
         case 'rcHelp': this.act('R_RIDECHECK', { answer: 'help' }); break;
         case 'payMethod': this.set({ payMethod: v }); break;
