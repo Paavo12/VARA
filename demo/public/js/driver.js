@@ -98,13 +98,7 @@
       return r || { ok: false };
     }
 
-    viewId(s) {
-      const dp = portal(s), me = dp.signedInId, r = s.ride;
-      if (!me) return null;
-      // Follow a simulated driver's ride, but never take over a ride another phone is driving.
-      if (s.settings.followMatched && r && r.driverId && r.driverId !== me && !signedInElsewhere(s, r.driverId) && dp.followDismissed !== r.id && !r.driverDone && r.state !== 'CANCELLED') return r.driverId;
-      return me;
-    }
+    viewId(s) { return portal(s).signedInId; }
 
     // ------------------------------------------------------------------------
     render(s) {
@@ -153,11 +147,6 @@
     tabbar(active) {
       const t = (id, icon, label) => '<button class="tab' + (active === id ? ' on' : '') + '" data-a="tab" data-v="' + id + '">' + ic(icon) + '<span>' + label + '</span></button>';
       return '<nav class="tabbar">' + t('drive', 'car', 'Drive') + t('earnings', 'chart', 'Earnings') + t('account', 'user', 'Account') + '</nav>';
-    }
-
-    followBanner(s, d) {
-      if (d.id === portal(s).signedInId) return '';
-      return '<div class="follow-banner">' + ic('eye') + '<span class="grow">Viewing <b>' + esc(d.short) + '</b> — simulated driver matched to this ride</span><button class="btn btn-sm btn-light" data-a="followDismiss">My account</button></div>';
     }
 
     topbar(s, d) {
@@ -221,12 +210,12 @@
           return {
             key: 'd-docs:' + E.DRIVER_DOCS.map((k) => dp.docs[k].status).join(),
             html: () => '<div class="page">' + head('signup', 2) + '<h2 class="h2">Verification documents</h2>' +
-              '<p class="small muted">FUber is women-only. Every document is reviewed by our onboarding team (simulated here in a few seconds).</p>' +
+              '<p class="small muted">FUber is women-only. Every document is reviewed by our onboarding team. In this demo, tap Approve on a document in review.</p>' +
               E.DRIVER_DOCS.map((k) => {
                 const m = DOCS[k], st = dp.docs[k].status;
                 return '<div class="upload-tile' + (st === 'approved' ? ' done' : '') + '"><div class="ut-icon">' + ic(st === 'approved' ? 'check' : m.icon) + '</div><div class="ut-main"><b>' + m.title + '</b><div class="tiny muted">' + m.sub + '</div></div>' +
                   (st === 'none' ? '<div class="ut-actions"><label class="btn btn-sm btn-soft">' + ic('upload') + 'Upload<input type="file" accept="image/*,application/pdf" data-doc="' + k + '" hidden></label><button class="btn btn-sm btn-link" data-a="uploadDoc" data-v="' + k + '">Sample</button></div>'
-                    : st === 'review' ? '<span class="ut-review"><span class="spinner xs"></span>In review</span>' : '<span class="ut-ok">' + ic('check') + 'Approved</span>') + '</div>';
+                    : st === 'review' ? '<div class="ut-actions"><span class="ut-review">' + ic('clock') + 'In review</span><button class="btn btn-sm btn-link" data-a="approveDoc" data-v="' + k + '">Approve</button></div>' :'<span class="ut-ok">' + ic('check') + 'Approved</span>') + '</div>';
               }).join('') +
               '<div class="stack-sm push-bottom"><button class="btn btn-primary btn-block" data-a="docsNext"' + (allUp ? '' : ' disabled') + '>Continue to vehicle details</button>' +
               (allUp ? '' : '<button class="btn btn-link" data-a="allDocs">Upload all samples</button>') + '</div></div>',
@@ -250,10 +239,10 @@
           const done = E.DRIVER_DOCS.filter((k) => dp.docs[k].status === 'approved').length;
           return {
             key: 'd-review:' + done,
-            html: () => '<div class="page center-page"><div class="spinner lg"></div><div class="h2">Reviewing your application</div>' +
+            html: () => '<div class="page center-page"><div class="big-check muted-check">' + ic('clock') + '</div><div class="h2">Application in review</div>' +
               '<p class="small muted">' + done + ' of ' + E.DRIVER_DOCS.length + ' documents approved · vehicle inspection booked</p>' +
               '<ul class="check-list">' + E.DRIVER_DOCS.map((k) => '<li class="' + (dp.docs[k].status === 'approved' ? '' : 'pending') + '">' + ic(dp.docs[k].status === 'approved' ? 'check' : 'clock') + DOCS[k].title + '</li>').join('') + '</ul>' +
-              '<button class="btn btn-link" data-a="approveNow">Approve now (presenter)</button></div>',
+              '<button class="btn btn-primary btn-block" data-a="approveNow">' + ic('shieldCheck') + 'Approve application</button></div>',
           };
         }
         case 'approved': {
@@ -368,7 +357,7 @@
         key: 'pick:' + r.id + ':' + r.state + ':' + nav.key,
         map: { route: path, approx: r.approx, fit: [d, { x: r.approx.x - r.approx.r, y: r.approx.y - r.approx.r }, { x: r.approx.x + r.approx.r, y: r.approx.y + r.approx.r }], cars: [{ id: d.id, x: d.x, y: d.y, h: d.heading, kind: 'me' }], minSpan: 1000, pad: { t: 200, r: 40, b: 400, l: 40 } },
         vals: { etaP: mins(eta.pickupMin), distP: eta.pickupM != null ? km(eta.pickupM) : '', navDist: nav.dist || '' },
-        html: () => this.sos() + '<div class="top-stack">' + statusBanner(r.state, 'driver') + this.followBanner(s, d) + nav.html + '</div>' +
+        html: () => this.sos() + '<div class="top-stack">' + statusBanner(r.state, 'driver') + nav.html + '</div>' +
           '<div class="sheet ride-sheet">' +
           '<div class="between">' + this.riderLine(s, 'Picking up') + '</div><div class="eta-pill"><b data-b="etaP"></b><span class="tiny" data-b="distP"></span></div></div>' +
           '<div class="loc-row locked">' + ic('pin') + '<div class="grow"><div class="tiny muted">Pickup area</div><b>' + esc(r.pickup.near) + '</b><div class="small">' + esc(r.pickup.street) + ' area · ' + esc(r.pickup.area) + '</div>' +
@@ -392,7 +381,7 @@
         key: 'arr:' + r.id + ':' + !!r.wait + ':' + expired,
         map: { pickup: { x: r.pickup.x, y: r.pickup.y, label: r.pickup.address }, fit: [d, r.pickup], cars: [{ id: d.id, x: d.x, y: d.y, h: d.heading, kind: 'me' }], minSpan: 700, pad: { t: 200, r: 40, b: 560, l: 40 } },
         vals,
-        html: () => this.sos() + '<div class="top-stack">' + statusBanner(r.state, 'driver') + this.followBanner(s, d) +
+        html: () => this.sos() + '<div class="top-stack">' + statusBanner(r.state, 'driver') +
           '<div class="nav-banner arrived"><div class="nav-ic">' + ic('pin') + '</div><div class="grow"><div class="nav-txt">You\'ve arrived at the pickup</div><div class="tiny nav-on">Within ' + E.CFG.ARRIVE_M + ' m of the rider\'s pin</div></div></div></div>' +
           '<div class="sheet ride-sheet tall">' +
           '<div class="loc-row unlocked reveal">' + ic('unlock') + '<div class="grow"><div class="tiny">Exact pickup address — unlocked</div><b>' + esc(r.pickup.address) + '</b><div class="small">' + esc(r.pickup.area) + '</div></div></div>' +
@@ -413,7 +402,7 @@
       const verified = r.state === 'PIN_VERIFIED';
       const path = !verified && d.path ? E.remainingPath(d.path, d.pathPos) : E.route(r.pickup, r.dest);
       const remain = !verified && d.path ? d.pathLen - d.pathPos : E.polyLen(path);
-      const nav = verified ? { html: '<div class="nav-banner unlocked"><div class="nav-ic">' + ic('unlock') + '</div><div class="grow"><div class="nav-txt">Destination unlocked</div><div class="tiny nav-on">Starting trip…</div></div></div>', key: 'v' }
+      const nav = verified ? { html: '<div class="nav-banner unlocked"><div class="nav-ic">' + ic('unlock') + '</div><div class="grow"><div class="nav-txt">Destination unlocked</div><div class="tiny nav-on">Tap Start trip when the rider is in the car</div></div></div>', key: 'v' }
         : r.atDest ? this.navBanner(d, 'You\'ve arrived at ' + r.dest.name) : r.stop ? { html: '<div class="nav-banner stopped"><div class="nav-ic">' + ic('alert') + '</div><div class="grow"><div class="nav-txt">Vehicle stopped</div><div class="tiny nav-on">Simulated unexpected stop</div></div></div>', key: 'stop' } : this.navBanner(d);
       const deviated = r.offRouteM > 40 || r.rideChecks.some((c) => c.reason === 'deviation');
       const eta = r.eta || {};
@@ -425,7 +414,7 @@
           fit: [d, r.dest], cars: [{ id: d.id, x: d.x, y: d.y, h: d.heading, kind: 'me' }], minSpan: 1200, pad: { t: 200, r: 40, b: 400, l: 40 },
         },
         vals: { navDist: nav.dist || '', etaT: r.atDest ? 'Arrived' : mins(eta.tripMin), distT: km(remain), slideHint: near ? 'Slide when the rider has safely left the car' : 'Available at the destination · ' + km(remain) + ' to go' },
-        html: () => this.sos() + '<div class="top-stack">' + statusBanner(r.state, 'driver') + this.followBanner(s, d) + nav.html + '</div>' +
+        html: () => this.sos() + '<div class="top-stack">' + statusBanner(r.state, 'driver') + nav.html + '</div>' +
           '<div class="sheet ride-sheet">' +
           '<div class="loc-row unlocked' + (verified ? ' reveal' : '') + '">' + ic('flag') + '<div class="grow"><div class="tiny">Destination</div><b>' + esc(r.dest.name) + '</b><div class="small">' + esc(r.dest.address) + ' · ' + esc(r.dest.area) + '</div></div>' +
           '<div class="eta-pill"><b data-b="etaT"></b><span class="tiny" data-b="distT"></span></div></div>' +
@@ -435,9 +424,10 @@
           '<button class="action" data-a="share">' + ic('route') + '<span>Share my route</span></button>' +
           '<button class="action" data-a="modal" data-v="chat">' + ic('message') + '<span>Message</span></button>' +
           '<button class="action danger" data-a="modal" data-v="report">' + ic('report') + '<span>Report rider</span></button></div>' +
-          '<div class="slide' + (near ? '' : ' disabled') + '" data-slide><div class="slide-fill"></div><div class="slide-handle">' + ic('chevronRight') + '</div><span>Slide to complete trip</span></div>' +
-          '<div class="tiny muted center" data-b="slideHint"></div>' +
-          (near ? '' : '<button class="btn btn-link" data-a="jumpDest">Skip ahead to destination (presenter)</button>') + '</div>',
+          (verified ? '<button class="btn btn-primary btn-block btn-lg" data-a="startTrip">' + ic('nav') + 'Start trip</button>'
+            : '<div class="slide' + (near ? '' : ' disabled') + '" data-slide><div class="slide-fill"></div><div class="slide-handle">' + ic('chevronRight') + '</div><span>Slide to complete trip</span></div>' +
+            '<div class="tiny muted center" data-b="slideHint"></div>' +
+            (near ? '' : '<button class="btn btn-link" data-a="jumpDest">Skip ahead to destination (presenter)</button>')) + '</div>',
       };
     }
 
@@ -446,7 +436,7 @@
       const fee = r2(f.total - r.driverEarning);
       return {
         key: 'tdone:' + r.id + ':' + !!r.driverRating + ':' + !!r.riderRating,
-        html: () => this.sos() + '<div class="page done-page">' + this.followBanner(s, d) +
+        html: () => this.sos() + '<div class="page done-page">' +
           '<div class="done-hero"><div class="big-check">' + ic('check') + '</div><div class="h2">Trip complete</div><div class="small muted">' + esc(r.dest.name) + ' · ' + r.distKm.toFixed(1) + ' km · ' + Math.round(r.durMin) + ' min</div></div>' +
           '<div class="card"><div class="eyebrow">Earnings</div><div class="fare-line"><span>Rider paid</span><span>' + money(f.total) + '</span></div>' +
           '<div class="fare-line"><span>FUber service fee (' + E.OPTIONS[r.option].serviceFee * 100 + '%)</span><span>−' + money(fee) + '</span></div>' +
@@ -636,13 +626,14 @@
         case 'vcolor': { const [n, h] = v.split('|'); u.vehicle.color = n; u.vehicle.hex = h; this.set({}); break; }
         case 'fillVehicle': u.vehicle = { ...u.vehicle, make: 'Toyota', model: 'Corolla', year: '2022', plate: 'N 9090 W', type: 'classic' }; this.set({}); break;
         case 'saveVehicle': this.act('D_SAVE_VEHICLE', { vehicle: u.vehicle }); break;
-        case 'approveNow': this.act('X_APPROVE'); break;
+        case 'approveDoc': this.act('D_APPROVE_DOC', { doc: v }); break;
+        case 'approveNow': this.act('D_APPROVE'); break;
+        case 'startTrip': this.act('D_START_TRIP'); break;
         case 'tab': this.set({ tab: v }); break;
         case 'online': this.act('D_GO_ONLINE', { driverId: vid }); break;
         case 'offline': this.act('D_GO_OFFLINE', { driverId: vid }); break;
         case 'collapse': this.set({ collapsed: !u.collapsed }); break;
         case 'respond': this.act('D_RESPOND', { driverId: vid, accept: v === '1' }); break;
-        case 'followDismiss': this.act('D_FOLLOW_DISMISS'); break;
         case 'key': {
           if (v === 'C') u.pin = '';
           else if (v === '⌫') u.pin = u.pin.slice(0, -1);
