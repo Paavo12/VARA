@@ -24,7 +24,6 @@
         '</div></section>' +
         '<section><h4>Settings</h4><div class="dbg-settings">' +
         '<label>Demo speed <select data-set="timeScale"><option value="10">10× (slow)</option><option value="20">20×</option><option value="30">30×</option><option value="60">60× (fast)</option></select></label>' +
-        '<label class="dbg-check"><input type="checkbox" data-set="autopilot"> Autopilot driver <small>the driver accepts, enters the PIN and completes trips by herself</small></label>' +
         '</div></section>' +
         '<section><h4>What just happened</h4><div class="dbg-log" data-k="log"></div></section>';
       this.k = {};

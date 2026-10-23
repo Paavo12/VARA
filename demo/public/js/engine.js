@@ -481,6 +481,7 @@
       const straight = dist(d, pickup);
       let reason = null;
       if (!d.online) reason = 'Offline';
+      else if (!signedIn(s, d.id)) reason = 'Not signed in on a phone';
       else if (d.busy) reason = 'On an active trip';
       else if (d.vehicle.type !== optionId) reason = 'Vehicle is ' + OPTIONS[d.vehicle.type].short;
       else if (wav && !d.vehicle.wav) reason = 'Not wheelchair accessible';
@@ -509,12 +510,12 @@
   // Seed data
   // ---------------------------------------------------------------------------
   // Four demo drivers, each a demo account on the driver app; every phone signs in as one of them.
-  // Hilma starts online so a ride can be matched with nobody signed in; the others go online
-  // when someone signs in as them. Anyone who applies to drive is added to this list.
+  // All start offline: a driver goes online only when someone signs in as her and taps Go online,
+  // so every ride is accepted by a person on a driver phone. Anyone who applies to drive is added to this list.
   // Each home is an offset from the rider's location in metres (east, south), snapped to the nearest road.
   const DEMO_DRIVER_ID = 'd1';
   const SEED_DRIVERS = [
-    { id: DEMO_DRIVER_ID, name: 'Hilma Nangolo', phone: '+264 81 640 2219', type: 'classic', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver', hex: '#c9ccd1', plate: 'N 6152 W', acc: 0.9, rating: 4.92, n: 214, home: nearHome(900, -700), wander: 1, av: ['#8d5524', '#1b1410', '#f3e8ff', 'long'] },
+    { id: DEMO_DRIVER_ID, name: 'Hilma Nangolo', phone: '+264 81 640 2219', type: 'classic', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver', hex: '#c9ccd1', plate: 'N 6152 W', acc: 0.9, rating: 4.92, n: 214, home: nearHome(900, -700), wander: 1, offline: true, av: ['#8d5524', '#1b1410', '#f3e8ff', 'long'] },
     { id: 'd2', name: 'Selma Nghipandulwa', phone: '+264 81 432 1987', type: 'classic', make: 'Volkswagen', model: 'Polo Vivo', year: 2021, color: 'Pearl White', hex: '#f1ede4', plate: 'N 4471 W', acc: 0.88, rating: 4.88, n: 167, home: nearHome(-800, 600), wander: 1, offline: true, av: ['#c68642', '#120d0b', '#fde8ef', 'bun'] },
     { id: 'd3', name: 'Ndapewa Haufiku', phone: '+264 85 610 2245', type: 'comfort', make: 'Toyota', model: 'Corolla Cross', year: 2023, color: 'Midnight Blue', hex: '#26375f', plate: 'N 2318 W', acc: 0.92, rating: 4.95, n: 301, home: nearHome(700, 900), wander: 1, offline: true, av: ['#6b3e26', '#0d0a08', '#e8f4ff', 'bob'] },
     { id: 'd4', name: 'Martha van Wyk', phone: '+264 81 298 7730', type: 'softlife', make: 'Mercedes-Benz', model: 'C-Class', year: 2023, color: 'Graphite', hex: '#5b5f66', plate: 'N 7705 W', acc: 0.85, rating: 4.97, n: 122, home: nearHome(-900, -600), wander: 1, offline: true, av: ['#e0ac69', '#6b3e26', '#eafaf1', 'long'] },
@@ -581,7 +582,7 @@
   function seedDriverPortal() {
     const docs = {};
     for (const k of DRIVER_DOCS) docs[k] = { status: 'none' };
-    return { signedInId: null, step: 'welcome', profile: null, docs, vehicle: null, reviewAt: 0, followDismissed: null };
+    return { signedInId: null, step: 'welcome', profile: null, docs, vehicle: null };
   }
 
   // Each screen running the driver app has its own portal, keyed by the session id it sends with
@@ -594,7 +595,7 @@
   const signedIn = (s, driverId) => Object.values(s.driverPortals).some((p) => p.signedInId === driverId);
 
   function defaultSettings() {
-    return { timeScale: 20, demand: 'normal', autopilot: false, followMatched: true };
+    return { timeScale: 20, demand: 'normal' };
   }
 
   function createState(settings) {
@@ -686,10 +687,6 @@
     return r;
   }
 
-  function isManual(s, driverId) {
-    return signedIn(s, driverId) && !s.settings.autopilot;
-  }
-
   function nextOffer(s, r) {
     const m = rankDrivers(s, r.pickup, r.option, r.wav, r.search.declined);
     Object.assign(r.search, { ranking: m.candidates, excluded: m.excluded, weights: m.weights, demand: s.settings.demand });
@@ -699,18 +696,15 @@
       notify(s, 'rider', 'No driver accepted nearby. Try again or pick another ride type.', 'err');
       return;
     }
-    // A driver signed in on a phone gets the request before any simulated driver, so the trip and
-    // its earnings land on that phone instead of on a simulated driver it would then follow.
-    const c = m.candidates.find((x) => isManual(s, x.driverId)) || m.candidates[0], d = byId(s, c.driverId);
-    const manual = isManual(s, d.id);
+    // Every candidate is signed in on a driver phone: the offer waits for her to tap Accept or Decline.
+    const c = m.candidates[0], d = byId(s, c.driverId);
     r.search.offer = {
-      driverId: d.id, startedAt: s.realT, expiresAt: s.realT + CFG.OFFER_MS, manual,
-      botAt: manual ? null : s.realT + rand(1500, 3500), botAccept: Math.random() < d.acceptProb,
+      driverId: d.id, startedAt: s.realT, expiresAt: s.realT + CFG.OFFER_MS,
       eta: c.eta, road: c.road, straight: c.straight, score: c.score,
     };
     r.search.offers.push({ driverId: d.id, at: s.realT, result: 'pending', score: c.score, eta: c.eta });
     log(s, 'Offer #' + r.search.offers.length + ' → ' + d.name + ' · score ' + Math.round(c.score * 100) + ' · ETA ' + c.eta.toFixed(1) + ' min · accept ' + Math.round(d.acceptProb * 100) + '%', 'match');
-    if (manual) notify(s, 'driver', 'New ride request — 15 seconds to respond', 'info', d.id);
+    notify(s, 'driver', 'New ride request — 15 seconds to respond', 'info', d.id);
   }
 
   function resolveOffer(s, r, result) {
@@ -747,7 +741,6 @@
     const o = sr.offer;
     if (!o) return;
     if (t >= o.expiresAt) resolveOffer(s, r, 'timeout');
-    else if (o.botAt && t >= o.botAt) resolveOffer(s, r, o.botAccept ? 'accepted' : 'declined');
   }
 
   function refreshEta(s) {
@@ -784,7 +777,7 @@
       return fail('Incorrect PIN');
     }
     setState(s, r, 'PIN_VERIFIED');
-    notify(s, 'rider', 'PIN verified — your trip is starting', 'ok');
+    notify(s, 'rider', 'PIN verified — your driver will start the trip', 'ok');
     notify(s, 'driver', 'PIN verified — destination unlocked: ' + r.dest.name, 'ok', r.driverId);
     log(s, 'PIN verified → destination revealed to driver', 'privacy');
     return { ok: true };
@@ -825,7 +818,6 @@
       r.offRouteM = distToPoly(d, r.planned);
       if (r.offRouteM > CFG.DEVIATION_M) openRideCheck(s, r, 'deviation');
     }
-    if (r.atDest && s.settings.autopilot && t - r.atDestAt > 2500) completeTrip(s, r, d);
   }
 
   function completeTrip(s, r, d) {
@@ -857,14 +849,14 @@
   function rateRider(s, r, p) {
     if (r.driverRating) return fail('Already rated');
     const stars = clamp(Math.round(p.stars || 5), 1, 5);
-    r.driverRating = { stars, tags: p.tags || [], simulated: !!p.simulated };
+    r.driverRating = { stars, tags: p.tags || [] };
     const rd = s.rider;
     rd.rating = r2((rd.rating * rd.ratingCount + stars) / (rd.ratingCount + 1));
     rd.ratingCount++;
     const d = byId(s, r.driverId);
     const rec = d && d.stats.recent.find((x) => x.rideId === r.id);
     if (rec) rec.ratingGiven = stars;
-    log(s, 'Driver rated rider ★' + stars + (p.simulated ? ' (simulated)' : ''), 'info');
+    log(s, 'Driver rated rider ★' + stars, 'info');
     if (r.riderRating && r.state === 'COMPLETED') setState(s, r, 'RATED');
     return { ok: true };
   }
@@ -964,23 +956,22 @@
   // Busy areas, shown as the demand heat map on the driver's map.
   const HOTSPOTS = [['postst', 3], ['sqmarket', 2], ['maerua', 2], ['wernhil', 2], ['katuhosp', 1], ['grove', 1], ['unam', 1]]
     .map(([id, w]) => { const pl = PLACES.find((x) => x.id === id); return { x: pl.x, y: pl.y, w }; });
-  function tickOnboarding(s) {
-    const t = s.realT;
+  // Verifications are approved by a click (on the phone or in the presentation panel), never on a timer.
+  function approveRider(s) {
     const v = s.rider.verification;
-    if (v.status === 'pending' && t - v.submittedAt >= 5000) {
-      v.status = 'verified';
-      notify(s, 'rider', 'Identity verified — welcome to FUber', 'ok');
-      log(s, 'Rider gender/ID verification approved (simulated)', 'system');
-    }
-    for (const dp of Object.values(s.driverPortals)) {
-      for (const k of DRIVER_DOCS) {
-        const doc = dp.docs[k];
-        if (doc.status === 'review' && t >= doc.doneAt) doc.status = 'approved';
-      }
-      if (dp.step === 'review' && DRIVER_DOCS.every((k) => dp.docs[k].status === 'approved') && t - dp.reviewAt >= 2500) {
-        createPortalDriver(s, dp);
-      }
-    }
+    if (v.status !== 'pending') return false;
+    v.status = 'verified';
+    notify(s, 'rider', 'Identity verified — welcome to FUber', 'ok');
+    log(s, 'Rider gender/ID verification approved', 'system');
+    return true;
+  }
+
+  // Approves every document in review and, once the application is submitted, the driver herself.
+  function approvePortal(s, dp) {
+    let any = false;
+    for (const k of DRIVER_DOCS) if (dp.docs[k].status === 'review') { dp.docs[k].status = 'approved'; any = true; }
+    if (dp.step === 'review' && DRIVER_DOCS.every((k) => dp.docs[k].status === 'approved')) { createPortalDriver(s, dp); any = true; }
+    return any;
   }
 
   function createPortalDriver(s, dp) {
@@ -1027,16 +1018,9 @@
         break;
       case 'DRIVER_ARRIVED':
         advance(s, d, dtSim, CFG.SPEED_KMH);
-        if (s.settings.autopilot && since > 3500) verifyPin(s, r, r.pin);
-        break;
-      case 'PIN_VERIFIED':
-        if (since > 2500) startTrip(s, r, d);
         break;
       case 'IN_TRIP':
         tickTrip(s, r, d, dtSim);
-        break;
-      case 'COMPLETED':
-        if (r.riderRating && !r.driverRating && s.realT - r.riderRatedAt > 3000) rateRider(s, r, { stars: 5, tags: ['Respectful', 'On time'], simulated: true });
         break;
     }
   }
@@ -1045,7 +1029,6 @@
     s.realT += dt;
     const dtSim = dt * s.settings.timeScale;
     s.simT += dtSim;
-    tickOnboarding(s);
     tickSos(s);
     const locked = s.ride && DRIVER_LOCKED.has(s.ride.state) ? s.ride.driverId : null;
     for (const d of s.drivers) {
@@ -1066,7 +1049,6 @@
     // ---- global / presenter -------------------------------------------------
     SET_SETTING(s, p) {
       if (p.key === 'timeScale') s.settings.timeScale = clamp(Number(p.value) || 20, 1, 120);
-      else if (p.key === 'autopilot' || p.key === 'followMatched') s.settings[p.key] = !!p.value;
       else return fail('Unknown setting');
       log(s, 'Setting ' + p.key + ' = ' + s.settings[p.key], 'system');
     },
@@ -1121,12 +1103,9 @@
       log(s, 'Scenario: vehicle stops unexpectedly (RideCheck after 2 sim-min)', 'scenario');
     },
     X_APPROVE(s) {
-      const v = s.rider.verification;
-      if (v.status === 'pending') v.submittedAt = -1e9;
-      for (const dp of Object.values(s.driverPortals)) {
-        for (const k of DRIVER_DOCS) if (dp.docs[k].status === 'review') dp.docs[k].doneAt = 0;
-        dp.reviewAt = -1e9;
-      }
+      let any = approveRider(s);
+      for (const dp of Object.values(s.driverPortals)) any = approvePortal(s, dp) || any;
+      if (!any) return fail('Nothing is waiting for approval');
     },
     X_SHUFFLE(s) {
       const locked = s.ride && s.ride.driverId;
@@ -1182,6 +1161,7 @@
       v.submittedAt = s.realT;
       log(s, 'Rider submitted ID + selfie → pending verification', 'system');
     },
+    R_APPROVE(s) { if (!approveRider(s)) return fail('Nothing is waiting for approval'); },
     R_SAVE_CONTACTS(s, p) {
       const contacts = (p.contacts || []).filter((c) => c && c.name && c.phone).slice(0, 5);
       if (!contacts.length) return fail('Add at least one emergency contact');
@@ -1277,7 +1257,7 @@
       if (rec) rec.ratingFromRider = stars;
       notify(s, 'driver', firstName(s.rider.profile.name) + ' rated you ★' + stars, 'ok', d.id);
       log(s, 'Rider paid N$' + r.fare.total.toFixed(2) + ' (' + r.payment + ') and rated driver ★' + stars, 'info');
-      if (r.driverRating) setState(s, r, 'RATED');
+      if (r.driverRating || r.driverDone) setState(s, r, 'RATED');
     },
     R_RIDECHECK(s, p) {
       const r = rideFor(s);
@@ -1339,9 +1319,14 @@
     D_UPLOAD_DOC(s, p, sid) {
       const doc = portalOf(s, sid).docs[p.doc];
       if (!doc) return fail('Unknown document');
-      doc.status = 'review';
-      doc.doneAt = s.realT + (p.doc === 'background' ? 5000 : rand(1500, 3000));
+      if (doc.status === 'none') doc.status = 'review';
     },
+    D_APPROVE_DOC(s, p, sid) {
+      const doc = portalOf(s, sid).docs[p.doc];
+      if (!doc || doc.status !== 'review') return fail('This document is not in review');
+      doc.status = 'approved';
+    },
+    D_APPROVE(s, p, sid) { if (!approvePortal(s, portalOf(s, sid))) return fail('Nothing is waiting for approval'); },
     D_DOCS_NEXT(s, p, sid) {
       const dp = portalOf(s, sid);
       if (!DRIVER_DOCS.every((k) => dp.docs[k].status !== 'none')) return fail('Upload every document first');
@@ -1353,13 +1338,15 @@
       const dp = portalOf(s, sid);
       dp.vehicle = { type: v.type, make: v.make, model: v.model, year: Number(v.year) || 2022, color: v.color || 'White', hex: v.hex || '#e8e4dc', plate: String(v.plate).toUpperCase(), wav: !!v.wav, photo: v.photo || null };
       dp.step = 'review';
-      dp.reviewAt = s.realT;
       log(s, 'Driver application submitted for review', 'system');
     },
     D_SIGN_OUT(s, p, sid) {
       const dp = s.driverPortals[portalKey(sid)];
       if (!dp) return;
       if (s.ride && s.ride.driverId === dp.signedInId && DRIVER_LOCKED.has(s.ride.state)) return fail('Finish your trip first');
+      // Nobody is left to answer her requests, so she goes offline.
+      const d = dp.signedInId && byId(s, dp.signedInId);
+      if (d && d.online) { d.online = false; d.path = null; log(s, d.name + ' signed out and went offline', 'system'); }
       delete s.driverPortals[portalKey(sid)];
     },
     D_GO_ONLINE(s, p) {
@@ -1381,7 +1368,6 @@
       if (!r || !r.search.offer || r.search.offer.driverId !== p.driverId) return fail('This request is no longer available');
       return resolveOffer(s, r, p.accept ? 'accepted' : 'declined');
     },
-    D_FOLLOW_DISMISS(s, p, sid) { if (s.ride) portalOf(s, sid).followDismissed = s.ride.id; },
     D_START_WAIT(s) {
       const r = rideFor(s);
       if (!r || r.state !== 'DRIVER_ARRIVED') return fail('You must be at the pickup point');
@@ -1393,6 +1379,11 @@
       const r = rideFor(s);
       if (!r) return fail('No trip');
       return verifyPin(s, r, p.pin);
+    },
+    D_START_TRIP(s) {
+      const r = rideFor(s);
+      if (!r || r.state !== 'PIN_VERIFIED') return fail('Verify the PIN first');
+      startTrip(s, r, byId(s, r.driverId));
     },
     D_CANCEL(s, p) {
       const r = rideFor(s);
@@ -1414,8 +1405,12 @@
     D_FINISH(s) {
       const r = rideFor(s);
       if (!r) return;
-      if (['COMPLETED', 'RATED'].includes(r.state) && !r.driverRating) rateRider(s, r, { stars: 5, tags: [], simulated: true });
       r.driverDone = true;
+      // Leaving without rating skips the rating instead of inventing one.
+      if (r.state === 'COMPLETED' && !r.driverRating) {
+        log(s, 'Driver skipped rating the rider', 'info');
+        if (r.riderRating) setState(s, r, 'RATED');
+      }
     },
     D_MESSAGE(s, p) {
       const r = rideFor(s);

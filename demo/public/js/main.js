@@ -1,7 +1,7 @@
 /* Stage bootstrap: builds both phones, the top bar and the presentation panel. */
 (function () {
   'use strict';
-  const { E, Store, ic, toast } = Hera;
+  const { E, Store, ic } = Hera;
   const params = new URLSearchParams(location.search);
   const store = {
     get(k, d) { try { const v = localStorage.getItem('hera.' + k); return v == null ? d : v; } catch (e) { return d; } },
@@ -57,7 +57,7 @@
   }
   window.addEventListener('resize', fit);
 
-  document.querySelector('.topbar').addEventListener('click', async (e) => {
+  document.querySelector('.topbar').addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
     const group = b.parentElement.dataset.group;
@@ -65,10 +65,6 @@
       view = b.dataset.v;
       store.put('view', view);
       applyLayout();
-      if (view === 'rider' && !Store.state.settings.autopilot) {
-        await Store.send('SET_SETTING', { key: 'autopilot', value: true });
-        toast(riderEl, 'Driver autopilot on — driver actions are simulated while only the Rider app is shown', 'info');
-      }
     } else if (group === 'demand') {
       Store.send('SET_DEMAND', { level: b.dataset.v });
     }

@@ -4,7 +4,7 @@ A working prototype with two portals, a **Rider app** and a **Driver app**, runn
 
 - **Zero dependencies.** It needs Node.js 16+ and nothing else: no `npm install`, no database and no API keys. Internet is optional: with it you get the OpenStreetMap map and the web font; without it the app draws Windhoek's roads itself and uses the system font.
 - **Set in real Windhoek.** All prices are in **Namibian dollars (N$)**. The map is the free OpenStreetMap map, and cars drive Windhoek's real roads: routes, ETAs, street names, addresses and turn-by-turn directions come from OpenStreetMap road data built into the app, and landmarks (Post Street Mall, Maerua Mall, Grove Mall, Katutura State Hospital, Eros Airport…) sit at their real locations. Plates look like Windhoek plates (`N 9090 W`), and phone numbers use +264.
-- **One rider, four drivers.** The demo starts with a single rider (Ndeshi, the rider phone's demo account) and four women drivers with demo accounts: Hilma (Classic), Selma (Classic), Ndapewa (Comfort) and Martha (Soft Life). Hilma starts online, so a ride is matched even when no driver phone is signed in. The others go online when someone signs in as them. Anyone who signs up through *Apply to drive* is added as another driver.
+- **One rider, four drivers.** The demo starts with a single rider (Ndeshi, the rider phone's demo account) and four women drivers with demo accounts: Hilma (Classic), Selma (Classic), Ndapewa (Comfort) and Martha (Soft Life). Every driver starts offline. Nothing is automated: a driver goes online only when someone signs in as her on a driver phone and taps *Go online*, and every offer, PIN, trip start, completion, rating and verification approval happens when someone clicks. Anyone who signs up through *Apply to drive* is added as another driver.
 - **One driver per phone.** Each phone, emulator or browser tab running the driver app signs in separately, so two emulators (or more) can each be a different driver at the same time. Signing in as a driver who is already signed in elsewhere signs her out on the other screen.
 - **Two ways to run.** Run it through the server so screens on several devices stay in sync, or open `public/index.html` directly from disk to run everything in one browser tab.
 
@@ -37,20 +37,17 @@ Use a different port with `PORT=4000 npm start`.
 ## 2. A 3-minute demo script
 
 1. **Onboarding.** Pick one:
-   - **Rider:** *Create account → Fill sample details → Continue → Sample* (ID) and *Sample* (selfie) *→ Submit for verification*. It shows **Pending verification** for about 5 s, then **Verified ✓**, then *Continue → Fill sample contacts → Finish setup*. There's no code-of-conduct step.
-   - **Driver:** *Apply to drive → Fill sample details → Upload all samples* (ID/gender verification, driver's licence, insurance, criminal-record check). Each document goes **In review → Approved**. Then *Fill sample vehicle → Submit application → Start driving → Go online*. The new driver joins the dispatch pool 0.6–1 km from the rider. There's no vehicle-registration document, because a driver may be driving a car she doesn't own.
-   - **Shortcut:** *Use demo account* skips onboarding on either phone. On the driver phone you pick which of the four drivers to be, then Classic, Comfort or Soft Life, and each tier shows its rates (higher tier, higher fare). The rider must book a ride type that an online driver drives.
+   - **Rider:** *Create account → Fill sample details → Continue → Sample* (ID) and *Sample* (selfie) *→ Submit for verification*. It shows **Pending verification** until you tap **Approve verification** (or *Approve verifications* in the panel), then **Verified ✓**, then *Continue → Fill sample contacts → Finish setup*. There's no code-of-conduct step.
+   - **Driver:** *Apply to drive → Fill sample details → Upload all samples* (ID/gender verification, driver's licence, insurance, criminal-record check). Each document shows **In review** with an **Approve** button. Then *Fill sample vehicle → Submit application → Approve application → Start driving → Go online* (any document still in review is approved with the application). The new driver joins the dispatch pool 0.6–1 km from the rider. There's no vehicle-registration document, because a driver may be driving a car she doesn't own.
+   - **Shortcut:** *Use demo account* skips onboarding on either phone. On the driver phone you pick which of the four drivers to be, then Classic, Comfort or Soft Life, and each tier shows its rates (higher tier, higher fare). Then tap **Go online**. The rider must book a ride type that an online driver drives; until a driver is online, the rider's options say *No driver online within 3 km*.
 2. **Book.** On the rider phone, tap *Where to?* and search for a landmark, suburb or any Windhoek street (for example *nelson mandela*, *Klein Windhoek* or *mall*; upper/lower case and accents don't matter), or tap a quick-place chip such as *Post Street Mall*. You get Classic / Comfort / Soft Life with an exact, locked price and live ETAs, a wheelchair-accessible filter, *For me / Someone else*, **1–4 passengers** (all women, never shared with strangers), Now/Schedule and a payment method. Tap **Request**.
-3. **Matching.** *Finding your driver…* shows the pulsing **3 km dispatch radius**. After about 2–3 s the driver gets the offer:
-   - If someone is signed in on the driver phone, it shows the request card with a **15-second countdown**. Tap **Accept**.
-   - If nobody is signed in there, or *Autopilot driver* is on, the driver answers by herself after 1.5–3.5 s.
-   - If she declines or doesn't answer, the rider sees *No drivers accepted → Try again*.
+3. **Matching.** *Finding your driver…* shows the pulsing **3 km dispatch radius**. After about 2–3 s the best-matched online driver gets the request card on her phone with a **15-second countdown**. Tap **Accept**. If she declines or doesn't answer in time, it goes to the next online driver, and when nobody is left the rider sees *No drivers accepted → Try again*.
 4. **Driver en route.** The rider sees the driver's photo, verified badge, rating, car, plate, both ETAs (*Driver arriving in X min* / *Trip will take Y min*) and the **4-digit PIN**. The driver sees turn-by-turn directions to a **fuzzy pickup circle**. The exact address and destination stay locked.
 5. **Arrival → PIN.** Within 50 m of the pin, the driver phone **unlocks the exact pickup address** and shows a PIN keypad. The rider's PIN card turns amber. Type a wrong PIN first to show the rejection, then the real PIN (it's on the rider phone and in the panel).
-6. **PIN verified → destination revealed → In trip.** The driver phone animates *Destination unlocked*, and both phones follow the live route.
+6. **PIN verified → destination revealed → In trip.** The driver phone shows *Destination unlocked*. Tap **Start trip** on the driver phone, and both phones follow the live route.
 7. **RideCheck.** In the presentation panel, press **Route deviation** (or **Unexpected stop**). The rider gets *Are you okay?* with *Yes, I'm fine* / *Call for help*.
 8. **Complete.** Press **Jump to destination** (panel or driver phone), then **slide to complete trip** on the driver phone.
-9. **Pay & rate.** The rider sees the fare breakdown (base + distance + time + surge), picks card/cash/wallet, rates the driver and can **add her to Favourite Drivers**. The driver rates the rider and sees her earnings. Both ratings land, and the ride state becomes `RATED`.
+9. **Pay & rate.** The rider sees the fare breakdown (base + distance + time + surge), picks card/cash/wallet, rates the driver and can **add her to Favourite Drivers**. The driver rates the rider and sees her earnings. Once both have rated (or the driver taps *Back to requests* without rating), the ride state becomes `RATED`.
 10. **Reset demo** (top right; click twice to confirm) clears everything for the next run.
 
 ---
@@ -86,7 +83,7 @@ Toggle **Presentation mode** in the top bar. The panel is kept simple:
 - **Ride details:** ride type, the rider's PIN, the driver, when she arrives, the trip length and who the passenger is.
 - **Priority points:** the rider's and each driver's points and cancellations. Only the panel shows these; the phones never do.
 - **Demo shortcuts:** driver arrives now, jump to destination, route deviation, unexpected stop, approve verifications.
-- **Settings:** demo speed (10–60× simulated time) and *Autopilot driver*, where the driver accepts, enters the PIN and completes trips by herself. Choosing *Rider* in the top bar turns autopilot on automatically.
+- **Settings:** demo speed (10–60× simulated time).
 - **What just happened:** the last 12 events.
 
 ---
@@ -105,7 +102,7 @@ The price is locked when the rider requests: she pays exactly the quote, and the
 
 ## 6. How the matching works
 
-1. **Filter, in priority order.** The driver must be online with no active trip, drive the requested vehicle type (plus wheelchair access if requested), and be within **3 km straight-line** of the pickup.
+1. **Filter, in priority order.** The driver must be online and signed in on a driver phone, with no active trip, drive the requested vehicle type (plus wheelchair access if requested), and be within **3 km straight-line** of the pickup.
 2. **ETA.** Uses **road distance**: the shortest route over Windhoek's real roads (respecting one-way streets), divided by `34 km/h ÷ traffic factor`. The traffic factor depends on demand and is jittered every 2 s, so ETAs update live.
 3. **Score.** `w_eta × (1 − ETA/12 min) + w_acc × acceptance probability (+0.08 if she's a favourite driver)`.
    - Normal demand: `w_eta = 0.7`, `w_acc = 0.3`.
