@@ -170,8 +170,8 @@
         };
         let status = '';
         if (v.status === 'none') status = '<button class="btn btn-primary btn-block" data-a="submitVerify"' + (v.id && v.selfie ? '' : ' disabled') + '>Submit for verification</button>';
-        else if (v.status === 'pending') status = '<div class="verify-state pending"><div class="spinner"></div><div><b>Pending verification</b><div class="tiny muted">Our safety team is reviewing your documents (simulated: ~5 s)</div></div></div>' +
-          '<button class="btn btn-link" data-a="approveNow">Approve now (presenter)</button>';
+        else if (v.status === 'pending') status = '<div class="verify-state pending">' + ic('clock') + '<div><b>Pending verification</b><div class="tiny muted">Our safety team is reviewing your documents</div></div></div>' +
+          '<button class="btn btn-primary btn-block" data-a="approveNow">' + ic('shieldCheck') + 'Approve verification</button>';
         else status = '<div class="verify-state verified"><div class="big-check">' + ic('check') + '</div><div><b>Verified</b><div class="tiny muted">Welcome to a women-only community</div></div></div>' +
           '<button class="btn btn-primary btn-block" data-a="goto" data-v="contacts">Continue</button>';
         return {
@@ -225,7 +225,7 @@
       return {
         key: 'home:' + pk.x + ',' + pk.y + ':' + s.surge + ':' + rd.scheduled.length,
         map: { fit: [pk], minSpan: 3200, pickup: { x: pk.x, y: pk.y, label: 'You are here' }, cars: this.nearbyCars(s, pk), pad: { t: 100, r: 20, b: 420, l: 20 } },
-        vals: { nearby: nearby + ' verified driver' + (nearby === 1 ? '' : 's') + ' nearby' },
+        vals: { nearby: nearby ? nearby + ' verified driver' + (nearby === 1 ? '' : 's') + ' nearby' : 'No drivers online yet' },
         html: () => this.sos() +
           '<div class="float-top home-top">' + avatar(rd.profile, 38) + '<div><div class="tiny muted">' + greeting() + '</div><div class="h3">' + esc(firstName(rd.profile.name)) +
           ' <span class="badge-verified">' + ic('check') + 'Verified</span></div></div></div>' +
@@ -300,7 +300,7 @@
       const sel = opts.find((x) => x.o.id === u.option) || opts[0];
       const pay = u.payMethod || s.rider.payment;
       const vals = {};
-      for (const x of opts) vals['eta_' + x.o.id] = x.avail ? mins(x.best) + ' away' : (u.wav ? 'No accessible car within 3 km' : 'None within 3 km');
+      for (const x of opts) vals['eta_' + x.o.id] = x.avail ? mins(x.best) + ' away' : (u.wav ? 'No accessible car online within 3 km' : 'No driver online within 3 km');
       vals.tripLine = sel.est.distKm.toFixed(1) + ' km · ~' + mins(sel.est.durMin) + ' trip · arrive ~' + arriveAt(sel.est.durMin + (sel.best || 0));
       const route = E.route(pk, dest);
       return {
@@ -442,7 +442,7 @@
         vals: { etaT: r.atDest ? 'Arrived' : mins(eta.tripMin), arr: r.atDest ? 'now' : arriveAt(eta.tripMin), tripPct: pct + '%', distLeft: km(remain) + ' to go' },
         html: () => statusBanner(r.state, 'rider') + this.sos() +
           '<div class="sheet ride-sheet">' +
-          (verified ? '<div class="pin-ok">' + ic('check') + '<div><b>PIN verified</b><div class="tiny muted">' + esc(d.first) + ' can now see your destination. Starting trip…</div></div></div>' : '') +
+          (verified ? '<div class="pin-ok">' + ic('check') + '<div><b>PIN verified</b><div class="tiny muted">' + esc(d.first) + ' can now see your destination. She starts the trip once you\'re in the car.</div></div></div>' : '') +
           '<div class="trip-head"><div class="grow"><div class="tiny muted">Heading to</div><div class="h3">' + esc(r.dest.name) + '</div><div class="small muted">' + esc(r.dest.address) + ' · ' + esc(r.dest.area) + '</div></div>' +
           '<div class="eta-big"><b data-b="etaT"></b><span class="tiny">arrive <span data-b="arr"></span></span></div></div>' +
           '<div class="progress"><div data-bw="tripPct"></div></div><div class="tiny muted right" data-b="distLeft"></div>' +
@@ -470,7 +470,7 @@
           (f.minAdj > 0 ? line('Minimum fare adjustment', money(f.minAdj)) : '') +
           (f.surge > 1 ? line('Demand multiplier ' + f.surge.toFixed(1) + '×', money(f.surgeAmt), 'surge') : '') +
           line('Total', money(f.total), 'total') + '</div>' +
-          (rated ? '<div class="card center"><div class="spinner sm"></div><div class="small muted">Processing payment…</div></div>' :
+          (rated ? '<div class="note ok">' + ic('check') + '<span><b>Paid ' + money(f.total) + '.</b> Waiting for ' + esc(d.first) + ' to rate the trip…</span></div>' :
             '<div class="card"><div class="eyebrow">Pay with</div><div class="pay-list">' + Object.entries(PAY).map(([k, p]) =>
               '<button class="pay-opt" data-a="payMethod" data-v="' + k + '"' + (pay === k ? ' aria-pressed="true"' : '') + '>' + ic(p.icon) + '<span class="grow">' + p.label + (k === 'wallet' ? ' · ' + money(s.rider.wallet) : '') + (k === 'cash' ? ' · pay on arrival' : '') + '</span><i class="radio"></i></button>').join('') + '</div></div>' +
             '<div class="card"><div class="rate-head">' + avatar(d, 48) + '<div><div class="eyebrow">Rate your driver</div><b>How was your ride with ' + esc(d.first) + '?</b></div></div>' +
@@ -489,7 +489,7 @@
         html: () => this.sos() + '<div class="page done-page"><div class="done-hero"><div class="big-check">' + ic('heart', '', true) + '</div><div class="h2">Thanks for riding with FUber</div>' +
           '<div class="small muted">Paid ' + money(r.fare.total) + ' with ' + PAY[r.payment].label + '</div></div>' +
           '<div class="card"><div class="fare-line"><span>You rated ' + esc(d.first) + '</span><span>' + stars(r.riderRating.stars) + '</span></div>' +
-          '<div class="fare-line"><span>' + esc(d.first) + ' rated you</span><span>' + (r.driverRating ? stars(r.driverRating.stars) : '<span class="tiny muted">pending…</span>') + '</span></div>' +
+          '<div class="fare-line"><span>' + esc(d.first) + ' rated you</span><span>' + (r.driverRating ? stars(r.driverRating.stars) : '<span class="tiny muted">' + (r.driverDone ? 'not rated' : 'pending…') + '</span>') + '</span></div>' +
           (s.rider.favourites.includes(d.id) ? '<div class="note ok">' + ic('heart', '', true) + '<span>' + esc(d.first) + ' is in your Favourite Drivers. She\'ll get priority when nearby.</span></div>' : '') + '</div>' +
           '<button class="btn btn-primary btn-block btn-lg" data-a="finish">Done</button></div>',
       };
@@ -684,7 +684,7 @@
           this.act('R_UPLOAD', { doc: v });
           break;
         case 'submitVerify': this.act('R_SUBMIT_VERIFICATION'); break;
-        case 'approveNow': this.act('X_APPROVE'); break;
+        case 'approveNow': this.act('R_APPROVE'); break;
         case 'addContactRow': u.contacts.push({ name: '', phone: '' }); this.set({}); break;
         case 'fillContacts':
           u.contacts = [{ name: 'Meme Selma (Mum)', phone: '+264 81 555 0142' }, { name: 'Taimi (sister)', phone: '+264 85 555 0199' }];
