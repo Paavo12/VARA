@@ -66,11 +66,15 @@ jobs:
       - run: npm run build
       - name: Generated API client types are up to date
         run: |
-          npx openapi-typescript packages/api-client/openapi.json -o packages/api-client/src/schema.d.ts
+          npm run types -w @fuber/api-client
           git diff --exit-code -- packages/api-client/src/schema.d.ts
 
   secrets:
     runs-on: ubuntu-latest
+    # gitleaks lists the pull request's commits to scan them.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v7
         with:
