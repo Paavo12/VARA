@@ -486,6 +486,7 @@ dependencies = [
  "secrecy",
  "sqlx",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

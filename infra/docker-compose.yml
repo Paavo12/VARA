@@ -1,0 +1,43 @@
+# Local development services for the Rust backend. Development credentials only:
+# staging and production use managed services with secrets from the secret manager.
+#
+#   docker compose -f infra/docker-compose.yml up -d            # Postgres + Redis
+#   docker compose -f infra/docker-compose.yml --profile routing up -d   # + OSRM (run infra/osrm/build.sh first)
+
+name: fuber
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: fuber
+      POSTGRES_PASSWORD: fuber-local-only
+      POSTGRES_DB: fuber
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fuber -d fuber"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  # Object storage for identity documents is added in Phase 1 with the upload pipeline.
+  # (MinIO no longer publishes Docker images; pick an S3-compatible replacement then.)
+
+  # Road routing over OpenStreetMap (TRD §2.1). Needs data from infra/osrm/build.sh.
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    profiles: [routing]
+    command: osrm-routed --algorithm mld /data/namibia-latest.osrm
+    ports: ["127.0.0.1:5000:5000"]
+    volumes: ["./osrm/data:/data"]
+
+volumes:
+  postgres:
