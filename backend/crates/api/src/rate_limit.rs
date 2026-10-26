@@ -118,14 +118,14 @@ impl RateLimiter {
 
     pub async fn hit(&self, group: &str, key: &str, rule: Rule) -> Decision {
         let now = now_ms();
-        if let Some(r) = &self.redis {
-            if now >= r.skip_until_ms.load(Ordering::Relaxed) {
-                match r.hit(group, key, rule, now).await {
-                    Ok(d) => return d,
-                    Err(e) => {
-                        tracing::warn!(error = %e, "rate limiter: Redis unavailable, using in-memory counters");
-                        r.skip_until_ms.store(now + REDIS_RETRY_AFTER_MS, Ordering::Relaxed);
-                    }
+        if let Some(r) = &self.redis
+            && now >= r.skip_until_ms.load(Ordering::Relaxed)
+        {
+            match r.hit(group, key, rule, now).await {
+                Ok(d) => return d,
+                Err(e) => {
+                    tracing::warn!(error = %e, "rate limiter: Redis unavailable, using in-memory counters");
+                    r.skip_until_ms.store(now + REDIS_RETRY_AFTER_MS, Ordering::Relaxed);
                 }
             }
         }

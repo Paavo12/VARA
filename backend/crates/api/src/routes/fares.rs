@@ -11,26 +11,31 @@ use fuber_domain::{
     pricing::{self, Fare, Rates},
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-use crate::{AppState, error::ApiError, extract::ValidJson};
+use crate::{
+    AppState,
+    error::{ApiError, ErrorBody},
+    extract::ValidJson,
+};
 
 const ROAD_FACTOR: f64 = 1.3;
 const MIN_TRIP_M: f64 = 100.0;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EstimateRequest {
     pub pickup: LatLng,
     pub dropoff: LatLng,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct TierEstimate {
     pub tier: Tier,
     pub fare: Fare,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct EstimateResponse {
     pub distance_m: u32,
     pub duration_s: u32,
@@ -40,6 +45,17 @@ pub struct EstimateResponse {
     pub estimates: Vec<TierEstimate>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/v1/fares/estimate",
+    tag = "fares",
+    request_body = EstimateRequest,
+    responses(
+        (status = 200, description = "Fares for every ride type, in integer cents of NAD", body = EstimateResponse),
+        (status = 422, description = "Invalid request (unknown field, outside service area, too short)", body = ErrorBody),
+        (status = 429, description = "Rate limited; see Retry-After", body = ErrorBody),
+    )
+)]
 pub async fn estimate(State(_): State<AppState>, ValidJson(req): ValidJson<EstimateRequest>) -> Result<Json<EstimateResponse>, ApiError> {
     let straight = req.pickup.distance_m(&req.dropoff);
     if straight < MIN_TRIP_M {

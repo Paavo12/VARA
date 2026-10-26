@@ -1,0 +1,282 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FUber API",
+    "description": "Women-only ride-hailing for Windhoek. Amounts are integer cents of NAD.",
+    "license": {
+      "name": "UNLICENSED",
+      "identifier": "UNLICENSED"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/fares/estimate": {
+      "post": {
+        "tags": [
+          "fares"
+        ],
+        "operationId": "estimate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstimateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Fares for every ride type, in integer cents of NAD",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request (unknown field, outside service area, too short)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; see Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "The process is up. Never touches dependencies, so a database outage doesn't cause restarts.",
+        "operationId": "live",
+        "responses": {
+          "200": {
+            "description": "The process is up"
+          }
+        }
+      }
+    },
+    "/v1/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "The process can serve traffic: Postgres and Redis answer.",
+        "operationId": "ready",
+        "responses": {
+          "200": {
+            "description": "Postgres and Redis answer"
+          },
+          "503": {
+            "description": "A dependency is unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Cents": {
+        "type": "integer",
+        "format": "int64",
+        "description": "An amount of Namibian dollars in cents. Money is never a float."
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "Documentation shape of every error response.",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Stable machine-readable code, e.g. `invalid_request`, `rate_limited`."
+          },
+          "message": {
+            "type": "string",
+            "description": "Safe to show to the user."
+          }
+        }
+      },
+      "EstimateRequest": {
+        "type": "object",
+        "required": [
+          "pickup",
+          "dropoff"
+        ],
+        "properties": {
+          "dropoff": {
+            "$ref": "#/components/schemas/LatLng"
+          },
+          "pickup": {
+            "$ref": "#/components/schemas/LatLng"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EstimateResponse": {
+        "type": "object",
+        "required": [
+          "distance_m",
+          "duration_s",
+          "distance_source",
+          "currency",
+          "estimates"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "Amounts are integer cents of NAD."
+          },
+          "distance_m": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "distance_source": {
+            "type": "string"
+          },
+          "duration_s": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "estimates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TierEstimate"
+            }
+          }
+        }
+      },
+      "Fare": {
+        "type": "object",
+        "required": [
+          "base",
+          "distance",
+          "time",
+          "minimum_adjustment",
+          "surge_bp",
+          "surge",
+          "total",
+          "service_fee",
+          "driver_earning"
+        ],
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "distance": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "driver_earning": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "What the driver earns: total − service fee."
+          },
+          "minimum_adjustment": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Top-up to reach the tier minimum (zero when the trip is long enough)."
+          },
+          "service_fee": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "surge": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "surge_bp": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "time": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "total": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "What the rider pays: base + distance + time + minimum_adjustment + surge."
+          }
+        }
+      },
+      "LatLng": {
+        "type": "object",
+        "description": "A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is\nreplaced by the `service_areas` polygon once the database is wired in.",
+        "required": [
+          "lat",
+          "lon"
+        ],
+        "properties": {
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lon": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "Tier": {
+        "type": "string",
+        "description": "Ride types, cheapest first. The order is significant: a higher tier charges more.",
+        "enum": [
+          "classic",
+          "comfort",
+          "softlife"
+        ]
+      },
+      "TierEstimate": {
+        "type": "object",
+        "required": [
+          "tier",
+          "fare"
+        ],
+        "properties": {
+          "fare": {
+            "$ref": "#/components/schemas/Fare"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/Tier"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "health"
+    },
+    {
+      "name": "fares"
+    }
+  ]
+}

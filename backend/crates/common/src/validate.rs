@@ -162,7 +162,7 @@ impl<const MAX: usize> From<PlainText<MAX>> for String {
 
 /// A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is
 /// replaced by the `service_areas` polygon once the database is wired in.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, utoipa::ToSchema)]
 #[serde(try_from = "RawLatLng")]
 pub struct LatLng {
     pub lat: f64,

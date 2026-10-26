@@ -17,8 +17,6 @@ async fn migrations_apply_cleanly() {
     assert_eq!(tiers, 3);
 
     // Phone numbers outside +264 are rejected by the database too, not just the API.
-    let bad = sqlx::query("INSERT INTO users (phone_e164, full_name, display_name) VALUES ('+27821234567', 'X', 'X')")
-        .execute(&pool)
-        .await;
+    let bad = sqlx::query("INSERT INTO users (phone_e164, full_name, display_name) VALUES ('+27821234567', 'X', 'X')").execute(&pool).await;
     assert!(bad.is_err());
 }

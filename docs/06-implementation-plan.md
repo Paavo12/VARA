@@ -55,8 +55,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 ### Phase 0 — Foundations (3 weeks)
 
-- Monorepo per TRD §3; Cargo workspace (`api`, `worker`, `domain`, `db`, `geo`, `integrations`, `common`); pnpm workspace for Svelte apps and packages.
-- Local dev: `docker-compose` with PostGIS, Redis, OSRM (Namibia extract), MinIO, Mailpit; `just` or `make` commands; seed data matching the demo (four drivers, one rider, Windhoek places).
+- Monorepo per TRD §3; Cargo workspace (`api`, `worker`, `domain`, `db`, `geo`, `integrations`, `common`); npm workspaces for Svelte apps and packages.
+- Local dev: `docker-compose` with PostGIS, Redis, OSRM (Namibia extract) in `infra/docker-compose.yml`; S3-compatible storage is chosen in Phase 1 (MinIO no longer publishes Docker images); seed data matching the demo (four drivers, one rider, Windhoek places).
 - CI: fmt, clippy (`-D warnings`), tests, `svelte-check`, ESLint, `cargo audit`/`deny`, `npm audit`, **gitleaks**, container scan, OpenAPI diff.
 - Environments: staging on Terraform; secret manager wired; deploy on merge.
 - **Security baseline (built first, not last):**
