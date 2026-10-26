@@ -10,6 +10,10 @@ FUber is a women-only ride-hailing app for Windhoek, Namibia: every rider and ev
 | [`rider_app/`](rider_app/) | A Flutter project for a future native rider app. | Not started: still the default Flutter template. |
 | [`ride-hailing-backend/`](ride-hailing-backend/) | A NestJS + PostgreSQL API for a future production backend (`docker-compose.yml` starts Postgres and Redis for it). | Early stub: create and list rides only. Not used by the demo. |
 
+## Production development
+
+The production app is being built in **Rust** (backend) and **Svelte** (rider, driver, ops and web apps). The requirements, design brief, schema, implementation plan and draft legal policies are in [`docs/`](docs/README.md).
+
 ## Run the demo
 
 ```bash
