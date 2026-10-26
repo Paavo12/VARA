@@ -1,0 +1,16 @@
+[package]
+name = "fuber-worker"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+fuber-common = { version = "0.1.0", path = "../common" }
+fuber-db = { version = "0.1.0", path = "../db" }
+tokio = { version = "1.54.1", features = ["full"] }
+tracing = "0.1.44"
+
+[lints]
+workspace = true

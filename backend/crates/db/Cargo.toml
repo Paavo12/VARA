@@ -1,0 +1,15 @@
+[package]
+name = "fuber-db"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+secrecy = "0.10.3"
+sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "runtime-tokio", "tls-rustls-ring-webpki", "migrate", "macros", "uuid", "time", "json"] }
+thiserror = "2.0.21"
+
+[lints]
+workspace = true
