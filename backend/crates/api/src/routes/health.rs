@@ -9,11 +9,18 @@ use crate::AppState;
 
 const CHECK_TIMEOUT: Duration = Duration::from_secs(2);
 
+#[utoipa::path(get, path = "/v1/health", tag = "health", responses((status = 200, description = "The process is up")))]
 /// The process is up. Never touches dependencies, so a database outage doesn't cause restarts.
 pub async fn live() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/v1/ready",
+    tag = "health",
+    responses((status = 200, description = "Postgres and Redis answer"), (status = 503, description = "A dependency is unavailable"))
+)]
 /// The process can serve traffic: Postgres and Redis answer.
 pub async fn ready(State(s): State<AppState>) -> (StatusCode, Json<Value>) {
     let db = tokio::time::timeout(CHECK_TIMEOUT, fuber_db::ping(&s.db)).await;

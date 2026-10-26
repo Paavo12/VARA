@@ -12,7 +12,7 @@ pub use money::Cents;
 pub use ride::{Party, RideEvent, RideState, TransitionError};
 
 /// Ride types, cheapest first. The order is significant: a higher tier charges more.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Tier {
     Classic,

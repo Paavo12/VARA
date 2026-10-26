@@ -1,7 +1,7 @@
 use std::fmt;
 
 /// An amount of Namibian dollars in cents. Money is never a float.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(transparent)]
 pub struct Cents(pub i64);
 

@@ -2,6 +2,7 @@
 
 pub mod error;
 pub mod extract;
+pub mod openapi;
 pub mod rate_limit;
 pub mod security;
 

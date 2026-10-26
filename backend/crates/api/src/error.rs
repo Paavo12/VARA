@@ -58,6 +58,20 @@ impl IntoResponse for ApiError {
     }
 }
 
+/// Documentation shape of every error response.
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub struct ErrorBody {
+    pub error: ErrorDetail,
+}
+
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub struct ErrorDetail {
+    /// Stable machine-readable code, e.g. `invalid_request`, `rate_limited`.
+    pub code: String,
+    /// Safe to show to the user.
+    pub message: String,
+}
+
 pub async fn fallback() -> ApiError {
     ApiError::not_found()
 }
