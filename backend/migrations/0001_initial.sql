@@ -1,0 +1,553 @@
+-- FUber initial schema. Source of truth: docs/05-backend-schema.md (sections 2–9).
+-- Generated from that document; keep them in sync when changing either.
+
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS citext;
+
+CREATE TYPE user_status        AS ENUM ('pending', 'active', 'suspended', 'deleted');
+CREATE TYPE verification_status AS ENUM ('not_started', 'pending', 'approved', 'rejected');
+CREATE TYPE document_kind      AS ENUM ('identity', 'selfie', 'licence', 'insurance', 'police_clearance', 'transport_permit');
+CREATE TYPE document_status    AS ENUM ('uploading', 'in_review', 'approved', 'rejected', 'expired');
+CREATE TYPE ride_tier          AS ENUM ('classic', 'comfort', 'softlife');
+CREATE TYPE ride_state AS ENUM (
+  'SCHEDULED', 'REQUESTED', 'SEARCHING', 'NO_DRIVERS', 'DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE',
+  'DRIVER_ARRIVED', 'PIN_VERIFIED', 'IN_TRIP', 'COMPLETED', 'RATED', 'CANCELLED', 'BLOCKED');
+CREATE TYPE party              AS ENUM ('rider', 'driver', 'system', 'staff');
+CREATE TYPE offer_response     AS ENUM ('pending', 'accepted', 'declined', 'expired', 'withdrawn');
+CREATE TYPE payment_method     AS ENUM ('cash', 'card');
+CREATE TYPE payment_status     AS ENUM ('pending', 'authorised', 'captured', 'cash_confirmed', 'voided', 'refunded', 'partially_refunded', 'failed');
+CREATE TYPE incident_kind      AS ENUM ('sos', 'ridecheck_deviation', 'ridecheck_stop', 'pin_lockout', 'report');
+CREATE TYPE incident_status    AS ENUM ('open', 'claimed', 'escalated', 'closed');
+CREATE TYPE staff_role         AS ENUM ('ops_reviewer', 'ops_safety', 'ops_support', 'ops_admin');
+CREATE TYPE ledger_kind        AS ENUM ('trip_earning', 'service_fee', 'cash_collected', 'payout', 'adjustment', 'refund');
+
+CREATE TABLE users (
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone_e164       text NOT NULL UNIQUE CHECK (phone_e164 ~ '^\+264[1-9][0-9]{7,8}$'),
+  full_name        text NOT NULL CHECK (char_length(full_name) BETWEEN 1 AND 80),
+  display_name     text NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 40), -- first name shown to the other party
+  email            citext UNIQUE,
+  date_of_birth    bytea,                -- 🔒
+  national_id      bytea,                -- 🔒
+  national_id_hash bytea UNIQUE,         -- HMAC, blocks duplicate accounts
+  photo_key        text,                 -- object-storage key of the cropped profile photo (not the ID selfie)
+  status           user_status NOT NULL DEFAULT 'pending',
+  verification     verification_status NOT NULL DEFAULT 'not_started',
+  verified_at      timestamptz,
+  suspended_reason text,
+  deleted_at       timestamptz,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE rider_profiles (
+  user_id          uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  rating_avg       numeric(3,2),
+  rating_count     int NOT NULL DEFAULT 0,
+  priority_points  int NOT NULL DEFAULT 100 CHECK (priority_points BETWEEN 0 AND 150),
+  cancel_count     int NOT NULL DEFAULT 0,
+  created_at       timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE driver_profiles (
+  user_id               uuid PRIMARY KEY REFERENCES users(id) ON DELETE RESTRICT,
+  application_status    verification_status NOT NULL DEFAULT 'not_started',
+  approved_at           timestamptz,
+  rating_avg            numeric(3,2),
+  rating_count          int NOT NULL DEFAULT 0,
+  acceptance_rate       numeric(4,3) NOT NULL DEFAULT 0.8,  -- rolling 30-day, feeds matching
+  priority_points       int NOT NULL DEFAULT 100 CHECK (priority_points BETWEEN 0 AND 150),
+  cancel_count          int NOT NULL DEFAULT 0,
+  active_vehicle_id     uuid,              -- FK added after vehicles
+  can_go_online         boolean NOT NULL DEFAULT false,  -- maintained by document-expiry job
+  payout_account        bytea,             -- 🔒 bank details
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  updated_at            timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE staff_users (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email          citext NOT NULL UNIQUE,
+  full_name      text NOT NULL,
+  password_hash  text NOT NULL,           -- argon2id
+  totp_secret    bytea,                   -- 🔒
+  roles          staff_role[] NOT NULL,
+  disabled_at    timestamptz,
+  last_login_at  timestamptz,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE otp_challenges (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone_hash    bytea NOT NULL,           -- HMAC of phone, so OTP table never holds numbers
+  code_hash     bytea NOT NULL,           -- SHA-256(code || pepper)
+  attempts      smallint NOT NULL DEFAULT 0,
+  expires_at    timestamptz NOT NULL,
+  consumed_at   timestamptz,
+  ip            inet,
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON otp_challenges (phone_hash, created_at DESC);
+
+CREATE TABLE sessions (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),   -- 'sid' claim
+  user_id            uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  app                text NOT NULL CHECK (app IN ('rider', 'driver')),
+  family_id          uuid NOT NULL,                                -- rotation family
+  refresh_hash       bytea NOT NULL UNIQUE,
+  device_name        text,
+  push_token         text,
+  push_platform      text CHECK (push_platform IN ('fcm', 'apns')),
+  expires_at         timestamptz NOT NULL,
+  revoked_at         timestamptz,
+  last_seen_at       timestamptz NOT NULL DEFAULT now(),
+  created_at         timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON sessions (user_id) WHERE revoked_at IS NULL;
+-- One active driver session per user (demo rule): enforced in code + this partial unique index.
+CREATE UNIQUE INDEX one_driver_session ON sessions (user_id) WHERE app = 'driver' AND revoked_at IS NULL;
+
+CREATE TABLE identity_verifications (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id_document_key text NOT NULL,          -- private bucket
+  selfie_key      text NOT NULL,
+  vendor          text,                   -- null = manual review
+  vendor_ref      text,
+  vendor_score    numeric(4,3),
+  status          verification_status NOT NULL DEFAULT 'pending',
+  reject_reason   text,
+  reviewed_by     uuid REFERENCES staff_users(id),
+  reviewed_at     timestamptz,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON identity_verifications (status, created_at) WHERE status = 'pending';
+
+CREATE TABLE emergency_contacts (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name        text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 80),
+  phone       bytea NOT NULL,             -- 🔒
+  position    smallint NOT NULL CHECK (position BETWEEN 1 AND 3),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, position)
+);
+
+CREATE TABLE saved_places (
+  id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id   uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  label     text NOT NULL CHECK (char_length(label) BETWEEN 1 AND 40),
+  address   text NOT NULL,
+  location  geography(Point, 4326) NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE favourite_drivers (
+  rider_id   uuid NOT NULL REFERENCES rider_profiles(user_id) ON DELETE CASCADE,
+  driver_id  uuid NOT NULL REFERENCES driver_profiles(user_id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (rider_id, driver_id)
+);
+
+CREATE TABLE driver_documents (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id     uuid NOT NULL REFERENCES driver_profiles(user_id) ON DELETE CASCADE,
+  kind          document_kind NOT NULL,
+  storage_key   text NOT NULL,
+  mime_type     text NOT NULL CHECK (mime_type IN ('image/jpeg', 'image/png', 'image/heic', 'application/pdf')),
+  size_bytes    int NOT NULL CHECK (size_bytes <= 10485760),
+  sha256        bytea NOT NULL,
+  expires_on    date,
+  status        document_status NOT NULL DEFAULT 'uploading',
+  reject_reason text,
+  reviewed_by   uuid REFERENCES staff_users(id),
+  reviewed_at   timestamptz,
+  superseded_by uuid REFERENCES driver_documents(id),
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+-- Only one current document per kind.
+CREATE UNIQUE INDEX one_current_doc ON driver_documents (driver_id, kind) WHERE superseded_by IS NULL;
+CREATE INDEX ON driver_documents (status, created_at) WHERE status = 'in_review';
+CREATE INDEX ON driver_documents (expires_on) WHERE status = 'approved';
+
+CREATE TABLE vehicles (
+  id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id             uuid NOT NULL REFERENCES driver_profiles(user_id) ON DELETE CASCADE,
+  make                  text NOT NULL,
+  model                 text NOT NULL,
+  colour                text NOT NULL,
+  year                  smallint NOT NULL CHECK (year BETWEEN 1990 AND 2100),
+  plate                 text NOT NULL CHECK (plate ~ '^N [0-9]{1,6} [A-Z]{1,3}$'), -- e.g. 'N 9090 W'
+  seats                 smallint NOT NULL DEFAULT 4 CHECK (seats BETWEEN 4 AND 8),
+  wheelchair_accessible boolean NOT NULL DEFAULT false,
+  approved              boolean NOT NULL DEFAULT false,
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (plate)
+);
+ALTER TABLE driver_profiles ADD FOREIGN KEY (active_vehicle_id) REFERENCES vehicles(id);
+
+CREATE TABLE driver_tiers (
+  driver_id   uuid NOT NULL REFERENCES driver_profiles(user_id) ON DELETE CASCADE,
+  tier        ride_tier NOT NULL,
+  approved_by uuid REFERENCES staff_users(id),
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (driver_id, tier)
+);
+
+-- Online sessions for "hours online" and audits. Live position is in Redis, not here.
+CREATE TABLE driver_shifts (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id   uuid NOT NULL REFERENCES driver_profiles(user_id) ON DELETE CASCADE,
+  vehicle_id  uuid NOT NULL REFERENCES vehicles(id),
+  tier        ride_tier NOT NULL,
+  started_at  timestamptz NOT NULL DEFAULT now(),
+  ended_at    timestamptz
+);
+CREATE UNIQUE INDEX one_open_shift ON driver_shifts (driver_id) WHERE ended_at IS NULL;
+
+CREATE TABLE pricing_tiers (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tier               ride_tier NOT NULL,
+  base_cents         bigint NOT NULL,
+  per_km_cents       bigint NOT NULL,
+  per_min_cents      bigint NOT NULL,
+  minimum_cents      bigint NOT NULL,
+  service_fee_bp     int NOT NULL CHECK (service_fee_bp BETWEEN 0 AND 3000),  -- basis points: 200 = 2 %
+  effective_from     timestamptz NOT NULL,
+  created_by         uuid REFERENCES staff_users(id),
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (tier, effective_from)
+);
+-- Seed (PRD §8): classic 1500/800/120/3500/200 · comfort 2000/1000/150/4500/250 · softlife 2800/1300/200/6000/300
+
+CREATE TABLE surge_zones (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         text NOT NULL,
+  area         geography(MultiPolygon, 4326) NOT NULL,
+  multiplier   numeric(3,2) NOT NULL DEFAULT 1.00 CHECK (multiplier BETWEEN 1.00 AND 3.00),
+  demand_level text NOT NULL DEFAULT 'normal' CHECK (demand_level IN ('normal', 'high', 'peak')),
+  updated_by   uuid REFERENCES staff_users(id),
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON surge_zones USING gist (area);
+
+CREATE TABLE service_areas (
+  id    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name  text NOT NULL UNIQUE,          -- 'Windhoek'
+  area  geography(MultiPolygon, 4326) NOT NULL,
+  active boolean NOT NULL DEFAULT true
+);
+
+-- Matching & safety parameters editable from Ops (PRD D-6). Values validated by the API against a schema.
+CREATE TABLE settings (
+  key         text PRIMARY KEY,         -- e.g. 'dispatch.radius_m', 'dispatch.offer_ms', 'safety.deviation_m'
+  value       jsonb NOT NULL,
+  updated_by  uuid REFERENCES staff_users(id),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE SEQUENCE ride_code_seq START 4100;
+
+CREATE TABLE rides (
+  id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code                text NOT NULL UNIQUE DEFAULT ('FU-' || nextval('ride_code_seq')),
+  rider_id            uuid NOT NULL REFERENCES rider_profiles(user_id),
+  driver_id           uuid REFERENCES driver_profiles(user_id),
+  vehicle_id          uuid REFERENCES vehicles(id),
+  state               ride_state NOT NULL,
+  version             int NOT NULL DEFAULT 0,
+  tier                ride_tier NOT NULL,
+  passengers          smallint NOT NULL CHECK (passengers BETWEEN 1 AND 4),
+  wheelchair          boolean NOT NULL DEFAULT false,
+  -- Booked for someone else
+  guest_name          text CHECK (char_length(guest_name) <= 80),
+  guest_phone         bytea,             -- 🔒
+  -- Places
+  pickup              geography(Point, 4326) NOT NULL,
+  pickup_address      text NOT NULL,
+  pickup_fuzzed       geography(Point, 4326) NOT NULL,   -- what the driver sees before arrival
+  dropoff             geography(Point, 4326) NOT NULL,
+  dropoff_address     text NOT NULL,
+  -- Locked quote
+  quote_distance_m    int NOT NULL,
+  quote_duration_s    int NOT NULL,
+  pricing_tier_id     uuid NOT NULL REFERENCES pricing_tiers(id),
+  surge_multiplier    numeric(3,2) NOT NULL DEFAULT 1.00,
+  fare_cents          bigint NOT NULL CHECK (fare_cents > 0),
+  fare_breakdown      jsonb NOT NULL,     -- {base, distance, time, surge} in cents
+  service_fee_cents   bigint NOT NULL,
+  driver_earning_cents bigint NOT NULL,
+  payment_method      payment_method NOT NULL,
+  -- Safety
+  pin                 char(4) NOT NULL CHECK (pin ~ '^[0-9]{4}$'),  -- rider must see it; protected by attempt limit, never sent to driver
+  pin_attempts        smallint NOT NULL DEFAULT 0,
+  -- Timing
+  scheduled_for       timestamptz,
+  requested_at        timestamptz NOT NULL DEFAULT now(),
+  assigned_at         timestamptz,
+  arrived_at          timestamptz,
+  started_at          timestamptz,
+  completed_at        timestamptz,
+  wait_started_at     timestamptz,
+  -- Cancellation
+  cancelled_by        party,
+  cancel_reason       text,
+  -- Route actually driven (filled at completion, simplified)
+  route_driven        geography(LineString, 4326),
+  created_at          timestamptz NOT NULL DEFAULT now(),
+  updated_at          timestamptz NOT NULL DEFAULT now(),
+  CHECK ((guest_name IS NULL) = (guest_phone IS NULL))
+);
+CREATE INDEX ON rides (rider_id, created_at DESC);
+CREATE INDEX ON rides (driver_id, created_at DESC);
+CREATE INDEX ON rides (scheduled_for) WHERE state = 'SCHEDULED';
+-- A rider has at most one active ride; a driver at most one.
+CREATE UNIQUE INDEX one_active_ride_rider ON rides (rider_id)
+  WHERE state IN ('REQUESTED','SEARCHING','NO_DRIVERS','DRIVER_ASSIGNED','DRIVER_EN_ROUTE','DRIVER_ARRIVED','PIN_VERIFIED','IN_TRIP');
+CREATE UNIQUE INDEX one_active_ride_driver ON rides (driver_id)
+  WHERE state IN ('DRIVER_ASSIGNED','DRIVER_EN_ROUTE','DRIVER_ARRIVED','PIN_VERIFIED','IN_TRIP');
+
+CREATE TABLE ride_events (
+  id         bigserial PRIMARY KEY,
+  ride_id    uuid NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
+  from_state ride_state,
+  to_state   ride_state NOT NULL,
+  actor      party NOT NULL,
+  actor_id   uuid,
+  detail     jsonb,
+  at         timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON ride_events (ride_id, at);
+
+CREATE TABLE ride_offers (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ride_id      uuid NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
+  driver_id    uuid NOT NULL REFERENCES driver_profiles(user_id),
+  rank         smallint NOT NULL,
+  score        numeric(6,4) NOT NULL,
+  eta_s        int NOT NULL,
+  distance_m   int NOT NULL,
+  offered_at   timestamptz NOT NULL DEFAULT now(),
+  expires_at   timestamptz NOT NULL,
+  response     offer_response NOT NULL DEFAULT 'pending',
+  responded_at timestamptz,
+  UNIQUE (ride_id, driver_id)        -- a driver is never offered the same ride twice
+);
+CREATE UNIQUE INDEX one_pending_offer_per_ride ON ride_offers (ride_id) WHERE response = 'pending';
+
+-- Sampled GPS track during trips (10 s). Partitioned monthly; dropped after 90 days unless held.
+CREATE TABLE ride_track_points (
+  ride_id    uuid NOT NULL,
+  at         timestamptz NOT NULL,
+  location   geography(Point, 4326) NOT NULL,
+  speed_kmh  real,
+  heading    smallint,
+  PRIMARY KEY (ride_id, at)
+) PARTITION BY RANGE (at);
+
+CREATE TABLE ride_messages (
+  id         bigserial PRIMARY KEY,
+  ride_id    uuid NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
+  sender     party NOT NULL CHECK (sender IN ('rider', 'driver')),
+  body       text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 500),
+  quick_reply text,
+  sent_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE ratings (
+  ride_id    uuid NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
+  rater      party NOT NULL CHECK (rater IN ('rider', 'driver')),
+  stars      smallint NOT NULL CHECK (stars BETWEEN 1 AND 5),
+  reasons    text[] NOT NULL DEFAULT '{}',
+  comment    text CHECK (char_length(comment) <= 500),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (ride_id, rater),
+  CHECK (stars >= 3 OR cardinality(reasons) > 0)
+);
+
+CREATE TABLE payment_methods (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider       text NOT NULL,
+  provider_token text NOT NULL,          -- provider's token only; no PAN, no CVV ever
+  brand          text,
+  last4          char(4),
+  exp_month      smallint,
+  exp_year       smallint,
+  is_default     boolean NOT NULL DEFAULT false,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE payments (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ride_id           uuid NOT NULL UNIQUE REFERENCES rides(id),
+  method            payment_method NOT NULL,
+  payment_method_id uuid REFERENCES payment_methods(id),
+  amount_cents      bigint NOT NULL,
+  refunded_cents    bigint NOT NULL DEFAULT 0,
+  status            payment_status NOT NULL,
+  provider_ref      text,
+  failure_code      text,
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  created_at        timestamptz NOT NULL DEFAULT now()
+);
+
+-- Received webhooks, for idempotency and audit.
+CREATE TABLE webhook_events (
+  provider     text NOT NULL,
+  event_id     text NOT NULL,
+  payload      jsonb NOT NULL,
+  received_at  timestamptz NOT NULL DEFAULT now(),
+  processed_at timestamptz,
+  PRIMARY KEY (provider, event_id)
+);
+
+-- Double-entry-style driver balance: positive = FUber owes driver, negative = driver owes FUber (cash fees).
+CREATE TABLE driver_ledger (
+  id           bigserial PRIMARY KEY,
+  driver_id    uuid NOT NULL REFERENCES driver_profiles(user_id),
+  ride_id      uuid REFERENCES rides(id),
+  payout_id    uuid,
+  kind         ledger_kind NOT NULL,
+  amount_cents bigint NOT NULL,
+  note         text,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON driver_ledger (driver_id, created_at);
+
+CREATE TABLE payouts (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id     uuid NOT NULL REFERENCES driver_profiles(user_id),
+  period_start  date NOT NULL,
+  period_end    date NOT NULL,
+  amount_cents  bigint NOT NULL,
+  status        text NOT NULL CHECK (status IN ('pending', 'sent', 'failed')),
+  provider_ref  text,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (driver_id, period_start)
+);
+ALTER TABLE driver_ledger ADD FOREIGN KEY (payout_id) REFERENCES payouts(id);
+
+CREATE TABLE priority_ledger (
+  id          bigserial PRIMARY KEY,
+  user_id     uuid NOT NULL REFERENCES users(id),
+  role        text NOT NULL CHECK (role IN ('rider', 'driver')),
+  ride_id     uuid REFERENCES rides(id),
+  delta       int NOT NULL,
+  reason      text NOT NULL CHECK (reason IN ('cancel', 'no_show', 'trip_completed', 'staff_adjustment')),
+  balance     int NOT NULL,             -- balance after this entry
+  staff_id    uuid REFERENCES staff_users(id),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE safety_incidents (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ride_id      uuid REFERENCES rides(id),
+  raised_by    uuid REFERENCES users(id),     -- null when raised by the system (RideCheck)
+  kind         incident_kind NOT NULL,
+  status       incident_status NOT NULL DEFAULT 'open',
+  location     geography(Point, 4326),
+  claimed_by   uuid REFERENCES staff_users(id),
+  claimed_at   timestamptz,
+  escalated_to_police boolean NOT NULL DEFAULT false,
+  outcome      text,
+  closed_at    timestamptz,
+  hold_data    boolean NOT NULL DEFAULT true, -- exempts the ride's track/chat from retention deletion
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON safety_incidents (status, created_at) WHERE status <> 'closed';
+
+CREATE TABLE incident_notes (
+  id          bigserial PRIMARY KEY,
+  incident_id uuid NOT NULL REFERENCES safety_incidents(id) ON DELETE CASCADE,
+  staff_id    uuid NOT NULL REFERENCES staff_users(id),
+  body        text NOT NULL CHECK (char_length(body) <= 4000),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE trip_shares (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ride_id     uuid NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
+  token_hash  bytea NOT NULL UNIQUE,          -- SHA-256 of the 128-bit URL token
+  created_by  party NOT NULL CHECK (created_by IN ('rider', 'driver')),
+  expires_at  timestamptz,                    -- set to completed_at + 30 min
+  revoked_at  timestamptz,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE issue_reports (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ride_id     uuid REFERENCES rides(id),
+  reporter_id uuid NOT NULL REFERENCES users(id),
+  category    text NOT NULL CHECK (category IN ('harassment', 'unsafe_driving', 'wrong_person', 'wrong_vehicle', 'lost_item', 'fare', 'other')),
+  body        text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 2000),
+  status      text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved')),
+  incident_id uuid REFERENCES safety_incidents(id),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE legal_documents (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind         text NOT NULL CHECK (kind IN ('terms', 'privacy', 'cookies', 'driver_agreement')),
+  version      text NOT NULL,              -- e.g. '2026-11-01'
+  url          text NOT NULL,
+  content_sha256 bytea NOT NULL,
+  published_at timestamptz NOT NULL,
+  requires_reacceptance boolean NOT NULL DEFAULT true,
+  UNIQUE (kind, version)
+);
+
+CREATE TABLE consents (
+  user_id      uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  document_id  uuid NOT NULL REFERENCES legal_documents(id),
+  accepted_at  timestamptz NOT NULL DEFAULT now(),
+  ip           inet,
+  app_version  text,
+  PRIMARY KEY (user_id, document_id)
+);
+
+-- Append-only: app role has INSERT only; no UPDATE/DELETE grants.
+CREATE TABLE audit_log (
+  id          bigserial PRIMARY KEY,
+  staff_id    uuid REFERENCES staff_users(id),
+  user_id     uuid REFERENCES users(id),
+  action      text NOT NULL,              -- 'document.view', 'user.suspend', 'payment.refund', ...
+  target_type text NOT NULL,
+  target_id   text NOT NULL,
+  detail      jsonb,
+  ip          inet,
+  at          timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON audit_log (target_type, target_id, at);
+
+CREATE TABLE jobs (
+  id           bigserial PRIMARY KEY,
+  kind         text NOT NULL,
+  payload      jsonb NOT NULL,
+  run_at       timestamptz NOT NULL DEFAULT now(),
+  attempts     int NOT NULL DEFAULT 0,
+  max_attempts int NOT NULL DEFAULT 10,
+  locked_until timestamptz,
+  last_error   text,
+  done_at      timestamptz,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON jobs (run_at) WHERE done_at IS NULL;
+
+-- Catch-all partition so inserts never fail; the worker creates monthly partitions and
+-- drops expired ones (retention: 90 days, docs/05-backend-schema.md §12).
+CREATE TABLE ride_track_points_default PARTITION OF ride_track_points DEFAULT;
+
+-- updated_at maintenance.
+CREATE FUNCTION set_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER driver_profiles_updated_at BEFORE UPDATE ON driver_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER rides_updated_at BEFORE UPDATE ON rides FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER payments_updated_at BEFORE UPDATE ON payments FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER surge_zones_updated_at BEFORE UPDATE ON surge_zones FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER settings_updated_at BEFORE UPDATE ON settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
