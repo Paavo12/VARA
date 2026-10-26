@@ -11,7 +11,8 @@
 		}
 	},
 	"scripts": {
-		"generate": "cargo run -q --manifest-path ../../backend/Cargo.toml -p fuber-api --bin openapi > openapi.json && openapi-typescript openapi.json -o src/schema.d.ts",
+		"generate": "cargo run -q --manifest-path ../../backend/Cargo.toml -p fuber-api --bin openapi > openapi.json && npm run types",
+		"types": "openapi-typescript openapi.json -o src/schema.d.ts",
 		"test": "vitest --run"
 	},
 	"dependencies": {
