@@ -1,0 +1,24 @@
+{
+	"name": "@fuber/api-client",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"description": "Typed client for the FUber API, generated from the backend's OpenAPI document. Never edit src/schema.d.ts by hand.",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"scripts": {
+		"generate": "cargo run -q --manifest-path ../../backend/Cargo.toml -p fuber-api --bin openapi > openapi.json && openapi-typescript openapi.json -o src/schema.d.ts",
+		"test": "vitest --run"
+	},
+	"dependencies": {
+		"openapi-fetch": "^0.17.0"
+	},
+	"devDependencies": {
+		"openapi-typescript": "^7.13.0",
+		"vitest": "^4.1.12"
+	}
+}

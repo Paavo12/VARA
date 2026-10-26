@@ -15,5 +15,11 @@
 		"test": "npm run test --workspaces --if-present",
 		"build": "npm run build --workspaces --if-present",
 		"format": "npm run format --workspaces --if-present"
+	},
+	"overrides": {
+		"uuid": "^11.1.1"
+	},
+	"devDependencies": {
+		"uuid": "^11.1.1"
 	}
 }
