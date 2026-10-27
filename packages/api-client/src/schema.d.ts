@@ -4,6 +4,134 @@
  */
 
 export interface paths {
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/otp/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["request_otp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["verify_otp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/application": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_application"];
+        put: operations["save_application"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/application/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["add_document"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/fares/estimate": {
         parameters: {
             query?: never;
@@ -37,6 +165,246 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/legal/{kind}/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["latest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put?: never;
+        post?: never;
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch: operations["update"];
+        trace?: never;
+    };
+    "/v1/me/emergency-contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["contacts"];
+        put: operations["replace_contacts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["submit_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/documents/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide_document"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/drivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/drivers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/drivers/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/drivers/{id}/tiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_tiers"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/vehicles/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide_vehicle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/verifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/verifications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/verifications/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ready": {
         parameters: {
             query?: never;
@@ -54,15 +422,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/uploads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/uploads/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AddDocument: {
+            /**
+             * Format: date
+             * @description Required for licence, insurance, police clearance and transport permit; must be in the future.
+             * @example 2027-06-30
+             */
+            expires_on?: string | null;
+            kind: components["schemas"]["DocumentKind"];
+            /**
+             * Format: uuid
+             * @description A completed upload with the same purpose as `kind`.
+             */
+            upload_id: string;
+        };
+        /**
+         * @description Which app a session belongs to. One person can hold both (PRD A-9), with separate sessions.
+         * @enum {string}
+         */
+        App: "rider" | "driver";
+        Application: {
+            approved_tiers: components["schemas"]["Tier"][];
+            /** @description All checks passed: the driver may go online (Phase 2). */
+            can_go_online: boolean;
+            decision_reason?: string | null;
+            documents: components["schemas"]["DriverDocument"][];
+            /** @description Required document kinds with no current upload, or whose current one was rejected or expired. */
+            missing_documents: string[];
+            payout_account_saved: boolean;
+            pending_consents: components["schemas"]["LegalDocument"][];
+            profile_complete: boolean;
+            /** @description Everything needed to submit is present. */
+            ready_to_submit: boolean;
+            requested_tiers: components["schemas"]["Tier"][];
+            /** @description `not_started` (draft), `pending`, `approved` or `rejected`. */
+            status: string;
+            /** Format: date-time */
+            submitted_at?: string | null;
+            vehicle?: null | components["schemas"]["VehicleStatus"];
+        };
         /**
          * Format: int64
          * @description An amount of Namibian dollars in cents. Money is never a float.
          */
         Cents: number;
+        ConsentRequest: {
+            /** @description IDs from `pending_consents` on `GET /me`; each must be the latest version of its kind. */
+            document_ids: string[];
+        };
+        /** @enum {string} */
+        ContentType: "image/jpeg" | "image/png" | "application/pdf";
+        CreateUpload: {
+            content_type: components["schemas"]["ContentType"];
+            purpose: components["schemas"]["DocumentKind"];
+            /**
+             * Format: int64
+             * @description Exact size of the file in bytes, at most 10 MB.
+             */
+            size_bytes: number;
+        };
+        /** @description A review decision. A rejection needs a reason, which the applicant sees. */
+        Decision: {
+            decision: components["schemas"]["Verdict"];
+            /** @example The ID photo is blurred. Please retake it in good light. */
+            reason?: string | null;
+        };
+        DeletionScheduled: {
+            /** Format: date-time */
+            erase_after: string;
+        };
+        DocumentDecided: {
+            driver_can_go_online: boolean;
+            /** Format: uuid */
+            id: string;
+            status: string;
+        };
+        /** @enum {string} */
+        DocumentKind: "identity" | "selfie" | "licence" | "insurance" | "police_clearance" | "transport_permit";
+        DriverDocument: {
+            /** Format: date */
+            expires_on?: string | null;
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            reject_reason?: string | null;
+            /** @description `uploading` (being checked), `in_review`, `approved`, `rejected` or `expired`. */
+            status: string;
+            /** @description Set when the file itself was refused by the upload checks. */
+            upload_reject_reason?: string | null;
+        };
+        DriverQueueItem: {
+            /** Format: int64 */
+            documents_in_review: number;
+            full_name?: string | null;
+            requested_tiers: string[];
+            /** Format: date-time */
+            submitted_at: string;
+            /** Format: uuid */
+            user_id: string;
+        };
+        DriverReview: {
+            application_status: string;
+            approved_tiers: string[];
+            can_go_online: boolean;
+            /** Format: date */
+            date_of_birth?: string | null;
+            decision_reason?: string | null;
+            documents: components["schemas"]["ReviewDocument"][];
+            full_name?: string | null;
+            requested_tiers: string[];
+            /** Format: uuid */
+            user_id: string;
+            vehicle?: null | components["schemas"]["ReviewVehicle"];
+        };
+        EmergencyContact: {
+            name: string;
+            /** @example +264812223344 */
+            phone: string;
+        };
+        EmergencyContacts: {
+            /** @description Up to 3, in order of who to alert first. */
+            contacts: components["schemas"]["EmergencyContact"][];
+        };
         /** @description Documentation shape of every error response. */
         ErrorBody: {
             error: components["schemas"]["ErrorDetail"];
@@ -112,6 +645,169 @@ export interface components {
             /** Format: double */
             lon: number;
         };
+        LegalDocument: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            /** Format: date-time */
+            published_at: string;
+            url: string;
+            version: string;
+        };
+        /** @enum {string} */
+        LegalKind: "terms" | "privacy" | "cookies" | "driver_agreement";
+        Login: {
+            email: string;
+            /** Format: password */
+            password: string;
+            /**
+             * @description 6-digit code from the authenticator app.
+             * @example 123456
+             */
+            totp: string;
+        };
+        Me: {
+            /** Format: date */
+            date_of_birth?: string | null;
+            /** @description First name, shown to the other party on a ride. */
+            display_name?: string | null;
+            /** @description Driver application status, or null if this person has never applied to drive. */
+            driver_application?: string | null;
+            email?: string | null;
+            /** Format: int64 */
+            emergency_contacts: number;
+            full_name?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** @description Name and date of birth can no longer be changed in the app (identity under review or verified). */
+            identity_locked: boolean;
+            is_rider: boolean;
+            /** @description Documents to accept before continuing (PRD A-7). */
+            pending_consents: components["schemas"]["LegalDocument"][];
+            phone: string;
+            /** @description Name and date of birth are filled in. */
+            profile_complete: boolean;
+            /** @description `pending` until verified, then `active`. */
+            status: string;
+            /** @description Rider identity verification: `not_started`, `pending`, `approved` or `rejected`. */
+            verification: string;
+            verification_reject_reason?: string | null;
+        };
+        OtpChallenge: {
+            /** Format: uuid */
+            challenge_id: string;
+            /** Format: int64 */
+            expires_in_s: number;
+            /**
+             * Format: int64
+             * @description Seconds before another code can be requested for this number.
+             */
+            resend_after_s: number;
+        };
+        OtpRequest: {
+            /**
+             * @description Namibian mobile number; `081 123 4567` and `+264811234567` are both accepted.
+             * @example +264811234567
+             */
+            phone: string;
+        };
+        OtpVerify: {
+            app: components["schemas"]["App"];
+            /** Format: uuid */
+            challenge_id: string;
+            /** @example 123456 */
+            code: string;
+            /** @description Shown in the user's list of signed-in devices, e.g. "Samsung Galaxy A15". */
+            device_name?: string | null;
+            /**
+             * @description The same number the code was sent to.
+             * @example +264811234567
+             */
+            phone: string;
+        };
+        /** @description Bank account for weekly payouts. Stored encrypted; never returned by the API. */
+        PayoutAccount: {
+            account_holder: string;
+            /** @example 8001234567 */
+            account_number: string;
+            /** @example Bank Windhoek */
+            bank: string;
+            /** @example 483872 */
+            branch_code: string;
+        };
+        PreviousAttempt: {
+            /** Format: date-time */
+            created_at: string;
+            reject_reason?: string | null;
+            status: string;
+        };
+        QueueItem: {
+            display_name?: string | null;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: int64
+             * @description Earlier verifications by this person (all rejected).
+             */
+            previous_attempts: number;
+            /** Format: date-time */
+            submitted_at: string;
+            /** Format: uuid */
+            user_id: string;
+        };
+        RefreshRequest: {
+            refresh_token: string;
+        };
+        ReviewDocument: {
+            /** Format: date */
+            expires_on?: string | null;
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            mime_type?: string | null;
+            reject_reason?: string | null;
+            status: string;
+            /** @description Short-lived link to the sanitised file, once it has passed the upload checks. */
+            url?: string | null;
+        };
+        ReviewVehicle: {
+            approved: boolean;
+            colour: string;
+            /** Format: uuid */
+            id: string;
+            make: string;
+            model: string;
+            plate: string;
+            reject_reason?: string | null;
+            /** Format: int32 */
+            seats: number;
+            wheelchair_accessible: boolean;
+            /** Format: int32 */
+            year: number;
+        };
+        SaveApplication: {
+            payout_account?: null | components["schemas"]["PayoutAccount"];
+            /** @description Ride types the driver wants to offer; ops decide which are approved. */
+            requested_tiers: components["schemas"]["Tier"][];
+            vehicle: components["schemas"]["Vehicle"];
+        };
+        SetTiers: {
+            /** @description The full set of approved tiers; an empty list removes them all. */
+            tiers: components["schemas"]["Tier"][];
+        };
+        SignedIn: components["schemas"]["TokenPair"] & {
+            /** @description True when this sign-in created the account: the app continues to "Your details". */
+            new_user: boolean;
+            /** Format: uuid */
+            user_id: string;
+        };
+        StaffSession: {
+            /** Format: date-time */
+            expires_at: string;
+            roles: string[];
+            /** @description Send as `Authorization: Bearer <token>` to `/v1/ops/*`. */
+            token: string;
+        };
         /**
          * @description Ride types, cheapest first. The order is significant: a higher tier charges more.
          * @enum {string}
@@ -120,6 +816,109 @@ export interface components {
         TierEstimate: {
             fare: components["schemas"]["Fare"];
             tier: components["schemas"]["Tier"];
+        };
+        TokenPair: {
+            /** @description Send as `Authorization: Bearer <access_token>`. Valid for `expires_in` seconds. */
+            access_token: string;
+            /** Format: int64 */
+            expires_in: number;
+            /**
+             * @description Single use: exchange at `POST /v1/auth/refresh` for a new pair. Store it only in the
+             *     device keychain/keystore.
+             */
+            refresh_token: string;
+            token_type: string;
+        };
+        UpdateMe: {
+            /**
+             * @description `YYYY-MM-DD`; must be 18 or older.
+             * @example 1994-03-12
+             */
+            date_of_birth?: string | null;
+            email?: string | null;
+            /** @example Ndeshi Shikongo */
+            full_name?: string | null;
+        };
+        UploadStatus: {
+            purpose: string;
+            /** @description Why the file was refused, written for the user. */
+            reject_reason?: string | null;
+            /** @description `awaiting_upload`, `processing`, `clean` or `rejected`. */
+            status: string;
+            /** Format: uuid */
+            upload_id: string;
+        };
+        UploadTarget: {
+            /** Format: date-time */
+            expires_at: string;
+            headers: {
+                [key: string]: string;
+            };
+            /** @description Send the file with this method to `url`, with exactly these headers. */
+            method: string;
+            /** Format: uuid */
+            upload_id: string;
+            url: string;
+        };
+        Vehicle: {
+            /** @example Silver */
+            colour: string;
+            /** @example Toyota */
+            make: string;
+            /** @example Corolla */
+            model: string;
+            /** @example N 9090 W */
+            plate: string;
+            /** Format: int64 */
+            seats: number;
+            wheelchair_accessible: boolean;
+            /**
+             * Format: int64
+             * @example 2019
+             */
+            year: number;
+        };
+        VehicleStatus: components["schemas"]["Vehicle"] & {
+            approved: boolean;
+            /** Format: uuid */
+            id: string;
+            reject_reason?: string | null;
+        };
+        /** @enum {string} */
+        Verdict: "approve" | "reject";
+        VerificationDetail: {
+            /** Format: date */
+            date_of_birth?: string | null;
+            full_name?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** @description Short-lived links to the sanitised images. */
+            id_document_url?: string | null;
+            national_id?: string | null;
+            previous: components["schemas"]["PreviousAttempt"][];
+            selfie_url?: string | null;
+            status: string;
+            /** Format: uuid */
+            user_id: string;
+        };
+        VerificationRequest: {
+            /**
+             * Format: uuid
+             * @description Upload with purpose `identity`: national ID card or passport photo page.
+             */
+            id_document_upload_id: string;
+            /** @description 11-digit Namibian ID or passport number. Encrypted; used to stop duplicate accounts. */
+            national_id?: string | null;
+            /**
+             * Format: uuid
+             * @description Upload with purpose `selfie`.
+             */
+            selfie_upload_id: string;
+        };
+        VerificationSubmitted: {
+            status: string;
+            /** Format: uuid */
+            verification_id: string;
         };
     };
     responses: never;
@@ -130,6 +929,336 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description This device's session is ended */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    request_otp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpRequest"];
+            };
+        };
+        responses: {
+            /** @description Code sent by SMS */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OtpChallenge"];
+                };
+            };
+            /** @description Not a valid Namibian mobile number */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many codes for this number or IP; see Retry-After */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description SMS could not be sent */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    verify_otp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OtpVerify"];
+            };
+        };
+        responses: {
+            /** @description Signed in */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedIn"];
+                };
+            };
+            /** @description `otp_invalid` (wrong or expired) or `otp_locked` (5 wrong attempts) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `account_suspended` or `account_deleted` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshRequest"];
+            };
+        };
+        responses: {
+            /** @description New token pair; the old refresh token is now spent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPair"];
+                };
+            };
+            /** @description Unknown, expired, revoked or reused refresh token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentRequest"];
+            };
+        };
+        responses: {
+            /** @description Consent recorded */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown or outdated document */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
+        };
+    };
+    save_application: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveApplication"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
+            /** @description `application_locked` (under review or approved) or `plate_taken` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Submitted for review */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
+            /** @description `application_incomplete` (see `ready_to_submit` on GET) or `application_locked` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    add_document: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddDocument"];
+            };
+        };
+        responses: {
+            /** @description Added; replaces the current document of this kind */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverDocument"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     estimate: {
         parameters: {
             query?: never;
@@ -190,6 +1319,558 @@ export interface operations {
             };
         };
     };
+    latest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["LegalKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalDocument"];
+                };
+            };
+            /** @description Not published yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed out everywhere; personal data is erased after 30 days */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionScheduled"];
+                };
+            };
+            /** @description `active_ride`: finish or cancel the current ride first */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMe"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
+            };
+            /** @description `identity_locked`: name and date of birth are under review or verified */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    contacts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmergencyContacts"];
+                };
+            };
+        };
+    };
+    replace_contacts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmergencyContacts"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmergencyContacts"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    submit_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Waiting for review */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationSubmitted"];
+                };
+            };
+            /** @description `profile_incomplete`, `already_verified`, `verification_pending` or `duplicate_identity` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description An upload is missing, not yours, of the wrong kind or was rejected */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Login"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffSession"];
+                };
+            };
+            /** @description Email, password or code is wrong (never says which) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 5 attempts per 15 minutes per account and IP */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    decide_document: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Decision"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDecided"];
+                };
+            };
+            /** @description `not_in_review` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Submitted applications, oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverQueueItem"][];
+                };
+            };
+        };
+    };
+    detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The driver's user ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverReview"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Decision"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverReview"];
+                };
+            };
+            /** @description `not_pending`, or `not_ready`: documents, vehicle or tiers not all approved */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_tiers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetTiers"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverReview"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    decide_vehicle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Decision"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDecided"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending verifications whose photos passed the upload checks, oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueItem"][];
+                };
+            };
+        };
+    };
+    detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationDetail"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Decision"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificationDetail"];
+                };
+            };
+            /** @description `not_pending`: already decided, or photos still being checked */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Rejection without a reason */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     ready: {
         parameters: {
             query?: never;
@@ -212,6 +1893,123 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUpload"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadTarget"];
+                };
+            };
+            /** @description Driver documents can only be uploaded from the driver app */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 20 uploads per hour */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadStatus"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued for checking */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadStatus"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `upload_expired` or already completed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

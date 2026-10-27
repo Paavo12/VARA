@@ -80,6 +80,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** a new rider and a new driver can onboard on real phones; verification decided via API; wrong-user access tests pass for every endpoint.
 
+**Status (2026-10-27):** built on branch `phase-1/identity`. API, worker and both app flows are done; integration tests cover rider and driver onboarding through ops approval, uploads through the worker, deletion and erasure, and wrong-user/unauthenticated/validation checks for every Phase 1 endpoint. Still open: real-phone run, real SMS and S3-compatible storage (blocked on vendor and cloud decisions, PRD §10), the Driver Agreement text, and CAPTCHA on OTP requests.
+
 ### Phase 2 — Booking & dispatch (4 weeks)
 
 - Places search (OSM-derived landmarks, suburbs, streets; accent-insensitive) (B-2).

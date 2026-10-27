@@ -40,9 +40,12 @@
 		"#lib/*": "./src/lib/*"
 	},
 	"dependencies": {
+		"@aparajita/capacitor-secure-storage": "^8.0.1",
 		"@capacitor/android": "^8.5.3",
 		"@capacitor/core": "^8.5.3",
 		"@capacitor/ios": "^8.5.3",
+		"@fuber/account": "*",
+		"@fuber/api-client": "*",
 		"@fuber/ui": "*"
 	}
 }

@@ -1,0 +1,30 @@
+{
+	"name": "@fuber/account",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"description": "Sign-in and account screens shared by the rider and driver apps (PRD A-1 \u2013 A-3, A-7, A-8).",
+	"svelte": "./src/index.ts",
+	"exports": {
+		".": {
+			"types": "./src/index.ts",
+			"svelte": "./src/index.ts",
+			"default": "./src/index.ts"
+		}
+	},
+	"scripts": {
+		"test": "vitest --run"
+	},
+	"dependencies": {
+		"@aparajita/capacitor-secure-storage": "^8.0.1",
+		"@capacitor/core": "^8.5.3",
+		"@fuber/api-client": "*",
+		"@fuber/ui": "*"
+	},
+	"peerDependencies": {
+		"svelte": "^5.57.0"
+	},
+	"devDependencies": {
+		"vitest": "^4.1.12"
+	}
+}
