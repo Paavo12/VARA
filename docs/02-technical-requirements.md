@@ -5,7 +5,7 @@
 | Version | 1.0 (draft for sign-off) |
 | Date | 2026-10-26 |
 | Implements | [PRD v1.0](01-product-requirements.md) |
-| Stack | Rust (backend) · Svelte 5 / SvelteKit 2 (all front ends) · PostgreSQL + PostGIS · Redis |
+| Stack | Rust (backend) · Svelte 5 / SvelteKit 3 (all front ends) · PostgreSQL + PostGIS · Redis |
 
 ---
 
@@ -60,10 +60,10 @@ flowchart LR
 | Database | `sqlx` (Postgres, compile-time checked queries, migrations) | No ORM magic; SQL is reviewed; injection-safe by construction. |
 | Geo | PostGIS `geography(Point,4326)`; Redis `GEOADD/GEOSEARCH` for live driver positions | Live positions change every few seconds — keep them out of Postgres. |
 | Routing / ETA | Self-hosted **OSRM** (Namibia extract from Geofabrik), called over HTTP | Same OSM data as the demo; no per-request fees; respects one-way streets. |
-| Validation | `serde` (`deny_unknown_fields`) + `validator` + domain newtypes | See §7.2. |
+| Validation | `serde` (`deny_unknown_fields`) + validated domain newtypes (`fuber_common::validate`) | See §7.2. |
 | Auth tokens | `jsonwebtoken` (EdDSA/Ed25519), opaque rotating refresh tokens | §7.4. |
 | Password-like secrets | `argon2` (refresh-token & OTP hashing uses SHA-256 + server pepper; admin TOTP via `totp-rs`) | |
-| Rate limiting | Redis-backed sliding window (custom `tower` layer) + `tower_governor` as in-process fallback | §7.1. |
+| Rate limiting | Redis-backed sliding window (custom middleware) with per-instance in-memory fallback when Redis is down | §7.1. |
 | API docs | `utoipa` → OpenAPI 3.1 → generated TypeScript client for Svelte apps | One source of truth for request/response types. |
 | Jobs | `worker` binary: Postgres-backed queue (`SELECT … FOR UPDATE SKIP LOCKED`) + Redis timers for 15 s offer expiry | No extra broker in v1. |
 | Observability | `tracing` + OpenTelemetry (OTLP) → Grafana stack (or vendor); Sentry for panics | |
@@ -74,7 +74,7 @@ flowchart LR
 
 | App | Framework | Delivery |
 | --- | --- | --- |
-| Rider | SvelteKit 2 + Svelte 5 (runes), `adapter-static` (SPA) | Wrapped with **Capacitor** for iOS + Android |
+| Rider | SvelteKit 3 + Svelte 5 (runes), `adapter-static` (SPA) | Wrapped with **Capacitor** for iOS + Android |
 | Driver | Same as Rider | Capacitor; needs background location while online |
 | Ops console | SvelteKit SSR (`adapter-node`) | Web, behind SSO-style login + 2FA |
 | Website | SvelteKit SSR/prerendered | Legal pages, trip-share viewer, driver application landing |
@@ -154,7 +154,7 @@ States (from the demo, plus terminal states): `REQUESTED → SEARCHING → DRIVE
 
 ### 4.3 Pricing
 
-`fare = max(minimum, base + perKm × km + perMin × min × baseTraffic) × surge`, rounded to N$0.10, using OSRM route distance/duration. Stored as integer **cents** (`BIGINT`) — never floats. The quote is signed (HMAC) and valid for 5 minutes; `request_ride` must present a valid quote, so the price charged is exactly the one shown.
+`fare = max(minimum, base + perKm × km + perMin × min × baseTraffic) × surge`. Each receipt line (base, distance, time, minimum top-up, surge) is rounded to the cent and the total is their sum, so receipts always add up (within 3 cents of the demo, which rounds only the total). Inputs are the OSRM route distance and duration. Stored as integer **cents** (`BIGINT`) — never floats. The quote is signed (HMAC) and valid for 5 minutes; `request_ride` must present a valid quote, so the price charged is exactly the one shown.
 
 ### 4.4 Location & privacy rules
 
