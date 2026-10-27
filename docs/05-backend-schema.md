@@ -77,7 +77,7 @@ CREATE TYPE ledger_kind        AS ENUM ('trip_earning', 'service_fee', 'cash_col
 ```sql
 CREATE TABLE users (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  phone_e164       text NOT NULL UNIQUE CHECK (phone_e164 ~ '^\+264[1-9][0-9]{7,8}$'),
+  phone_e164       text NOT NULL UNIQUE CHECK (phone_e164 ~ '^\+264[0-9]{7,10}$'),
   full_name        text NOT NULL CHECK (char_length(full_name) BETWEEN 1 AND 80),
   display_name     text NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 40), -- first name shown to the other party
   email            citext UNIQUE,
