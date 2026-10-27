@@ -5,6 +5,9 @@ use std::time::Duration;
 use secrecy::{ExposeSecret, SecretString};
 use sqlx::{PgPool, postgres::PgPoolOptions};
 
+pub mod drivers;
+pub mod jobs;
+
 pub use sqlx;
 
 /// Migrations in `backend/migrations`, embedded in the binary. Production runs them from CI

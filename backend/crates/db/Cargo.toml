@@ -8,8 +8,11 @@ publish.workspace = true
 
 [dependencies]
 secrecy = "0.10.3"
+serde_json = "1.0.154"
 sqlx = { version = "0.8.6", default-features = false, features = ["postgres", "runtime-tokio", "tls-rustls-ring-webpki", "migrate", "macros", "uuid", "time", "json"] }
 thiserror = "2.0.21"
+time = "0.3.55"
+uuid = "1.29.0"
 
 [lints]
 workspace = true

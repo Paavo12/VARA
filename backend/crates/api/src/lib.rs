@@ -1,5 +1,7 @@
 //! FUber HTTP API.
 
+pub mod audit;
+pub mod auth;
 pub mod error;
 pub mod extract;
 pub mod openapi;
@@ -7,9 +9,17 @@ pub mod rate_limit;
 pub mod security;
 
 mod routes {
+    pub mod auth;
+    pub mod driver;
     pub mod fares;
     pub mod health;
+    pub mod legal;
+    pub mod me;
+    pub mod storage;
+    pub mod uploads;
 }
+
+pub mod ops;
 
 use std::{sync::Arc, time::Duration};
 
@@ -18,9 +28,13 @@ use axum::{
     extract::{DefaultBodyLimit, MatchedPath, Request},
     http::{HeaderName, StatusCode},
     middleware,
-    routing::{get, post},
+    routing::{get, post, put},
 };
-use fuber_common::Config;
+use fuber_common::{Config, Environment, SmsProvider};
+use fuber_integrations::{
+    sms::{FakeSms, SmsGateway},
+    storage::{MAX_UPLOAD_BYTES, ObjectStore},
+};
 use sqlx::PgPool;
 use tower_http::{
     limit::RequestBodyLimitLayer,
@@ -29,11 +43,14 @@ use tower_http::{
     trace::TraceLayer,
 };
 
+use auth::Keys;
 use rate_limit::{Limit, RateLimiter, RateLimits, Rule};
 
 /// JSON bodies above this are rejected (uploads go straight to object storage instead).
 pub const MAX_BODY_BYTES: usize = 16 * 1024;
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
+/// File transfers through the local storage backend: 10 MB on a slow mobile connection.
+pub const STORAGE_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[derive(Clone)]
 pub struct AppState {
@@ -41,6 +58,21 @@ pub struct AppState {
     pub db: PgPool,
     pub limiter: Arc<RateLimiter>,
     pub limits: RateLimits,
+    pub keys: Arc<Keys>,
+    pub sms: Arc<SmsGateway>,
+    pub store: Arc<ObjectStore>,
+}
+
+impl AppState {
+    /// Builds keys and integrations from the configuration.
+    pub fn new(config: Config, db: PgPool, limiter: RateLimiter, limits: RateLimits) -> AppState {
+        let keys = Keys::from_config(&config);
+        let sms = match config.sms_provider {
+            SmsProvider::Fake => SmsGateway::Fake(FakeSms::new(config.env == Environment::Local)),
+        };
+        let store = ObjectStore::from_config(&config, keys.hasher.clone());
+        AppState { config: Arc::new(config), db, limiter: Arc::new(limiter), limits, keys, sms: Arc::new(sms), store: Arc::new(store) }
+    }
 }
 
 pub fn router(state: AppState) -> Router {
@@ -50,24 +82,64 @@ pub fn router(state: AppState) -> Router {
             rate_limit::enforce,
         )
     };
+    let l = state.limits;
 
     let v1 = Router::new()
         .route("/health", get(routes::health::live))
         .route("/ready", get(routes::health::ready))
-        .route("/fares/estimate", post(routes::fares::estimate).route_layer(limit("fare_estimate", state.limits.fare_estimate)));
+        .route("/fares/estimate", post(routes::fares::estimate).route_layer(limit("fare_estimate", l.fare_estimate)))
+        // Sign-in
+        .route("/auth/otp/request", post(routes::auth::request_otp).route_layer(limit("otp_request", l.otp_request)))
+        .route("/auth/otp/verify", post(routes::auth::verify_otp).route_layer(limit("otp_verify", l.otp_verify)))
+        .route("/auth/refresh", post(routes::auth::refresh).route_layer(limit("refresh_ip", l.refresh)))
+        .route("/auth/logout", post(routes::auth::logout))
+        // Legal documents (public) and consent
+        .route("/legal/{kind}/latest", get(routes::legal::latest).route_layer(limit("legal", l.legal)))
+        .route("/consents", post(routes::legal::accept))
+        // Profile
+        .route("/me", get(routes::me::get).patch(routes::me::update).delete(routes::me::delete))
+        .route("/me/emergency-contacts", get(routes::me::contacts).put(routes::me::replace_contacts))
+        .route("/me/verification", post(routes::me::submit_verification))
+        // Uploads
+        .route("/uploads", post(routes::uploads::create))
+        .route("/uploads/{id}", get(routes::uploads::status))
+        .route("/uploads/{id}/complete", post(routes::uploads::complete))
+        // Driver onboarding
+        .route("/driver/application", get(routes::driver::get_application).put(routes::driver::save_application))
+        .route("/driver/application/submit", post(routes::driver::submit))
+        .route("/driver/documents", post(routes::driver::add_document))
+        // Ops (staff)
+        .nest("/ops", ops::router(&state));
 
-    let request_id = HeaderName::from_static("x-request-id");
-    let app = Router::new()
+    let json_api = Router::new()
         .nest("/v1", v1)
-        .fallback(error::fallback)
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(RequestBodyLimitLayer::new(MAX_BODY_BYTES))
-        .layer(TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, REQUEST_TIMEOUT))
+        .layer(TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, REQUEST_TIMEOUT));
+
+    // Signed-URL file transfer, only with the local storage backend (cloud storage serves
+    // these requests itself). Larger bodies and a longer timeout than the JSON API.
+    let mut app = json_api;
+    if state.store.local().is_some() {
+        let max = MAX_UPLOAD_BYTES as usize;
+        let storage = Router::new()
+            .route("/v1/storage/{*key}", put(routes::storage::upload).get(routes::storage::download))
+            .route_layer(limit("storage", l.storage))
+            .layer(DefaultBodyLimit::max(max))
+            .layer(RequestBodyLimitLayer::new(max))
+            .layer(TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, STORAGE_TIMEOUT));
+        app = app.merge(storage);
+    }
+
+    let request_id = HeaderName::from_static("x-request-id");
+    let app = app
+        .fallback(error::fallback)
         .layer(security::cors(&state.config.cors_origins))
         // Every request, matched or not, passes the global per-IP backstop first.
-        .layer(limit("global", state.limits.global))
+        .layer(limit("global", l.global))
         .layer(
-            // Log the route template, never the raw URI: paths can carry share tokens.
+            // Log the route template, never the raw URI: paths can carry share tokens and
+            // storage signatures.
             TraceLayer::new_for_http().make_span_with(|req: &Request| {
                 let route = req.extensions().get::<MatchedPath>().map_or("<unmatched>", MatchedPath::as_str);
                 let id = req.headers().get("x-request-id").and_then(|v| v.to_str().ok()).unwrap_or("-");

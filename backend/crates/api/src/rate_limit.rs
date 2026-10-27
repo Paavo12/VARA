@@ -38,21 +38,64 @@ impl Rule {
     pub const fn per_minute(limit: u32) -> Rule {
         Rule { limit, window_s: 60 }
     }
+
+    pub const fn per_hour(limit: u32) -> Rule {
+        Rule { limit, window_s: 3600 }
+    }
 }
 
 /// Limits per endpoint group. Defaults follow TRD §7.1; any subset can be overridden with the
 /// `RATE_LIMITS` environment variable (JSON). New endpoint groups add a field here.
+///
+/// Keys: groups applied as route middleware are per IP; the others are checked inside the
+/// handler with the key noted (TRD §7.1: per user for signed-in routes, per phone for OTP).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RateLimits {
     /// Per-IP backstop applied to every request, including unknown routes.
     pub global: Rule,
     pub fare_estimate: Rule,
+    /// `POST /auth/otp/request`, per IP.
+    pub otp_request: Rule,
+    /// `POST /auth/otp/request`, per phone number (SMS-pumping guard).
+    pub otp_phone: Rule,
+    /// `POST /auth/otp/verify`, per IP. Each challenge also allows only 5 attempts.
+    pub otp_verify: Rule,
+    /// `POST /auth/refresh`, per IP and per user.
+    pub refresh: Rule,
+    /// Every signed-in rider/driver request, per user.
+    pub user: Rule,
+    /// `POST /uploads`, per user.
+    pub uploads: Rule,
+    /// `POST /driver/application/submit`, per user.
+    pub driver_submit: Rule,
+    /// Signed-URL storage requests (local storage backend), per IP.
+    pub storage: Rule,
+    /// Public legal-document lookups, per IP.
+    pub legal: Rule,
+    /// `POST /ops/auth/login`, per account + IP.
+    pub ops_login: Rule,
+    /// Every signed-in ops request, per staff member.
+    pub ops: Rule,
 }
 
 impl Default for RateLimits {
     fn default() -> Self {
-        RateLimits { global: Rule::per_minute(300), fare_estimate: Rule::per_minute(30) }
+        RateLimits {
+            global: Rule::per_minute(300),
+            fare_estimate: Rule::per_minute(30),
+            otp_request: Rule::per_hour(10),
+            otp_phone: Rule { limit: 3, window_s: 600 },
+            otp_verify: Rule::per_hour(20),
+            refresh: Rule::per_hour(30),
+            user: Rule::per_minute(120),
+            uploads: Rule::per_hour(20),
+            driver_submit: Rule { limit: 5, window_s: 86_400 },
+            storage: Rule::per_minute(60),
+            legal: Rule::per_minute(60),
+            ops_login: Rule { limit: 5, window_s: 900 },
+            ops: Rule::per_minute(300),
+        }
     }
 }
 
@@ -130,6 +173,18 @@ impl RateLimiter {
             }
         }
         self.memory.hit(&format!("{group}:{key}"), rule, now)
+    }
+
+    /// For limits checked inside handlers (keys other than the IP). The key is hashed or an
+    /// opaque ID, never a raw phone number.
+    pub async fn check(&self, group: &'static str, key: &str, rule: Rule) -> Result<(), ApiError> {
+        match self.hit(group, key, rule).await {
+            Decision::Allow => Ok(()),
+            Decision::Deny { retry_after } => {
+                tracing::warn!(group, "rate limit exceeded");
+                Err(ApiError::rate_limited(retry_after))
+            }
+        }
     }
 
     /// Readiness probe for Redis (`None` when running memory-only).

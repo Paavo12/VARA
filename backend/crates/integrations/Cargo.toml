@@ -1,0 +1,25 @@
+[package]
+name = "fuber-integrations"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = "0.23.1"
+fuber-common = { version = "0.1.0", path = "../common" }
+hmac = "0.13.0"
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+sha2 = "0.11.1"
+thiserror = "2.0.21"
+time = "0.3.55"
+tokio = { version = "1.54.1", features = ["fs", "io-util", "net", "time", "sync"] }
+tracing = "0.1.44"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread"] }

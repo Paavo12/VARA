@@ -3,6 +3,7 @@
 #
 #   docker compose -f infra/docker-compose.yml up -d            # Postgres + Redis
 #   docker compose -f infra/docker-compose.yml --profile routing up -d   # + OSRM (run infra/osrm/build.sh first)
+#   docker compose -f infra/docker-compose.yml --profile scan up -d      # + ClamAV for upload scanning
 
 name: fuber
 
@@ -28,8 +29,15 @@ services:
       interval: 5s
       retries: 10
 
-  # Object storage for identity documents is added in Phase 1 with the upload pipeline.
-  # (MinIO no longer publishes Docker images; pick an S3-compatible replacement then.)
+  # Object storage: local development keeps uploads on disk (backend/var/storage) behind
+  # signed URLs served by the API itself, so no storage container is needed. S3-compatible
+  # storage is configured once the cloud provider is chosen.
+
+  # Virus scanning of uploads (TRD §7.2). The first start downloads signatures (a few minutes).
+  clamav:
+    image: clamav/clamav:1.4
+    profiles: [scan]
+    ports: ["127.0.0.1:3310:3310"]
 
   # Road routing over OpenStreetMap (TRD §2.1). Needs data from infra/osrm/build.sh.
   osrm:

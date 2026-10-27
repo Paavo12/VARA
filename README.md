@@ -22,3 +22,21 @@ npm start
 ```
 
 Then open http://localhost:3100. See [`demo/README.md`](demo/README.md) for the demo script, features, pricing and how matching works.
+
+## Run the production app locally (Rust + Svelte)
+
+Needs Docker Desktop, Rust and Node.js 22+.
+
+```bash
+docker compose -f infra/docker-compose.yml up -d     # Postgres + Redis
+cd backend && cp .env.example .env
+cargo run -p fuber-api                               # API on http://127.0.0.1:8080 (migrations: see below)
+cargo run -p fuber-worker                            # second terminal: checks uploads, expiry, clean-up
+```
+
+Apply migrations once with `cargo test -p fuber-db` pointed at your database
+(`TEST_DATABASE_URL=postgres://fuber:fuber-local-only@127.0.0.1:5432/fuber`), or with `sqlx migrate run`.
+
+Then, from the repo root: `npm install`, `npm run dev -w @fuber/rider` (or `@fuber/driver`).
+Sign-in codes are printed in the API's log (fake SMS, local only). Create a reviewer for the ops API with
+`FUBER_STAFF_PASSWORD=… cargo run -p fuber-api --bin staff -- create you@example.com "Your Name" ops_reviewer`.

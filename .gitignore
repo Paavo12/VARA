@@ -10,6 +10,9 @@ build/
 # Local settings and secrets
 .env
 local.properties
+# Local upload storage (ID photos, documents) and Claude Code worktrees
+backend/var/
+.claude/worktrees/
 .idea/
 *.iml
 
