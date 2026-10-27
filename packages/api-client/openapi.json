@@ -7,9 +7,413 @@
       "name": "UNLICENSED",
       "identifier": "UNLICENSED"
     },
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "paths": {
+    "/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": "This device's session is ended"
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/otp/request": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "request_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Code sent by SMS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpChallenge"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Not a valid Namibian mobile number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many codes for this number or IP; see Retry-After",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SMS could not be sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/otp/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "verify_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`otp_invalid` (wrong or expired) or `otp_locked` (5 wrong attempts)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`account_suspended` or `account_deleted`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "refresh",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "New token pair; the old refresh token is now spent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unknown, expired, revoked or reused refresh token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/consents": {
+      "post": {
+        "tags": [
+          "legal"
+        ],
+        "operationId": "accept",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Consent recorded"
+          },
+          "422": {
+            "description": "Unknown or outdated document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/driver/application": {
+      "get": {
+        "tags": [
+          "driver"
+        ],
+        "operationId": "get_application",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "driver"
+        ],
+        "operationId": "save_application",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveApplication"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`application_locked` (under review or approved) or `plate_taken`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/driver/application/submit": {
+      "post": {
+        "tags": [
+          "driver"
+        ],
+        "operationId": "submit",
+        "responses": {
+          "200": {
+            "description": "Submitted for review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Application"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`application_incomplete` (see `ready_to_submit` on GET) or `application_locked`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/driver/documents": {
+      "post": {
+        "tags": [
+          "driver"
+        ],
+        "operationId": "add_document",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddDocument"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Added; replaces the current document of this kind",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverDocument"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/fares/estimate": {
       "post": {
         "tags": [
@@ -74,6 +478,797 @@
         }
       }
     },
+    "/v1/legal/{kind}/latest": {
+      "get": {
+        "tags": [
+          "legal"
+        ],
+        "operationId": "latest",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/LegalKind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not published yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "get",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "delete",
+        "responses": {
+          "202": {
+            "description": "Signed out everywhere; personal data is erased after 30 days",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionScheduled"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`active_ride`: finish or cancel the current ride first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`identity_locked`: name and date of birth are under review or verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/me/emergency-contacts": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "contacts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyContacts"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "replace_contacts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmergencyContacts"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmergencyContacts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/me/verification": {
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "submit_verification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Waiting for review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationSubmitted"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`profile_incomplete`, `already_verified`, `verification_pending` or `duplicate_identity`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "An upload is missing, not yours, of the wrong kind or was rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/auth/login": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Email, password or code is wrong (never says which)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "5 attempts per 15 minutes per account and IP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/ops/auth/logout": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/documents/{id}/decision": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "decide_document",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDecided"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`not_in_review`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/drivers": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "queue",
+        "responses": {
+          "200": {
+            "description": "Submitted applications, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DriverQueueItem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/drivers/{id}": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The driver's user ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverReview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/drivers/{id}/decision": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "decide",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverReview"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`not_pending`, or `not_ready`: documents, vehicle or tiers not all approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/drivers/{id}/tiers": {
+      "put": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "set_tiers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTiers"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverReview"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/vehicles/{id}/decision": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "decide_vehicle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDecided"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/verifications": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "queue",
+        "responses": {
+          "200": {
+            "description": "Pending verifications whose photos passed the upload checks, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QueueItem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/verifications/{id}": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/verifications/{id}/decision": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "decide",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Decision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificationDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`not_pending`: already decided, or photos still being checked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejection without a reason",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
     "/v1/ready": {
       "get": {
         "tags": [
@@ -90,14 +1285,596 @@
           }
         }
       }
+    },
+    "/v1/uploads": {
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "operationId": "create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUpload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadTarget"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Driver documents can only be uploaded from the driver app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "20 uploads per hour",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/uploads/{id}": {
+      "get": {
+        "tags": [
+          "uploads"
+        ],
+        "operationId": "status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/uploads/{id}/complete": {
+      "post": {
+        "tags": [
+          "uploads"
+        ],
+        "operationId": "complete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Queued for checking",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`upload_expired` or already completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "AddDocument": {
+        "type": "object",
+        "required": [
+          "kind",
+          "upload_id"
+        ],
+        "properties": {
+          "expires_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Required for licence, insurance, police clearance and transport permit; must be in the future.",
+            "example": "2027-06-30"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DocumentKind"
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A completed upload with the same purpose as `kind`."
+          }
+        },
+        "additionalProperties": false
+      },
+      "App": {
+        "type": "string",
+        "description": "Which app a session belongs to. One person can hold both (PRD A-9), with separate sessions.",
+        "enum": [
+          "rider",
+          "driver"
+        ]
+      },
+      "Application": {
+        "type": "object",
+        "required": [
+          "status",
+          "requested_tiers",
+          "approved_tiers",
+          "payout_account_saved",
+          "documents",
+          "missing_documents",
+          "pending_consents",
+          "profile_complete",
+          "ready_to_submit",
+          "can_go_online"
+        ],
+        "properties": {
+          "approved_tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tier"
+            }
+          },
+          "can_go_online": {
+            "type": "boolean",
+            "description": "All checks passed: the driver may go online (Phase 2)."
+          },
+          "decision_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DriverDocument"
+            }
+          },
+          "missing_documents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Required document kinds with no current upload, or whose current one was rejected or expired."
+          },
+          "payout_account_saved": {
+            "type": "boolean"
+          },
+          "pending_consents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LegalDocument"
+            }
+          },
+          "profile_complete": {
+            "type": "boolean"
+          },
+          "ready_to_submit": {
+            "type": "boolean",
+            "description": "Everything needed to submit is present."
+          },
+          "requested_tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tier"
+            }
+          },
+          "status": {
+            "type": "string",
+            "description": "`not_started` (draft), `pending`, `approved` or `rejected`."
+          },
+          "submitted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "vehicle": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VehicleStatus"
+              }
+            ]
+          }
+        }
+      },
       "Cents": {
         "type": "integer",
         "format": "int64",
         "description": "An amount of Namibian dollars in cents. Money is never a float."
+      },
+      "ConsentRequest": {
+        "type": "object",
+        "required": [
+          "document_ids"
+        ],
+        "properties": {
+          "document_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "IDs from `pending_consents` on `GET /me`; each must be the latest version of its kind."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ContentType": {
+        "type": "string",
+        "enum": [
+          "image/jpeg",
+          "image/png",
+          "application/pdf"
+        ]
+      },
+      "CreateUpload": {
+        "type": "object",
+        "required": [
+          "purpose",
+          "content_type",
+          "size_bytes"
+        ],
+        "properties": {
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/DocumentKind"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Exact size of the file in bytes, at most 10 MB.",
+            "maximum": 10485760,
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "Decision": {
+        "type": "object",
+        "description": "A review decision. A rejection needs a reason, which the applicant sees.",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "The ID photo is blurred. Please retake it in good light."
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeletionScheduled": {
+        "type": "object",
+        "required": [
+          "erase_after"
+        ],
+        "properties": {
+          "erase_after": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DocumentDecided": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "driver_can_go_online"
+        ],
+        "properties": {
+          "driver_can_go_online": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "DocumentKind": {
+        "type": "string",
+        "enum": [
+          "identity",
+          "selfie",
+          "licence",
+          "insurance",
+          "police_clearance",
+          "transport_permit"
+        ]
+      },
+      "DriverDocument": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status"
+        ],
+        "properties": {
+          "expires_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "reject_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "`uploading` (being checked), `in_review`, `approved`, `rejected` or `expired`."
+          },
+          "upload_reject_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set when the file itself was refused by the upload checks."
+          }
+        }
+      },
+      "DriverQueueItem": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "submitted_at",
+          "requested_tiers",
+          "documents_in_review"
+        ],
+        "properties": {
+          "documents_in_review": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_tiers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "DriverReview": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "application_status",
+          "requested_tiers",
+          "approved_tiers",
+          "can_go_online",
+          "documents"
+        ],
+        "properties": {
+          "application_status": {
+            "type": "string"
+          },
+          "approved_tiers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "can_go_online": {
+            "type": "boolean"
+          },
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "decision_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewDocument"
+            }
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_tiers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "vehicle": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReviewVehicle"
+              }
+            ]
+          }
+        }
+      },
+      "EmergencyContact": {
+        "type": "object",
+        "required": [
+          "name",
+          "phone"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+264812223344"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EmergencyContacts": {
+        "type": "object",
+        "required": [
+          "contacts"
+        ],
+        "properties": {
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EmergencyContact"
+            },
+            "description": "Up to 3, in order of who to alert first."
+          }
+        },
+        "additionalProperties": false
       },
       "ErrorBody": {
         "type": "object",
@@ -245,6 +2022,520 @@
           }
         }
       },
+      "LegalDocument": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "version",
+          "url",
+          "published_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "LegalKind": {
+        "type": "string",
+        "enum": [
+          "terms",
+          "privacy",
+          "cookies",
+          "driver_agreement"
+        ]
+      },
+      "Login": {
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "totp"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          },
+          "totp": {
+            "type": "string",
+            "description": "6-digit code from the authenticator app.",
+            "example": "123456"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Me": {
+        "type": "object",
+        "required": [
+          "id",
+          "phone",
+          "status",
+          "profile_complete",
+          "verification",
+          "identity_locked",
+          "is_rider",
+          "emergency_contacts",
+          "pending_consents"
+        ],
+        "properties": {
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "First name, shown to the other party on a ride."
+          },
+          "driver_application": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Driver application status, or null if this person has never applied to drive."
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "emergency_contacts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "identity_locked": {
+            "type": "boolean",
+            "description": "Name and date of birth can no longer be changed in the app (identity under review or verified)."
+          },
+          "is_rider": {
+            "type": "boolean"
+          },
+          "pending_consents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LegalDocument"
+            },
+            "description": "Documents to accept before continuing (PRD A-7)."
+          },
+          "phone": {
+            "type": "string"
+          },
+          "profile_complete": {
+            "type": "boolean",
+            "description": "Name and date of birth are filled in."
+          },
+          "status": {
+            "type": "string",
+            "description": "`pending` until verified, then `active`."
+          },
+          "verification": {
+            "type": "string",
+            "description": "Rider identity verification: `not_started`, `pending`, `approved` or `rejected`."
+          },
+          "verification_reject_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "OtpChallenge": {
+        "type": "object",
+        "required": [
+          "challenge_id",
+          "expires_in_s",
+          "resend_after_s"
+        ],
+        "properties": {
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expires_in_s": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "resend_after_s": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Seconds before another code can be requested for this number."
+          }
+        }
+      },
+      "OtpRequest": {
+        "type": "object",
+        "required": [
+          "phone"
+        ],
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "Namibian mobile number; `081 123 4567` and `+264811234567` are both accepted.",
+            "example": "+264811234567"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OtpVerify": {
+        "type": "object",
+        "required": [
+          "challenge_id",
+          "phone",
+          "code",
+          "app"
+        ],
+        "properties": {
+          "app": {
+            "$ref": "#/components/schemas/App"
+          },
+          "challenge_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "example": "123456"
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Shown in the user's list of signed-in devices, e.g. \"Samsung Galaxy A15\"."
+          },
+          "phone": {
+            "type": "string",
+            "description": "The same number the code was sent to.",
+            "example": "+264811234567"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PayoutAccount": {
+        "type": "object",
+        "description": "Bank account for weekly payouts. Stored encrypted; never returned by the API.",
+        "required": [
+          "bank",
+          "account_holder",
+          "account_number",
+          "branch_code"
+        ],
+        "properties": {
+          "account_holder": {
+            "type": "string"
+          },
+          "account_number": {
+            "type": "string",
+            "example": "8001234567"
+          },
+          "bank": {
+            "type": "string",
+            "example": "Bank Windhoek"
+          },
+          "branch_code": {
+            "type": "string",
+            "example": "483872"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreviousAttempt": {
+        "type": "object",
+        "required": [
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reject_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "QueueItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "submitted_at",
+          "previous_attempts"
+        ],
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "previous_attempts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Earlier verifications by this person (all rejected)."
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReviewDocument": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status"
+        ],
+        "properties": {
+          "expires_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "mime_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reject_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short-lived link to the sanitised file, once it has passed the upload checks."
+          }
+        }
+      },
+      "ReviewVehicle": {
+        "type": "object",
+        "required": [
+          "id",
+          "make",
+          "model",
+          "colour",
+          "year",
+          "plate",
+          "seats",
+          "wheelchair_accessible",
+          "approved"
+        ],
+        "properties": {
+          "approved": {
+            "type": "boolean"
+          },
+          "colour": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "make": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "plate": {
+            "type": "string"
+          },
+          "reject_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "wheelchair_accessible": {
+            "type": "boolean"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SaveApplication": {
+        "type": "object",
+        "required": [
+          "requested_tiers",
+          "vehicle"
+        ],
+        "properties": {
+          "payout_account": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PayoutAccount",
+                "description": "Omit to keep the account already saved."
+              }
+            ]
+          },
+          "requested_tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tier"
+            },
+            "description": "Ride types the driver wants to offer; ops decide which are approved."
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/Vehicle"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetTiers": {
+        "type": "object",
+        "required": [
+          "tiers"
+        ],
+        "properties": {
+          "tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tier"
+            },
+            "description": "The full set of approved tiers; an empty list removes them all."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SignedIn": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TokenPair"
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_id",
+              "new_user"
+            ],
+            "properties": {
+              "new_user": {
+                "type": "boolean",
+                "description": "True when this sign-in created the account: the app continues to \"Your details\"."
+              },
+              "user_id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          }
+        ]
+      },
+      "StaffSession": {
+        "type": "object",
+        "required": [
+          "token",
+          "expires_at",
+          "roles"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token": {
+            "type": "string",
+            "description": "Send as `Authorization: Bearer <token>` to `/v1/ops/*`."
+          }
+        }
+      },
       "Tier": {
         "type": "string",
         "description": "Ride types, cheapest first. The order is significant: a higher tier charges more.",
@@ -268,6 +2559,320 @@
             "$ref": "#/components/schemas/Tier"
           }
         }
+      },
+      "TokenPair": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "token_type",
+          "expires_in"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "Send as `Authorization: Bearer <access_token>`. Valid for `expires_in` seconds."
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "Single use: exchange at `POST /v1/auth/refresh` for a new pair. Store it only in the\ndevice keychain/keystore."
+          },
+          "token_type": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateMe": {
+        "type": "object",
+        "properties": {
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`YYYY-MM-DD`; must be 18 or older.",
+            "example": "1994-03-12"
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Ndeshi Shikongo"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UploadStatus": {
+        "type": "object",
+        "required": [
+          "upload_id",
+          "purpose",
+          "status"
+        ],
+        "properties": {
+          "purpose": {
+            "type": "string"
+          },
+          "reject_reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the file was refused, written for the user."
+          },
+          "status": {
+            "type": "string",
+            "description": "`awaiting_upload`, `processing`, `clean` or `rejected`."
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "UploadTarget": {
+        "type": "object",
+        "required": [
+          "upload_id",
+          "method",
+          "url",
+          "headers",
+          "expires_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "method": {
+            "type": "string",
+            "description": "Send the file with this method to `url`, with exactly these headers."
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "Vehicle": {
+        "type": "object",
+        "required": [
+          "make",
+          "model",
+          "colour",
+          "year",
+          "plate",
+          "seats",
+          "wheelchair_accessible"
+        ],
+        "properties": {
+          "colour": {
+            "type": "string",
+            "example": "Silver"
+          },
+          "make": {
+            "type": "string",
+            "example": "Toyota"
+          },
+          "model": {
+            "type": "string",
+            "example": "Corolla"
+          },
+          "plate": {
+            "type": "string",
+            "example": "N 9090 W"
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int64",
+            "maximum": 8,
+            "minimum": 4
+          },
+          "wheelchair_accessible": {
+            "type": "boolean"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int64",
+            "example": 2019
+          }
+        },
+        "additionalProperties": false
+      },
+      "VehicleStatus": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Vehicle"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "approved"
+            ],
+            "properties": {
+              "approved": {
+                "type": "boolean"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "reject_reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "Verdict": {
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject"
+        ]
+      },
+      "VerificationDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "status",
+          "previous"
+        ],
+        "properties": {
+          "date_of_birth": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "id_document_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Short-lived links to the sanitised images."
+          },
+          "national_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "previous": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviousAttempt"
+            }
+          },
+          "selfie_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "VerificationRequest": {
+        "type": "object",
+        "required": [
+          "id_document_upload_id",
+          "selfie_upload_id"
+        ],
+        "properties": {
+          "id_document_upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Upload with purpose `identity`: national ID card or passport photo page."
+          },
+          "national_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "11-digit Namibian ID or passport number. Encrypted; used to stop duplicate accounts."
+          },
+          "selfie_upload_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Upload with purpose `selfie`."
+          }
+        },
+        "additionalProperties": false
+      },
+      "VerificationSubmitted": {
+        "type": "object",
+        "required": [
+          "verification_id",
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "verification_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Rider/driver access token from /v1/auth/otp/verify or /v1/auth/refresh"
+      },
+      "staff": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Staff session token from /v1/ops/auth/login"
       }
     }
   },
@@ -277,6 +2882,30 @@
     },
     {
       "name": "fares"
+    },
+    {
+      "name": "auth",
+      "description": "Phone + SMS code sign-in, token refresh"
+    },
+    {
+      "name": "me",
+      "description": "The signed-in person's profile, emergency contacts, verification and deletion"
+    },
+    {
+      "name": "legal",
+      "description": "Terms, Privacy Policy and consent"
+    },
+    {
+      "name": "uploads",
+      "description": "Signed-URL uploads for identity photos and driver documents"
+    },
+    {
+      "name": "driver",
+      "description": "Driver application"
+    },
+    {
+      "name": "ops",
+      "description": "Staff: verification and driver review"
     }
   ]
 }

@@ -237,6 +237,155 @@ impl<const MIN: i64, const MAX: i64> From<Bounded<MIN, MAX>> for i64 {
 pub type Passengers = Bounded<1, 4>;
 pub type Stars = Bounded<1, 5>;
 
+// ---------------------------------------------------------------------------------------------
+
+/// Implements string (de)serialisation through the validating `parse`.
+macro_rules! string_newtype {
+    ($t:ident $(<const $c:ident: usize>)?) => {
+        impl$(<const $c: usize>)? TryFrom<String> for $t$(<$c>)? {
+            type Error = Invalid;
+            fn try_from(s: String) -> Result<Self, Invalid> {
+                Self::parse(&s)
+            }
+        }
+        impl$(<const $c: usize>)? From<$t$(<$c>)?> for String {
+            fn from(v: $t$(<$c>)?) -> String {
+                v.0
+            }
+        }
+        impl$(<const $c: usize>)? $t$(<$c>)? {
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+        }
+    };
+}
+
+/// A single line of user-entered text, 1–`MAX` characters (vehicle make, model, colour, saved
+/// place labels, reason templates). Same cleaning as names but any printable characters.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct Line<const MAX: usize>(String);
+
+impl<const MAX: usize> Line<MAX> {
+    pub fn parse(raw: &str) -> Result<Self, Invalid> {
+        let s = clean_line(raw)?;
+        let len = s.chars().count();
+        if len == 0 {
+            return Err(Invalid("text must not be empty"));
+        }
+        if len > MAX {
+            return Err(Invalid("text is too long"));
+        }
+        Ok(Line(s))
+    }
+}
+string_newtype!(Line<const MAX: usize>);
+
+/// An email address: one `@`, a dotted domain, ASCII only, at most 254 characters. Stored
+/// lower-cased. Deliberately strict: an address only receives receipts, so rejecting exotic
+/// forms costs little.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct Email(String);
+
+impl Email {
+    pub fn parse(raw: &str) -> Result<Self, Invalid> {
+        let s = raw.trim().to_ascii_lowercase();
+        let bad = || Invalid("email address is not valid");
+        if s.len() > 254 || !s.is_ascii() {
+            return Err(bad());
+        }
+        let (local, domain) = s.split_once('@').ok_or_else(bad)?;
+        let local_ok = !local.is_empty()
+            && local.len() <= 64
+            && !local.starts_with('.')
+            && !local.ends_with('.')
+            && !local.contains("..")
+            && local.bytes().all(|b| b.is_ascii_alphanumeric() || b"._%+-".contains(&b));
+        let labels: Vec<&str> = domain.split('.').collect();
+        let domain_ok = labels.len() >= 2
+            && labels.iter().all(|l| {
+                !l.is_empty()
+                    && l.len() <= 63
+                    && !l.starts_with('-')
+                    && !l.ends_with('-')
+                    && l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            })
+            && labels.last().is_some_and(|tld| tld.len() >= 2 && tld.bytes().all(|b| b.is_ascii_alphabetic()));
+        if local_ok && domain_ok { Ok(Email(s)) } else { Err(bad()) }
+    }
+}
+string_newtype!(Email);
+
+/// A Namibian national ID number (11 digits) or a passport number (6–9 letters and digits).
+/// Spaces and hyphens are removed; letters are upper-cased.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct NationalId(String);
+
+impl NationalId {
+    pub fn parse(raw: &str) -> Result<Self, Invalid> {
+        let s: String = raw.chars().filter(|c| !matches!(c, ' ' | '-')).collect::<String>().to_ascii_uppercase();
+        let national = s.len() == 11 && s.bytes().all(|b| b.is_ascii_digit());
+        let passport =
+            (6..=9).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_alphanumeric()) && s.bytes().any(|b| b.is_ascii_alphabetic());
+        if national || passport {
+            Ok(NationalId(s))
+        } else {
+            Err(Invalid("ID number must be an 11-digit Namibian ID or a passport number"))
+        }
+    }
+}
+string_newtype!(NationalId);
+
+/// Never prints the number.
+impl fmt::Debug for NationalId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("NationalId(***)")
+    }
+}
+
+/// A Namibian number plate in the canonical `N 1234 W` form. Accepts any spacing and case:
+/// `n1234w`, `N-1234-W`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct Plate(String);
+
+impl Plate {
+    pub fn parse(raw: &str) -> Result<Self, Invalid> {
+        let s: String = raw.chars().filter(|c| !matches!(c, ' ' | '-')).collect::<String>().to_ascii_uppercase();
+        let bad = || Invalid("number plate must look like N 1234 W");
+        let rest = s.strip_prefix('N').ok_or_else(bad)?;
+        let digits_end = rest.find(|c: char| !c.is_ascii_digit()).ok_or_else(bad)?;
+        let (digits, letters) = rest.split_at(digits_end);
+        if !(1..=6).contains(&digits.len()) || !(1..=3).contains(&letters.len()) || !letters.bytes().all(|b| b.is_ascii_uppercase()) {
+            return Err(bad());
+        }
+        Ok(Plate(format!("N {digits} {letters}")))
+    }
+}
+string_newtype!(Plate);
+
+/// A date of birth for an account holder: `YYYY-MM-DD`, at least 18 and at most 100 years
+/// before `today` (riders and drivers with accounts are adults, PRD §10 decision 3).
+pub fn adult_birth_date(raw: &str, today: time::Date) -> Result<time::Date, Invalid> {
+    let date = time::Date::parse(raw, time::macros::format_description!("[year]-[month]-[day]"))
+        .map_err(|_| Invalid("date of birth must be a date like 1994-03-12"))?;
+    let years_before = |n: i32| {
+        today
+            .replace_year(today.year() - n)
+            .unwrap_or_else(|_| today.replace_day(28).expect("day 28 exists").replace_year(today.year() - n).expect("valid"))
+    };
+    if date > years_before(18) {
+        return Err(Invalid("you must be 18 or older to use FUber"));
+    }
+    if date < years_before(100) {
+        return Err(Invalid("date of birth is not valid"));
+    }
+    Ok(date)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -298,6 +447,57 @@ mod tests {
         let b = LatLng::new(-22.58359, 17.09373).unwrap();
         let d = a.distance_m(&b);
         assert!((2200.0..2300.0).contains(&d), "{d}");
+    }
+
+    #[test]
+    fn emails() {
+        assert_eq!(Email::parse(" Ndeshi.S+fuber@Example.com.na ").unwrap().as_str(), "ndeshi.s+fuber@example.com.na");
+        for bad in ["", "a@b", "a@@b.com", "a b@c.com", ".a@b.com", "a..b@c.com", "a@-b.com", "a@b.c0m", "ä@b.com", "<a@b.com>"] {
+            assert!(Email::parse(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn national_ids() {
+        assert_eq!(NationalId::parse("940312 00123").unwrap().as_str(), "94031200123");
+        assert_eq!(NationalId::parse("p1234567").unwrap().as_str(), "P1234567");
+        for bad in ["1234", "123456789012", "12345678", "AB12'; --", ""] {
+            assert!(NationalId::parse(bad).is_err(), "{bad:?}");
+        }
+        assert!(!format!("{:?}", NationalId::parse("94031200123").unwrap()).contains("9403"));
+    }
+
+    #[test]
+    fn plates() {
+        for raw in ["N 9090 W", "n9090w", "N-9090-W", " N 9090  w "] {
+            assert_eq!(Plate::parse(raw).unwrap().as_str(), "N 9090 W", "{raw}");
+        }
+        assert_eq!(Plate::parse("N 123456 WHK").unwrap().as_str(), "N 123456 WHK");
+        for bad in ["9090 W", "N W", "N 9090", "N 1234567 W", "N 12 WXYZ", "N 12 W1", "X 12 W"] {
+            assert!(Plate::parse(bad).is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn lines() {
+        type Colour = Line<30>;
+        assert_eq!(Colour::parse("  Pearl   white ").unwrap().as_str(), "Pearl white");
+        assert!(Colour::parse("").is_err());
+        assert!(Colour::parse("tab\tinside").is_err());
+        assert!(Colour::parse(&"x".repeat(31)).is_err());
+    }
+
+    #[test]
+    fn birth_dates() {
+        let today = time::macros::date!(2026 - 10 - 27);
+        assert!(adult_birth_date("1994-03-12", today).is_ok());
+        assert!(adult_birth_date("2008-10-27", today).is_ok(), "18 today");
+        assert!(adult_birth_date("2008-10-28", today).is_err(), "18 tomorrow");
+        assert!(adult_birth_date("1900-01-01", today).is_err());
+        assert!(adult_birth_date("12/03/1994", today).is_err());
+        assert!(adult_birth_date("1994-02-30", today).is_err());
+        // 29 February birthdays work in non-leap years.
+        assert!(adult_birth_date("2000-02-29", time::macros::date!(2027 - 02 - 28)).is_ok());
     }
 
     #[test]

@@ -29,6 +29,41 @@ pub struct Config {
     pub trusted_proxy_hops: usize,
     /// Optional JSON overriding default rate limits, e.g. `{"global":{"limit":600,"window_s":60}}`.
     pub rate_limits_json: Option<String>,
+    /// Keys the HMACs for phone numbers, OTP codes, refresh tokens and national IDs.
+    pub hash_secret: SecretString,
+    /// Encrypts the 🔒 columns (AES-256-GCM).
+    pub data_key: SecretString,
+    /// Signs access tokens (Ed25519), with its key id.
+    pub jwt_kid: String,
+    pub jwt_secret: SecretString,
+    /// The previous signing key, still accepted for verification during rotation.
+    pub jwt_previous: Option<(String, SecretString)>,
+    pub sms_provider: SmsProvider,
+    pub storage: StorageConfig,
+    pub virus_scan: VirusScan,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SmsProvider {
+    /// Records messages in memory and, in local development only, prints them to the log.
+    /// Real providers are added once the SMS vendors are chosen (PRD §10).
+    Fake,
+}
+
+#[derive(Debug, Clone)]
+pub enum StorageConfig {
+    /// Files on local disk, uploaded and downloaded through signed URLs that the API serves
+    /// itself. For development and single-machine test environments, never production.
+    /// S3-compatible storage is added once the cloud provider is chosen (PRD §10).
+    Local { dir: std::path::PathBuf, public_url: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VirusScan {
+    /// ClamAV daemon at `host:port` (INSTREAM protocol).
+    ClamAv(String),
+    /// No scanning. Local development only.
+    Disabled,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -57,6 +92,9 @@ impl Config {
         let env_name = required("APP_ENV");
         let database_url = required("DATABASE_URL");
         let redis_url = required("REDIS_URL");
+        let hash_secret = required("HASH_SECRET");
+        let data_key = required("DATA_KEY");
+        let jwt_secret = required("JWT_SECRET");
 
         let env = match env_name.as_str() {
             "local" => Some(Environment::Local),
@@ -100,6 +138,76 @@ impl Config {
             }
         }
 
+        let jwt_kid = get("JWT_KID").unwrap_or_else(|| "k1".into());
+        let jwt_previous = match (get("JWT_PREVIOUS_KID"), get("JWT_PREVIOUS_SECRET")) {
+            (Some(k), Some(s)) if !k.is_empty() && !s.is_empty() => Some((k, s)),
+            (None, None) => None,
+            _ => {
+                errors.push("JWT_PREVIOUS_KID and JWT_PREVIOUS_SECRET must be set together".into());
+                None
+            }
+        };
+        if jwt_previous.as_ref().is_some_and(|(k, _)| *k == jwt_kid) {
+            errors.push("JWT_PREVIOUS_KID must differ from JWT_KID".into());
+        }
+
+        let mut secrets = vec![("HASH_SECRET", &hash_secret), ("DATA_KEY", &data_key), ("JWT_SECRET", &jwt_secret)];
+        if let Some((_, s)) = &jwt_previous {
+            secrets.push(("JWT_PREVIOUS_SECRET", s));
+        }
+        for (key, value) in secrets {
+            if !value.is_empty() && value.chars().count() < 32 {
+                errors.push(format!("{key} must be at least 32 random characters"));
+            }
+            if env != Some(Environment::Local) && value.contains("local-only") {
+                errors.push(format!("{key} uses the development example value outside APP_ENV=local"));
+            }
+        }
+
+        let sms_provider = match get("SMS_PROVIDER").as_deref().unwrap_or("fake") {
+            "fake" => SmsProvider::Fake,
+            other => {
+                errors.push(format!("SMS_PROVIDER must be fake (got {other:?}); real providers arrive with the vendor decision"));
+                SmsProvider::Fake
+            }
+        };
+
+        let storage = match get("STORAGE_BACKEND").as_deref().unwrap_or("local") {
+            "local" => StorageConfig::Local {
+                dir: get("STORAGE_DIR").unwrap_or_else(|| "var/storage".into()).into(),
+                public_url: get("PUBLIC_API_URL").unwrap_or_else(|| format!("http://{bind_addr}")).trim_end_matches('/').to_owned(),
+            },
+            other => {
+                errors.push(format!("STORAGE_BACKEND must be local (got {other:?})"));
+                StorageConfig::Local { dir: "var/storage".into(), public_url: String::new() }
+            }
+        };
+
+        let virus_scan = match (get("VIRUS_SCAN").as_deref().unwrap_or("disabled"), get("CLAMAV_ADDR")) {
+            ("clamav", Some(addr)) if !addr.is_empty() => VirusScan::ClamAv(addr),
+            ("clamav", _) => {
+                errors.push("VIRUS_SCAN=clamav needs CLAMAV_ADDR (host:port)".into());
+                VirusScan::Disabled
+            }
+            ("disabled", _) => VirusScan::Disabled,
+            (other, _) => {
+                errors.push(format!("VIRUS_SCAN must be clamav or disabled (got {other:?})"));
+                VirusScan::Disabled
+            }
+        };
+
+        if env == Some(Environment::Production) {
+            if sms_provider == SmsProvider::Fake {
+                errors.push("SMS_PROVIDER=fake is not allowed in production".into());
+            }
+            if matches!(storage, StorageConfig::Local { .. }) {
+                errors.push("STORAGE_BACKEND=local is not allowed in production".into());
+            }
+        }
+        if env.is_some_and(|e| e != Environment::Local) && virus_scan == VirusScan::Disabled {
+            errors.push("VIRUS_SCAN=disabled is only allowed with APP_ENV=local".into());
+        }
+
         if !errors.is_empty() {
             return Err(ConfigError(errors));
         }
@@ -111,6 +219,14 @@ impl Config {
             cors_origins,
             trusted_proxy_hops,
             rate_limits_json: get("RATE_LIMITS"),
+            hash_secret: hash_secret.into(),
+            data_key: data_key.into(),
+            jwt_kid,
+            jwt_secret: jwt_secret.into(),
+            jwt_previous: jwt_previous.map(|(k, s)| (k, s.into())),
+            sms_provider,
+            storage,
+            virus_scan,
         })
     }
 }
@@ -120,28 +236,81 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
+    const SECRETS: [(&str, &str); 3] = [
+        ("HASH_SECRET", "test-hash-secret-0123456789abcdef0123"),
+        ("DATA_KEY", "test-data-key-0123456789abcdef0123456"),
+        ("JWT_SECRET", "test-jwt-secret-0123456789abcdef01234"),
+    ];
+
+    /// `pairs` plus valid secrets (entries in `pairs` win).
     fn load(pairs: &[(&str, &str)]) -> Result<Config, ConfigError> {
-        let m: HashMap<String, String> = pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        load_raw(&[pairs, &SECRETS].concat())
+    }
+
+    fn load_raw(pairs: &[(&str, &str)]) -> Result<Config, ConfigError> {
+        let mut m: HashMap<String, String> = HashMap::new();
+        for (k, v) in pairs.iter().rev() {
+            m.insert(k.to_string(), v.to_string());
+        }
         Config::from_lookup(|k| m.get(k).cloned())
     }
 
     #[test]
     fn reports_every_missing_variable() {
-        let e = load(&[]).unwrap_err();
-        assert_eq!(e.0.len(), 3, "{e}");
+        let e = load_raw(&[]).unwrap_err();
+        assert_eq!(e.0.len(), 6, "{e}");
     }
 
     #[test]
     fn secrets_are_not_printed() {
         let c = load(&[("APP_ENV", "local"), ("DATABASE_URL", "postgres://u:hunter2@db/x"), ("REDIS_URL", "redis://r")]).unwrap();
-        assert!(!format!("{c:?}").contains("hunter2"));
+        let printed = format!("{c:?}");
+        assert!(!printed.contains("hunter2"));
+        for (_, v) in SECRETS {
+            assert!(!printed.contains(v));
+        }
     }
 
     #[test]
-    fn production_rejects_dev_credentials_and_plain_redis() {
-        let e = load(&[("APP_ENV", "production"), ("DATABASE_URL", "postgres://postgres:password@db/x"), ("REDIS_URL", "redis://r")])
-            .unwrap_err();
-        assert_eq!(e.0.len(), 2, "{e}");
+    fn production_rejects_dev_credentials_plain_redis_and_fakes() {
+        let e = load(&[
+            ("APP_ENV", "production"),
+            ("DATABASE_URL", "postgres://postgres:password@db/x"),
+            ("REDIS_URL", "redis://r"),
+            ("VIRUS_SCAN", "clamav"),
+            ("CLAMAV_ADDR", "clamav:3310"),
+        ])
+        .unwrap_err();
+        // Dev password, plain Redis, fake SMS gateway, local storage.
+        assert_eq!(e.0.len(), 4, "{e}");
+    }
+
+    #[test]
+    fn short_or_example_secrets_rejected() {
+        let short = load_raw(&[
+            ("APP_ENV", "local"),
+            ("DATABASE_URL", "x"),
+            ("REDIS_URL", "y"),
+            ("HASH_SECRET", "short"),
+            ("DATA_KEY", "short"),
+            ("JWT_SECRET", "short"),
+        ]);
+        assert_eq!(short.unwrap_err().0.len(), 3);
+        let example = load(&[
+            ("APP_ENV", "staging"),
+            ("DATABASE_URL", "postgres://u:from-vault@db/x"),
+            ("REDIS_URL", "rediss://r"),
+            ("VIRUS_SCAN", "clamav"),
+            ("CLAMAV_ADDR", "clamav:3310"),
+            ("HASH_SECRET", "local-only-0123456789abcdef0123456789"),
+        ]);
+        assert_eq!(example.unwrap_err().0.len(), 1);
+    }
+
+    #[test]
+    fn virus_scanning_required_outside_local() {
+        let e = load(&[("APP_ENV", "staging"), ("DATABASE_URL", "postgres://u:from-vault@db/x"), ("REDIS_URL", "rediss://r")]).unwrap_err();
+        assert!(e.to_string().contains("VIRUS_SCAN"), "{e}");
     }
 
     #[test]

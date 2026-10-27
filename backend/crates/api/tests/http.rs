@@ -1,7 +1,7 @@
 //! End-to-end tests of the HTTP layer without external services: rate limits run on the
 //! in-memory store and the database pool is lazy (never connected).
 
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 
 use axum::{
     Router,
@@ -23,13 +23,22 @@ const POST_ST_MALL: (f64, f64) = (-22.56665, 17.08126);
 const MAERUA_MALL: (f64, f64) = (-22.58359, 17.09373);
 
 fn config(extra: &[(&str, &str)]) -> Config {
-    let base = [("APP_ENV", "local"), ("DATABASE_URL", "postgres://fuber:fuber@127.0.0.1:1/fuber"), ("REDIS_URL", "redis://127.0.0.1:1")];
+    let base = [
+        ("APP_ENV", "local"),
+        ("DATABASE_URL", "postgres://fuber:fuber@127.0.0.1:1/fuber"),
+        ("REDIS_URL", "redis://127.0.0.1:1"),
+        ("HASH_SECRET", "test-hash-secret-0123456789abcdef0123"),
+        ("DATA_KEY", "test-data-key-0123456789abcdef0123456"),
+        ("JWT_SECRET", "test-jwt-secret-0123456789abcdef01234"),
+        ("VIRUS_SCAN", "clamav"),
+        ("CLAMAV_ADDR", "127.0.0.1:1"),
+    ];
     Config::from_lookup(|k| extra.iter().chain(base.iter()).find(|(key, _)| *key == k).map(|(_, v)| v.to_string())).unwrap()
 }
 
 fn app_with(limits: RateLimits, cfg: Config) -> Router {
     let db = fuber_db::pool(&cfg.database_url).unwrap();
-    let state = AppState { config: Arc::new(cfg), db, limiter: Arc::new(RateLimiter::memory_only()), limits };
+    let state = AppState::new(cfg, db, RateLimiter::memory_only(), limits);
     fuber_api::router(state).layer(MockConnectInfo(SocketAddr::from(PEER)))
 }
 

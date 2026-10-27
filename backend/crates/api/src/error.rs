@@ -32,6 +32,23 @@ impl ApiError {
         Self::new(StatusCode::NOT_FOUND, "not_found", "Not found")
     }
 
+    /// Missing, malformed, expired or revoked credentials. Deliberately says nothing about which.
+    pub fn unauthorized() -> Self {
+        Self::new(StatusCode::UNAUTHORIZED, "unauthorized", "Please sign in again.")
+    }
+
+    pub fn forbidden(code: &'static str, message: impl Into<Cow<'static, str>>) -> Self {
+        Self::new(StatusCode::FORBIDDEN, code, message)
+    }
+
+    pub fn conflict(code: &'static str, message: impl Into<Cow<'static, str>>) -> Self {
+        Self::new(StatusCode::CONFLICT, code, message)
+    }
+
+    pub fn unavailable(code: &'static str, message: impl Into<Cow<'static, str>>) -> Self {
+        Self::new(StatusCode::SERVICE_UNAVAILABLE, code, message)
+    }
+
     pub fn rate_limited(retry_after: Duration) -> Self {
         let mut e = Self::new(StatusCode::TOO_MANY_REQUESTS, "rate_limited", "Too many requests. Please wait and try again.");
         e.retry_after = Some(retry_after);
@@ -42,6 +59,13 @@ impl ApiError {
     pub fn internal(cause: impl std::fmt::Display) -> Self {
         tracing::error!(error = %cause, "internal error");
         Self::new(StatusCode::INTERNAL_SERVER_ERROR, "internal", "Something went wrong. Please try again.")
+    }
+}
+
+/// Database errors are never shown to the client: `?` on a query logs it and answers 500.
+impl From<sqlx::Error> for ApiError {
+    fn from(e: sqlx::Error) -> Self {
+        ApiError::internal(e)
     }
 }
 

@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, process::ExitCode, sync::Arc};
+use std::{net::SocketAddr, process::ExitCode};
 
 use fuber_api::{
     AppState,
@@ -37,7 +37,7 @@ async fn main() -> ExitCode {
     };
 
     let addr = config.bind_addr;
-    let state = AppState { config: Arc::new(config), db, limiter: Arc::new(limiter), limits };
+    let state = AppState::new(config, db, limiter, limits);
     let app = fuber_api::router(state);
 
     let listener = match tokio::net::TcpListener::bind(addr).await {
