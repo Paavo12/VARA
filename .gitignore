@@ -10,29 +10,14 @@ build/
 # Local settings and secrets
 .env
 local.properties
-# Local upload storage (ID photos, documents) and Claude Code worktrees
+.idea/
+*.iml
+
+# Local upload storage (ID photos, documents)
 backend/var/
-.claude/worktrees/
-.idea/
-*.iml
+
+# Claude Code settings and worktrees
+.claude/
 
 # Empty repo folder the backend was created with (kept aside, not uploaded)
 .git-empty-backup/
-# Dependencies and build output
-node_modules/
-target/
-dist/
-build/
-*.tsbuildinfo
-.dart_tool/
-.gradle/
-
-# Local settings and secrets
-.env
-local.properties
-.idea/
-*.iml
-
-# Empty repo folder the backend was created with (kept aside, not uploaded)
-.git-empty-backup/
-".claude/" 
