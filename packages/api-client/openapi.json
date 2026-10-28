@@ -547,7 +547,7 @@
         "tags": [
           "dispatch"
         ],
-        "operationId": "status",
+        "operationId": "driver_status",
         "responses": {
           "200": {
             "description": "Online state, pending request and current trip (refetch after reconnecting)",
@@ -920,7 +920,7 @@
         "tags": [
           "dispatch"
         ],
-        "operationId": "accept",
+        "operationId": "accept_offer",
         "parameters": [
           {
             "name": "id",
@@ -1075,7 +1075,7 @@
         "tags": [
           "ops"
         ],
-        "operationId": "logout",
+        "operationId": "ops_logout",
         "responses": {
           "204": {
             "description": ""
@@ -1149,7 +1149,7 @@
         "tags": [
           "ops"
         ],
-        "operationId": "queue",
+        "operationId": "driver_queue",
         "responses": {
           "200": {
             "description": "Submitted applications, oldest first",
@@ -1177,7 +1177,7 @@
         "tags": [
           "ops"
         ],
-        "operationId": "detail",
+        "operationId": "driver_detail",
         "parameters": [
           {
             "name": "id",
@@ -1224,7 +1224,7 @@
         "tags": [
           "ops"
         ],
-        "operationId": "decide",
+        "operationId": "decide_driver",
         "parameters": [
           {
             "name": "id",
@@ -1653,7 +1653,7 @@
         "tags": [
           "booking"
         ],
-        "operationId": "create",
+        "operationId": "create_ride",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -1842,7 +1842,7 @@
         "tags": [
           "booking"
         ],
-        "operationId": "get",
+        "operationId": "get_ride",
         "parameters": [
           {
             "name": "id",
@@ -2364,7 +2364,7 @@
             "format": "int32"
           },
           "vehicle": {
-            "$ref": "#/components/schemas/Vehicle"
+            "$ref": "#/components/schemas/RideVehicle"
           }
         }
       },
@@ -3722,6 +3722,35 @@
         },
         "additionalProperties": false
       },
+      "RideVehicle": {
+        "type": "object",
+        "description": "The assigned car as the rider sees it.",
+        "required": [
+          "make",
+          "model",
+          "colour",
+          "year",
+          "plate"
+        ],
+        "properties": {
+          "colour": {
+            "type": "string"
+          },
+          "make": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "plate": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "RiderRide": {
         "type": "object",
         "required": [
@@ -4088,26 +4117,43 @@
           "model",
           "colour",
           "year",
-          "plate"
+          "plate",
+          "seats",
+          "wheelchair_accessible"
         ],
         "properties": {
           "colour": {
-            "type": "string"
+            "type": "string",
+            "example": "Silver"
           },
           "make": {
-            "type": "string"
+            "type": "string",
+            "example": "Toyota"
           },
           "model": {
-            "type": "string"
+            "type": "string",
+            "example": "Corolla"
           },
           "plate": {
-            "type": "string"
+            "type": "string",
+            "example": "N 9090 W"
+          },
+          "seats": {
+            "type": "integer",
+            "format": "int64",
+            "maximum": 8,
+            "minimum": 4
+          },
+          "wheelchair_accessible": {
+            "type": "boolean"
           },
           "year": {
             "type": "integer",
-            "format": "int32"
+            "format": "int64",
+            "example": 2019
           }
-        }
+        },
+        "additionalProperties": false
       },
       "VehicleStatus": {
         "allOf": [

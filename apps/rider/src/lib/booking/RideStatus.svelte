@@ -80,7 +80,7 @@
 {#if ride.state === 'SEARCHING' || ride.state === 'REQUESTED'}
 	<Screen title="Finding your driver…" lead="We’re asking the best-matched driver near you.">
 		<div class="radar" aria-hidden="true">
-			<span class="ring"></span><span class="ring delay"></span><span class="pin"></span>
+			<span class="ring"></span><span class="ring delay"></span><span class="centre"></span>
 		</div>
 		<p class="radius">Searching within 3 km of your pickup</p>
 		{@render trip()}
@@ -120,7 +120,9 @@
 			<div class="who">
 				<strong>{d.first_name} <span class="verified">✓ Verified</span></strong>
 				<small
-					>{d.rating != null ? `★ ${d.rating.toFixed(2)} · ${d.rating_count} trips` : 'New driver'}</small
+					>{d.rating != null
+						? `★ ${d.rating.toFixed(2)} · ${d.rating_count} trips`
+						: 'New driver'}</small
 				>
 			</div>
 		</div>
@@ -180,7 +182,7 @@
 		background: var(--color-surface-tinted);
 		text-align: center;
 	}
-	.radar .pin {
+	.centre {
 		width: 18px;
 		height: 18px;
 		padding: 0;

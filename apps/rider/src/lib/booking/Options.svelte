@@ -7,7 +7,15 @@
 <script lang="ts">
 	import type { Quote, RiderRide, Tier } from '@fuber/api-client';
 	import { messageOf, normalisePhone, useSession } from '@fuber/account';
-	import { Button, Notice, Screen, Segmented, TextField, formatMinutes, formatNad } from '@fuber/ui';
+	import {
+		Button,
+		Notice,
+		Screen,
+		Segmented,
+		TextField,
+		formatMinutes,
+		formatNad
+	} from '@fuber/ui';
 	import { onMount } from 'svelte';
 	import type { Stop } from './types';
 
@@ -178,7 +186,9 @@
 		</fieldset>
 		<p class="hint">
 			{(quote.distance_m / 1000).toFixed(1)} km · about {formatMinutes(quote.duration_s)}. The price
-			is locked when you request{quote.demand !== 'normal' ? ' and includes busy-time pricing' : ''}.
+			is locked when you request{quote.demand !== 'normal'
+				? ' and includes busy-time pricing'
+				: ''}.
 		</p>
 
 		<div class="row">
@@ -233,7 +243,13 @@
 		{#if when === 'later'}
 			<div class="field">
 				<label for="when">Pickup time</label>
-				<input id="when" type="datetime-local" bind:value={at} min={minSchedule} max={maxSchedule} />
+				<input
+					id="when"
+					type="datetime-local"
+					bind:value={at}
+					min={minSchedule}
+					max={maxSchedule}
+				/>
 				<small>30 minutes to 7 days from now.</small>
 			</div>
 		{/if}

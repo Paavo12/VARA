@@ -187,7 +187,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["status"];
+        get: operations["driver_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -302,7 +302,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["accept"];
+        post: operations["accept_offer"];
         delete?: never;
         options?: never;
         head?: never;
@@ -350,7 +350,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["logout"];
+        post: operations["ops_logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -380,7 +380,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["queue"];
+        get: operations["driver_queue"];
         put?: never;
         post?: never;
         delete?: never;
@@ -396,7 +396,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["detail"];
+        get: operations["driver_detail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -414,7 +414,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["decide"];
+        post: operations["decide_driver"];
         delete?: never;
         options?: never;
         head?: never;
@@ -559,7 +559,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["create"];
+        post: operations["create_ride"];
         delete?: never;
         options?: never;
         head?: never;
@@ -605,7 +605,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["get"];
+        get: operations["get_ride"];
         put?: never;
         post?: never;
         delete?: never;
@@ -768,7 +768,7 @@ export interface components {
             rating?: number | null;
             /** Format: int32 */
             rating_count: number;
-            vehicle: components["schemas"]["Vehicle"];
+            vehicle: components["schemas"]["RideVehicle"];
         };
         /**
          * Format: int64
@@ -1215,6 +1215,15 @@ export interface components {
             /** @description Only wheelchair-accessible vehicles (PRD B-4). */
             wheelchair?: boolean;
         };
+        /** @description The assigned car as the rider sees it. */
+        RideVehicle: {
+            colour: string;
+            make: string;
+            model: string;
+            plate: string;
+            /** Format: int32 */
+            year: number;
+        };
         RiderRide: {
             /** @description `rider`, `driver`, `system` or `staff` for cancelled rides. */
             cancelled_by?: string | null;
@@ -1332,11 +1341,21 @@ export interface components {
             url: string;
         };
         Vehicle: {
+            /** @example Silver */
             colour: string;
+            /** @example Toyota */
             make: string;
+            /** @example Corolla */
             model: string;
+            /** @example N 9090 W */
             plate: string;
-            /** Format: int32 */
+            /** Format: int64 */
+            seats: number;
+            wheelchair_accessible: boolean;
+            /**
+             * Format: int64
+             * @example 2019
+             */
             year: number;
         };
         VehicleStatus: components["schemas"]["Vehicle"] & {
@@ -1822,7 +1841,7 @@ export interface operations {
             };
         };
     };
-    status: {
+    driver_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -2120,7 +2139,7 @@ export interface operations {
             };
         };
     };
-    accept: {
+    accept_offer: {
         parameters: {
             query?: never;
             header?: never;
@@ -2239,7 +2258,7 @@ export interface operations {
             };
         };
     };
-    logout: {
+    ops_logout: {
         parameters: {
             query?: never;
             header?: never;
@@ -2290,7 +2309,7 @@ export interface operations {
             };
         };
     };
-    queue: {
+    driver_queue: {
         parameters: {
             query?: never;
             header?: never;
@@ -2310,7 +2329,7 @@ export interface operations {
             };
         };
     };
-    detail: {
+    driver_detail: {
         parameters: {
             query?: never;
             header?: never;
@@ -2340,7 +2359,7 @@ export interface operations {
             };
         };
     };
-    decide: {
+    decide_driver: {
         parameters: {
             query?: never;
             header?: never;
@@ -2621,7 +2640,7 @@ export interface operations {
             };
         };
     };
-    create: {
+    create_ride: {
         parameters: {
             query?: never;
             header: {
@@ -2771,7 +2790,7 @@ export interface operations {
             };
         };
     };
-    get: {
+    get_ride: {
         parameters: {
             query?: never;
             header?: never;
