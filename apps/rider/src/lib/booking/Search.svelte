@@ -75,10 +75,7 @@
 	<ul class="results">
 		{#each results as p (p.id)}
 			<li>
-				<button
-					class="place"
-					onclick={() => onpick({ address: p.name, lat: p.lat, lon: p.lon })}
-				>
+				<button class="place" onclick={() => onpick({ address: p.name, lat: p.lat, lon: p.lon })}>
 					<span class="icon" aria-hidden="true">{icon(p.kind)}</span>
 					<span><strong>{p.name}</strong><small>{p.detail}</small></span>
 				</button>

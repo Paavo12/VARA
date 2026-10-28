@@ -1,7 +1,7 @@
 <!--
 	Rider app: sign-in and onboarding (App Flow §2.1). Which screen shows is worked out from the
 	account state on the server, so the flow resumes where it left off on any device.
-	Booking arrives in Phase 2; until then a verified rider lands on a placeholder home.
+	A verified rider lands on booking.
 -->
 <script lang="ts">
 	import type { Me } from '@fuber/api-client';
@@ -15,6 +15,7 @@
 	} from '@fuber/account';
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
+	import Booking from '#lib/booking/Booking.svelte';
 	import Verify from '#lib/Verify.svelte';
 	import { riderSession } from '#lib/session.ts';
 
@@ -116,18 +117,7 @@
 	<DeleteAccount onback={() => (view = 'settings')} ondeleted={() => (view = 'signin')} />
 {:else if view === 'status' && me}
 	{#if me.verification === 'approved'}
-		<Screen title="Hi {me.display_name}" lead="You’re verified. Welcome to FUber.">
-			<Notice tone="success"><p>Booking a ride arrives in the next update.</p></Notice>
-			{#if me.emergency_contacts === 0}
-				<Notice tone="attention" title="Add an emergency contact">
-					<p>We’ll alert them if you press SOS during a ride.</p>
-				</Notice>
-			{/if}
-			{#snippet footer()}
-				<Button disabled>Where to?</Button>
-				<Button variant="ghost" onclick={() => (view = 'settings')}>Settings</Button>
-			{/snippet}
-		</Screen>
+		<Booking {me} onsettings={() => (view = 'settings')} />
 	{:else}
 		<Screen
 			title="We’re checking your details"

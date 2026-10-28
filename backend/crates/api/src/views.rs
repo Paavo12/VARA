@@ -37,8 +37,9 @@ pub struct Area {
     pub radius_m: u32,
 }
 
+/// The assigned car as the rider sees it.
 #[derive(Debug, Clone, Serialize, ToSchema)]
-pub struct Vehicle {
+pub struct RideVehicle {
     pub make: String,
     pub model: String,
     pub colour: String,
@@ -51,7 +52,7 @@ pub struct AssignedDriver {
     pub first_name: String,
     pub rating: Option<f64>,
     pub rating_count: i32,
-    pub vehicle: Vehicle,
+    pub vehicle: RideVehicle,
     /// Last reported position.
     pub lat: Option<f64>,
     pub lon: Option<f64>,
@@ -248,7 +249,7 @@ async fn assigned_driver(db: &PgPool, ride_id: Uuid, driver_id: Uuid) -> Result<
         first_name: name.unwrap_or_else(|| "Your driver".into()),
         rating,
         rating_count,
-        vehicle: Vehicle { make, model, colour, year, plate },
+        vehicle: RideVehicle { make, model, colour, year, plate },
         lat,
         lon,
         eta_s,

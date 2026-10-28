@@ -94,6 +94,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** two people on two phones complete request → offer → accept; race test (20 drivers accepting the same ride) yields exactly one winner; load test 500 simulated drivers passes TRD §6.
 
+**Status (2026-10-28):** built on branch `phase-2/booking-dispatch`. Places search, OSRM routing (straight-line estimate locally), signed locked quotes with surge, ride creation with every option, driver presence, the matching worker with sequential 15 s offers, WebSocket live updates with reconnect, and the rider booking and driver offer screens are done. Presence and fan-out use Postgres instead of Redis (TRD §1). Integration tests cover search, quotes, matching order, privacy in every state, expiry and retry, cancellations, scheduling, guest SMS and the live socket. Still open: rerunning the 20-driver race test after the `SKIP LOCKED` fix, the 500-driver load test (`cargo test -p fuber-api --test dispatch -- --ignored`), and the two-phone run. Locally, sign-in skips the SMS code: the API returns it only when `APP_ENV=local`.
+
 ### Phase 3 — Trip & safety (3 weeks)
 
 - En-route tracking, fuzzy pickup, 50 m exact-address reveal, PIN entry with 5-attempt lockout, destination reveal after PIN (T-1 – T-3) — with tests proving the destination is absent from every driver payload before `PIN_VERIFIED`.
