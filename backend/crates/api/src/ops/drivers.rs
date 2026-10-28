@@ -31,7 +31,7 @@ pub struct DriverQueueItem {
 }
 
 #[utoipa::path(
-    get, path = "/v1/ops/drivers", tag = "ops", security(("staff" = [])),
+    get, path = "/v1/ops/drivers", operation_id = "driver_queue", tag = "ops", security(("staff" = [])),
     responses((status = 200, description = "Submitted applications, oldest first", body = Vec<DriverQueueItem>))
 )]
 pub async fn queue(State(s): State<AppState>, staff: Staff) -> Result<Json<Vec<DriverQueueItem>>, ApiError> {
@@ -106,7 +106,7 @@ type ReviewRow = (Option<String>, Option<Vec<u8>>, String, Option<String>, Vec<S
 type VehicleRow = (Uuid, String, String, String, i16, String, i16, bool, bool, Option<String>);
 
 #[utoipa::path(
-    get, path = "/v1/ops/drivers/{id}", tag = "ops", security(("staff" = [])),
+    get, path = "/v1/ops/drivers/{id}", operation_id = "driver_detail", tag = "ops", security(("staff" = [])),
     params(("id" = Uuid, Path, description = "The driver's user ID")),
     responses((status = 200, body = DriverReview), (status = 404, body = ErrorBody))
 )]
@@ -346,7 +346,7 @@ pub async fn set_tiers(
 }
 
 #[utoipa::path(
-    post, path = "/v1/ops/drivers/{id}/decision", tag = "ops", security(("staff" = [])),
+    post, path = "/v1/ops/drivers/{id}/decision", operation_id = "decide_driver", tag = "ops", security(("staff" = [])),
     params(("id" = Uuid, Path)),
     request_body = Decision,
     responses(

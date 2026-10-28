@@ -306,4 +306,3 @@ pub fn png() -> Vec<u8> {
     img.write_to(&mut out, image::ImageFormat::Png).unwrap();
     out.into_inner()
 }
-

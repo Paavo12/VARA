@@ -78,7 +78,7 @@ pub(crate) async fn status_of(s: &AppState, user: &AuthUser) -> Result<DriverSta
 }
 
 #[utoipa::path(
-    get, path = "/v1/driver/status", tag = "dispatch", security(("bearer" = [])),
+    get, path = "/v1/driver/status", operation_id = "driver_status", tag = "dispatch", security(("bearer" = [])),
     responses((status = 200, description = "Online state, pending request and current trip (refetch after reconnecting)", body = DriverStatus))
 )]
 pub async fn status(State(s): State<AppState>, DriverUser(user): DriverUser) -> Result<Json<DriverStatus>, ApiError> {
@@ -173,7 +173,7 @@ pub async fn location(
 }
 
 #[utoipa::path(
-    post, path = "/v1/offers/{id}/accept", tag = "dispatch", security(("bearer" = [])),
+    post, path = "/v1/offers/{id}/accept", operation_id = "accept_offer", tag = "dispatch", security(("bearer" = [])),
     params(("id" = Uuid, Path)),
     responses(
         (status = 200, description = "The ride is hers: drive to the pickup area", body = DriverRide),

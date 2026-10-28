@@ -53,11 +53,13 @@ impl T {
     /// A rider whose identity is verified (the verification flow itself is tested in Phase 1).
     async fn rider(&self) -> Session {
         let s = self.onboarded("rider").await;
-        sqlx::query("UPDATE users SET verification = 'approved', verified_at = now(), status = 'active', display_name = 'Ndeshi' WHERE id = $1")
-            .bind(s.user_id)
-            .execute(&self.state.db)
-            .await
-            .unwrap();
+        sqlx::query(
+            "UPDATE users SET verification = 'approved', verified_at = now(), status = 'active', display_name = 'Ndeshi' WHERE id = $1",
+        )
+        .bind(s.user_id)
+        .execute(&self.state.db)
+        .await
+        .unwrap();
         s
     }
 
@@ -72,11 +74,13 @@ impl T {
             .execute(db)
             .await
             .unwrap();
-        sqlx::query("INSERT INTO driver_profiles (user_id, application_status, approved_at, can_go_online) VALUES ($1, 'approved', now(), true)")
-            .bind(s.user_id)
-            .execute(db)
-            .await
-            .unwrap();
+        sqlx::query(
+            "INSERT INTO driver_profiles (user_id, application_status, approved_at, can_go_online) VALUES ($1, 'approved', now(), true)",
+        )
+        .bind(s.user_id)
+        .execute(db)
+        .await
+        .unwrap();
         let plate = format!("N {} W", 1000 + u32::from_le_bytes(fuber_common::crypto::random_bytes::<4>()) % 900_000);
         let vehicle: Uuid = sqlx::query_scalar(
             "INSERT INTO vehicles (driver_id, make, model, colour, year, plate, wheelchair_accessible, approved)
@@ -88,8 +92,18 @@ impl T {
         .fetch_one(db)
         .await
         .unwrap();
-        sqlx::query("UPDATE driver_profiles SET active_vehicle_id = $2 WHERE user_id = $1").bind(s.user_id).bind(vehicle).execute(db).await.unwrap();
-        sqlx::query("INSERT INTO driver_tiers (driver_id, tier) VALUES ($1, $2::ride_tier)").bind(s.user_id).bind(tier).execute(db).await.unwrap();
+        sqlx::query("UPDATE driver_profiles SET active_vehicle_id = $2 WHERE user_id = $1")
+            .bind(s.user_id)
+            .bind(vehicle)
+            .execute(db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO driver_tiers (driver_id, tier) VALUES ($1, $2::ride_tier)")
+            .bind(s.user_id)
+            .bind(tier)
+            .execute(db)
+            .await
+            .unwrap();
         s
     }
 
@@ -115,9 +129,8 @@ impl T {
     /// Quotes Post Street Mall → Maerua Mall and requests a Classic ride for one.
     async fn book(&self, rider: &Session) -> Value {
         let q = self.quote(rider, POST_ST_MALL, MAERUA_MALL).await;
-        let (status, ride) = self
-            .request(rider, json!({ "quote": q["quote"], "tier": "classic", "passengers": 1, "payment_method": "cash" }), &key())
-            .await;
+        let (status, ride) =
+            self.request(rider, json!({ "quote": q["quote"], "tier": "classic", "passengers": 1, "payment_method": "cash" }), &key()).await;
         assert_eq!(status, StatusCode::CREATED, "{ride}");
         ride
     }
@@ -224,7 +237,8 @@ async fn the_quoted_price_is_exactly_the_price_charged() {
     assert_eq!(again["id"], ride["id"]);
     // A new request while one is active is refused.
     let q2 = t.quote(&r, POST_ST_MALL, MAERUA_MALL).await;
-    let (status, e) = t.request(&r, json!({ "quote": q2["quote"], "tier": "classic", "passengers": 1, "payment_method": "cash" }), &key()).await;
+    let (status, e) =
+        t.request(&r, json!({ "quote": q2["quote"], "tier": "classic", "passengers": 1, "payment_method": "cash" }), &key()).await;
     assert_eq!(status, StatusCode::CONFLICT);
     assert_eq!(e["error"]["code"], "ride_in_progress");
     let (status, active) = t.get("/v1/rides/active", &r.access).await;
@@ -328,7 +342,12 @@ async fn best_driver_is_asked_first_then_the_next_and_the_accepting_driver_never
         let s = state.to_owned();
         let d = further.access.clone();
         async move {
-            sqlx::query("UPDATE rides SET state = $2::ride_state WHERE id = $1::uuid").bind(&id).bind(&s).execute(&t.state.db).await.unwrap();
+            sqlx::query("UPDATE rides SET state = $2::ride_state WHERE id = $1::uuid")
+                .bind(&id)
+                .bind(&s)
+                .execute(&t.state.db)
+                .await
+                .unwrap();
             let v = t.driver_status_with(&d).await;
             !v["ride"]["dropoff"].is_null()
         }
@@ -402,7 +421,8 @@ async fn twenty_drivers_accepting_the_same_ride_yield_exactly_one_winner() {
         .unwrap();
 
     // Every driver fires an accept at once, and the offered one fires twenty more.
-    let offered: Uuid = sqlx::query_scalar("SELECT driver_id FROM ride_offers WHERE id = $1").bind(offer).fetch_one(&t.state.db).await.unwrap();
+    let offered: Uuid =
+        sqlx::query_scalar("SELECT driver_id FROM ride_offers WHERE id = $1").bind(offer).fetch_one(&t.state.db).await.unwrap();
     let holder = drivers.iter().find(|d| d.user_id == offered).unwrap().access.clone();
     let mut tokens: Vec<String> = drivers.iter().map(|d| d.access.clone()).collect();
     tokens.extend(std::iter::repeat_n(holder, 20));
@@ -462,8 +482,11 @@ async fn a_driver_on_a_trip_gets_no_new_requests_and_a_cancelled_ride_withdraws_
     assert_eq!(status, StatusCode::OK, "{c}");
     assert_eq!(c["state"], "CANCELLED");
     assert_eq!(c["cancelled_by"], "rider");
-    let points: i32 =
-        sqlx::query_scalar("SELECT priority_points FROM rider_profiles WHERE user_id = $1").bind(r1.user_id).fetch_one(&t.state.db).await.unwrap();
+    let points: i32 = sqlx::query_scalar("SELECT priority_points FROM rider_profiles WHERE user_id = $1")
+        .bind(r1.user_id)
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap();
     assert_eq!(points, 95);
     assert!(t.driver_status(&d).await["ride"].is_null());
 
@@ -495,7 +518,11 @@ async fn only_approved_drivers_signed_in_on_a_phone_receive_requests() {
     t.post("/v1/driver/online", &accessible.access, json!({ "at": at(FURTHER) })).await;
     let q = t.quote(&rider, POST_ST_MALL, MAERUA_MALL).await;
     let (status, ride) = t
-        .request(&rider, json!({ "quote": q["quote"], "tier": "classic", "passengers": 1, "wheelchair": true, "payment_method": "cash" }), &key())
+        .request(
+            &rider,
+            json!({ "quote": q["quote"], "tier": "classic", "passengers": 1, "wheelchair": true, "payment_method": "cash" }),
+            &key(),
+        )
         .await;
     assert_eq!(status, StatusCode::CREATED, "{ride}");
     t.tick().await;
@@ -536,11 +563,12 @@ async fn only_approved_drivers_signed_in_on_a_phone_receive_requests() {
         .await
         .unwrap();
     assert!(!online);
-    let ended: Option<String> = sqlx::query_scalar("SELECT end_reason FROM driver_shifts WHERE driver_id = $1 ORDER BY started_at DESC LIMIT 1")
-        .bind(ordinary.user_id)
-        .fetch_one(&t.state.db)
-        .await
-        .unwrap();
+    let ended: Option<String> =
+        sqlx::query_scalar("SELECT end_reason FROM driver_shifts WHERE driver_id = $1 ORDER BY started_at DESC LIMIT 1")
+            .bind(ordinary.user_id)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
     assert_eq!(ended.as_deref(), Some("signed_out"));
 }
 
@@ -550,7 +578,8 @@ async fn scheduled_rides_start_searching_fifteen_minutes_before_pickup() {
     let rider = t.rider().await;
     let q = t.quote(&rider, POST_ST_MALL, MAERUA_MALL).await;
     let when = |mins: i64| (OffsetDateTime::now_utc() + time::Duration::minutes(mins)).format(&Rfc3339).unwrap();
-    let body = |at: String| json!({ "quote": q["quote"], "tier": "classic", "passengers": 1, "payment_method": "cash", "scheduled_for": at });
+    let body =
+        |at: String| json!({ "quote": q["quote"], "tier": "classic", "passengers": 1, "payment_method": "cash", "scheduled_for": at });
     // 30 min – 7 days ahead.
     assert_eq!(t.request(&rider, body(when(10)), &key()).await.0, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(t.request(&rider, body(when(60 * 24 * 8)), &key()).await.0, StatusCode::UNPROCESSABLE_ENTITY);
@@ -560,7 +589,11 @@ async fn scheduled_rides_start_searching_fifteen_minutes_before_pickup() {
     let id = ride["id"].as_str().unwrap();
     assert_eq!(t.tick().await.started, 0);
 
-    sqlx::query("UPDATE rides SET scheduled_for = now() + interval '10 minutes' WHERE id = $1::uuid").bind(id).execute(&t.state.db).await.unwrap();
+    sqlx::query("UPDATE rides SET scheduled_for = now() + interval '10 minutes' WHERE id = $1::uuid")
+        .bind(id)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
     assert_eq!(t.tick().await.started, 1);
     assert_eq!(t.ride_state(id).await, "NO_DRIVERS", "searched straight away and found nobody");
 }
@@ -588,7 +621,8 @@ async fn a_guest_passenger_gets_her_driver_plate_and_pin_by_sms() {
     t.post(&format!("/v1/offers/{}/accept", card["offer_id"].as_str().unwrap()), &d.access, json!({})).await;
     t.work().await;
     let sms = t.ctx.sms.outbox().into_iter().find(|m| m.to == guest_phone).expect("guest SMS");
-    let plate: String = sqlx::query_scalar("SELECT plate FROM vehicles WHERE driver_id = $1").bind(d.user_id).fetch_one(&t.state.db).await.unwrap();
+    let plate: String =
+        sqlx::query_scalar("SELECT plate FROM vehicles WHERE driver_id = $1").bind(d.user_id).fetch_one(&t.state.db).await.unwrap();
     assert!(sms.body.contains(&plate), "{}", sms.body);
     assert!(sms.body.contains(ride["pin"].as_str().unwrap()), "{}", sms.body);
     assert!(sms.body.contains("Hilma"), "{}", sms.body);
@@ -604,12 +638,17 @@ async fn wrong_user_and_wrong_app_access_is_refused_on_every_phase_2_endpoint() 
     let ride = t.book(&owner).await;
     let id = ride["id"].as_str().unwrap();
     t.tick().await;
-    let offer: Uuid = sqlx::query_scalar("SELECT id FROM ride_offers WHERE ride_id = $1::uuid").bind(id).fetch_one(&t.state.db).await.unwrap();
+    let offer: Uuid =
+        sqlx::query_scalar("SELECT id FROM ride_offers WHERE ride_id = $1::uuid").bind(id).fetch_one(&t.state.db).await.unwrap();
     let holder = if t.driver_status(&d).await["offer"].is_null() { &other_driver } else { &d };
     let bystander = if holder.user_id == d.user_id { &other_driver } else { &d };
 
     // Someone else's ride looks exactly like a missing one.
-    for (m, path) in [(Method::GET, format!("/v1/rides/{id}")), (Method::POST, format!("/v1/rides/{id}/cancel")), (Method::POST, format!("/v1/rides/{id}/retry"))] {
+    for (m, path) in [
+        (Method::GET, format!("/v1/rides/{id}")),
+        (Method::POST, format!("/v1/rides/{id}/cancel")),
+        (Method::POST, format!("/v1/rides/{id}/retry")),
+    ] {
         let (status, _) = t.call(m, &path, Some(&other.access), Some(json!({}))).await;
         assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
     }
@@ -688,12 +727,19 @@ async fn validation_failures_on_every_phase_2_body() {
         let (status, e) = t.post(path, &who.access, b.clone()).await;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{path} {b} → {e}");
     }
-    for b in [json!({ "at": { "lat": -33.9, "lon": 18.4 } }), json!({ "at": at(NEAR), "heading": 400 }), json!({ "at": at(NEAR), "speed_kmh": -1 }), json!({ "at": at(NEAR), "x": 1 })] {
+    for b in [
+        json!({ "at": { "lat": -33.9, "lon": 18.4 } }),
+        json!({ "at": at(NEAR), "heading": 400 }),
+        json!({ "at": at(NEAR), "speed_kmh": -1 }),
+        json!({ "at": at(NEAR), "x": 1 }),
+    ] {
         let (status, e) = t.post("/v1/driver/online", &d.access, b.clone()).await;
         assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{b} → {e}");
     }
     // A bad Idempotency-Key.
-    let (status, _) = t.call_with(Method::POST, "/v1/rides", Some(&r.access), Some(ride("tier", json!("classic"))), &[("idempotency-key", "bad key!")]).await;
+    let (status, _) = t
+        .call_with(Method::POST, "/v1/rides", Some(&r.access), Some(ride("tier", json!("classic"))), &[("idempotency-key", "bad key!")])
+        .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
 }
 

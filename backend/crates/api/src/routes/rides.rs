@@ -320,7 +320,7 @@ fn unit() -> f64 {
 }
 
 #[utoipa::path(
-    post, path = "/v1/rides", tag = "booking", security(("bearer" = [])),
+    post, path = "/v1/rides", operation_id = "create_ride", tag = "booking", security(("bearer" = [])),
     request_body = RideRequest,
     params(("Idempotency-Key" = String, Header, description = "Random per booking attempt; a retry with the same key returns the same ride")),
     responses(
@@ -494,7 +494,7 @@ pub async fn active(State(s): State<AppState>, RiderUser(user): RiderUser) -> Re
 }
 
 #[utoipa::path(
-    get, path = "/v1/rides/{id}", tag = "booking", security(("bearer" = [])),
+    get, path = "/v1/rides/{id}", operation_id = "get_ride", tag = "booking", security(("bearer" = [])),
     params(("id" = Uuid, Path)),
     responses((status = 200, body = RiderRide), (status = 404, description = "Not found, or not her ride", body = ErrorBody))
 )]

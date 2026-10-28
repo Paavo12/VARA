@@ -132,6 +132,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/driver/location": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["location"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/offline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["go_offline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/online": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["go_online"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/fares/estimate": {
         parameters: {
             query?: never;
@@ -223,6 +287,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["submit_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/offers/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/offers/{id}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decline"];
         delete?: never;
         options?: never;
         head?: never;
@@ -405,6 +501,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/places/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["reverse"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ready": {
         parameters: {
             query?: never;
@@ -416,6 +544,102 @@ export interface paths {
         get: operations["ready"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["active"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["quote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -513,6 +737,39 @@ export interface components {
             submitted_at?: string | null;
             vehicle?: null | components["schemas"]["VehicleStatus"];
         };
+        Area: {
+            /** @description "Near Maerua Mall" or "Klein Windhoek area". */
+            label: string;
+            /**
+             * Format: double
+             * @description Centre of the circle: the pickup moved 100–200 m in a random direction.
+             */
+            lat: number;
+            /** Format: double */
+            lon: number;
+            /** Format: int32 */
+            radius_m: number;
+        };
+        AssignedDriver: {
+            /**
+             * Format: int32
+             * @description Estimated seconds until she reaches the pickup.
+             */
+            eta_s?: number | null;
+            first_name: string;
+            /**
+             * Format: double
+             * @description Last reported position.
+             */
+            lat?: number | null;
+            /** Format: double */
+            lon?: number | null;
+            /** Format: double */
+            rating?: number | null;
+            /** Format: int32 */
+            rating_count: number;
+            vehicle: components["schemas"]["Vehicle"];
+        };
         /**
          * Format: int64
          * @description An amount of Namibian dollars in cents. Money is never a float.
@@ -587,6 +844,33 @@ export interface components {
             user_id: string;
             vehicle?: null | components["schemas"]["ReviewVehicle"];
         };
+        DriverRide: {
+            code: string;
+            dropoff?: null | components["schemas"]["Stop"];
+            /** @description What she earns for this trip, in cents. */
+            earning: components["schemas"]["Cents"];
+            /** Format: uuid */
+            id: string;
+            passenger: components["schemas"]["Passenger"];
+            /** Format: int32 */
+            passengers: number;
+            payment_method: string;
+            pickup?: null | components["schemas"]["Stop"];
+            pickup_area: components["schemas"]["Area"];
+            /** @example DRIVER_EN_ROUTE */
+            state: string;
+            tier: components["schemas"]["Tier"];
+            wheelchair: boolean;
+        };
+        DriverStatus: {
+            offer?: null | components["schemas"]["OfferCard"];
+            online: boolean;
+            /** Format: date-time */
+            online_since?: string | null;
+            ride?: null | components["schemas"]["DriverRide"];
+            /** @description Ride types she receives requests for. */
+            tiers: string[];
+        };
         EmergencyContact: {
             name: string;
             /** @example +264812223344 */
@@ -635,6 +919,15 @@ export interface components {
             /** @description What the rider pays: base + distance + time + minimum_adjustment + surge. */
             total: components["schemas"]["Cents"];
         };
+        Guest: {
+            /** @example Ndapandula Shikongo */
+            name: string;
+            /**
+             * @description Receives the driver, plate and PIN by SMS once a driver accepts (PRD B-5).
+             * @example +264811234567
+             */
+            phone: string;
+        };
         /**
          * @description A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is
          *     replaced by the `service_areas` polygon once the database is wired in.
@@ -656,6 +949,16 @@ export interface components {
         };
         /** @enum {string} */
         LegalKind: "terms" | "privacy" | "cookies" | "driver_agreement";
+        LocationUpdate: {
+            at: components["schemas"]["LatLng"];
+            /**
+             * Format: int32
+             * @description Degrees from north, 0–359.
+             */
+            heading?: number | null;
+            /** Format: float */
+            speed_kmh?: number | null;
+        };
         Login: {
             email: string;
             /** Format: password */
@@ -693,9 +996,43 @@ export interface components {
             verification: string;
             verification_reject_reason?: string | null;
         };
+        /** @description The request card (PRD D-4). No destination, no exact pickup. */
+        OfferCard: {
+            /**
+             * Format: int32
+             * @description Road distance and time from her position to the pickup.
+             */
+            distance_m: number;
+            earning: components["schemas"]["Cents"];
+            /** Format: int32 */
+            eta_s: number;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: uuid */
+            offer_id: string;
+            passenger: components["schemas"]["Passenger"];
+            /** Format: int32 */
+            passengers: number;
+            payment_method: string;
+            pickup_area: components["schemas"]["Area"];
+            /** Format: uuid */
+            ride_id: string;
+            /**
+             * Format: int64
+             * @description Seconds left to answer, as of sending.
+             */
+            seconds_left: number;
+            tier: components["schemas"]["Tier"];
+            wheelchair: boolean;
+        };
         OtpChallenge: {
             /** Format: uuid */
             challenge_id: string;
+            /**
+             * @description Local development only: the code itself, so sign-in works without a real SMS gateway.
+             *     Never present in any other environment.
+             */
+            dev_code?: string | null;
             /** Format: int64 */
             expires_in_s: number;
             /**
@@ -725,6 +1062,23 @@ export interface components {
              */
             phone: string;
         };
+        /** @description Who the driver is picking up (PRD D-4, B-5). */
+        Passenger: {
+            /**
+             * @description For a guest: "booked by Ndeshi (verified)". The demo showed a guest as "Verified" with
+             *     the booker's rating, which was wrong.
+             */
+            booked_by?: string | null;
+            /** @description First name of the rider, or the guest's name. */
+            name: string;
+            /**
+             * Format: double
+             * @description The booking rider's rating; absent for a guest.
+             */
+            rating?: number | null;
+        };
+        /** @enum {string} */
+        PaymentMethod: "cash" | "card";
         /** @description Bank account for weekly payouts. Stored encrypted; never returned by the API. */
         PayoutAccount: {
             account_holder: string;
@@ -734,6 +1088,28 @@ export interface components {
             bank: string;
             /** @example 483872 */
             branch_code: string;
+        };
+        PinName: {
+            /** @description What to show for the pin, e.g. "Sam Nujoma Drive" or "Near Maerua Mall". */
+            address: string;
+            /** @description The suburb, e.g. "Klein Windhoek". */
+            area: string;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
+        };
+        Place: {
+            detail: string;
+            /** Format: uuid */
+            id: string;
+            /** @description `landmark`, `suburb` or `street`. */
+            kind: string;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
+            name: string;
         };
         PreviousAttempt: {
             /** Format: date-time */
@@ -754,6 +1130,44 @@ export interface components {
             submitted_at: string;
             /** Format: uuid */
             user_id: string;
+        };
+        Quote: {
+            currency: string;
+            /** @description `normal`, `high` or `peak`. */
+            demand: string;
+            /** Format: int32 */
+            distance_m: number;
+            /**
+             * Format: int32
+             * @description Trip time at the current demand level.
+             */
+            duration_s: number;
+            /** Format: date-time */
+            expires_at: string;
+            options: components["schemas"]["QuoteOption"][];
+            /** @description Present this with `POST /v1/rides` before `expires_at`. */
+            quote: string;
+            /** @description `osrm` (real roads) or `estimate` (local development). */
+            routing: string;
+        };
+        QuoteOption: {
+            /** @description The exact price for this ride type, in cents (PRD B-3). */
+            fare: components["schemas"]["Fare"];
+            /**
+             * Format: int64
+             * @description Seconds for the nearest available driver to reach the pickup; null when no driver of
+             *     this type is online within the dispatch radius ("No driver online within 3 km").
+             */
+            pickup_eta_s?: number | null;
+            tier: components["schemas"]["Tier"];
+        };
+        QuoteRequest: {
+            dropoff: components["schemas"]["LatLng"];
+            /** @example Maerua Mall */
+            dropoff_address: string;
+            pickup: components["schemas"]["LatLng"];
+            /** @example Post Street Mall */
+            pickup_address: string;
         };
         RefreshRequest: {
             refresh_token: string;
@@ -785,6 +1199,56 @@ export interface components {
             /** Format: int32 */
             year: number;
         };
+        RideRequest: {
+            guest?: null | components["schemas"]["Guest"];
+            /** Format: int64 */
+            passengers: number;
+            payment_method: components["schemas"]["PaymentMethod"];
+            /** @description From `POST /v1/rides/quote`. */
+            quote: string;
+            /**
+             * Format: date-time
+             * @description Book ahead: 30 minutes to 7 days from now (PRD B-6).
+             */
+            scheduled_for?: string | null;
+            tier: components["schemas"]["Tier"];
+            /** @description Only wheelchair-accessible vehicles (PRD B-4). */
+            wheelchair?: boolean;
+        };
+        RiderRide: {
+            /** @description `rider`, `driver`, `system` or `staff` for cancelled rides. */
+            cancelled_by?: string | null;
+            /** @description Short reference such as `FU-4102`. */
+            code: string;
+            driver?: null | components["schemas"]["AssignedDriver"];
+            dropoff: components["schemas"]["Stop"];
+            /** @description The locked price (PRD P-1), in cents. */
+            fare: components["schemas"]["Fare"];
+            /** @description Set when booked for someone else. */
+            guest_name?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            passengers: number;
+            /** @description `cash` or `card`. */
+            payment_method: string;
+            pickup: components["schemas"]["Stop"];
+            /** @description Say it to the driver at pickup. Never sent to the driver. */
+            pin: string;
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: date-time */
+            scheduled_for?: string | null;
+            /**
+             * Format: date-time
+             * @description When the current search started (searching rides).
+             */
+            search_started_at?: string | null;
+            /** @example SEARCHING */
+            state: string;
+            tier: components["schemas"]["Tier"];
+            wheelchair: boolean;
+        };
         SaveApplication: {
             payout_account?: null | components["schemas"]["PayoutAccount"];
             /** @description Ride types the driver wants to offer; ops decide which are approved. */
@@ -807,6 +1271,13 @@ export interface components {
             roles: string[];
             /** @description Send as `Authorization: Bearer <token>` to `/v1/ops/*`. */
             token: string;
+        };
+        Stop: {
+            address: string;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
         };
         /**
          * @description Ride types, cheapest first. The order is significant: a higher tier charges more.
@@ -861,21 +1332,11 @@ export interface components {
             url: string;
         };
         Vehicle: {
-            /** @example Silver */
             colour: string;
-            /** @example Toyota */
             make: string;
-            /** @example Corolla */
             model: string;
-            /** @example N 9090 W */
             plate: string;
-            /** Format: int64 */
-            seats: number;
-            wheelchair_accessible: boolean;
-            /**
-             * Format: int64
-             * @example 2019
-             */
+            /** Format: int32 */
             year: number;
         };
         VehicleStatus: components["schemas"]["Vehicle"] & {
@@ -1259,6 +1720,128 @@ export interface operations {
             };
         };
     };
+    location: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Recorded. The app normally sends this over the WebSocket (`location.update`). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `offline`: go online first */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 40 a minute */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    go_offline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Offline: no new requests. A trip in progress continues. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverStatus"];
+                };
+            };
+        };
+    };
+    go_online: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LocationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Online: requests can arrive */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverStatus"];
+                };
+            };
+            /** @description `not_approved` (application, documents, vehicle or tier) or `account_suspended` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Position outside the service area */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Online state, pending request and current trip (refetch after reconnecting) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverStatus"];
+                };
+            };
+        };
+    };
     estimate: {
         parameters: {
             query?: never;
@@ -1528,6 +2111,84 @@ export interface operations {
             };
             /** @description An upload is missing, not yours, of the wrong kind or was rejected */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The ride is hers: drive to the pickup area */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverRide"];
+                };
+            };
+            /** @description Not her offer */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `offer_gone`: expired, withdrawn, or the rider cancelled */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    decline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Declined; the request goes to the next driver */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not her offer */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `offer_gone` */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1871,6 +2532,70 @@ export interface operations {
             };
         };
     };
+    search: {
+        parameters: {
+            query?: {
+                /** @description Up to 80 characters. Empty returns the landmarks (quick-place chips). */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 20 places, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Place"][];
+                };
+            };
+            /** @description Query too long */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reverse: {
+        parameters: {
+            query: {
+                lat: number;
+                lon: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A name for a point on the map (the pickup pin) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PinName"];
+                };
+            };
+            /** @description Outside the service area */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     ready: {
         parameters: {
             query?: never;
@@ -1893,6 +2618,264 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Random per booking attempt; a retry with the same key returns the same ride */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RideRequest"];
+            };
+        };
+        responses: {
+            /** @description Same Idempotency-Key as an earlier request: that ride */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiderRide"];
+                };
+            };
+            /** @description Requested (searching) or scheduled */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiderRide"];
+                };
+            };
+            /** @description `not_verified`: identity verification must be approved first */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `ride_in_progress` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid or expired quote, bad schedule time, unsupported payment */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 5 a minute, 30 an hour */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    active: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rider's active or scheduled ride */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiderRide"];
+                };
+            };
+            /** @description No active ride */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    quote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Locked prices for every ride type, valid for 5 minutes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Quote"];
+                };
+            };
+            /** @description Outside the service area, too short, or no road route */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description 30 quotes a minute */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `routing_unavailable` */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiderRide"];
+                };
+            };
+            /** @description Not found, or not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled. Free, but every cancellation costs priority (PRD D-5) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiderRide"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `invalid_state`: the trip has started */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    retry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Searching again; drivers who passed before may be asked again */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiderRide"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `invalid_state`: only after *No drivers accepted* */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
