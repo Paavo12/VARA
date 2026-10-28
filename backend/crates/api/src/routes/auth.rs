@@ -335,10 +335,21 @@ pub async fn refresh(
     responses((status = 204, description = "This device's session is ended"), (status = 401, description = "Not signed in", body = ErrorBody))
 )]
 pub async fn logout(State(s): State<AppState>, user: AuthUser) -> Result<StatusCode, ApiError> {
+    let mut tx = s.db.begin().await?;
     sqlx::query("UPDATE sessions SET revoked_at = now(), revoked_reason = 'logout' WHERE id = $1 AND revoked_at IS NULL")
         .bind(user.session_id)
-        .execute(&s.db)
+        .execute(&mut *tx)
         .await?;
+    // Nobody is left to answer her requests, so a driver who signs out goes offline (demo rule).
+    let online_here: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM driver_presence WHERE driver_id = $1 AND session_id = $2)")
+        .bind(user.user_id)
+        .bind(user.session_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    if online_here {
+        fuber_db::presence::go_offline(&mut tx, user.user_id, "signed_out").await?;
+    }
+    tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

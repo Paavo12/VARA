@@ -11,7 +11,7 @@ use crate::{ops, routes};
 
 #[derive(OpenApi)]
 #[openapi(
-    info(title = "FUber API", version = "0.2.0", description = "Women-only ride-hailing for Windhoek. Amounts are integer cents of NAD."),
+    info(title = "FUber API", version = "0.3.0", description = "Women-only ride-hailing for Windhoek. Amounts are integer cents of NAD."),
     paths(
         routes::health::live, routes::health::ready, routes::fares::estimate,
         routes::auth::request_otp, routes::auth::verify_otp, routes::auth::refresh, routes::auth::logout,
@@ -20,6 +20,10 @@ use crate::{ops, routes};
         routes::me::submit_verification,
         routes::uploads::create, routes::uploads::status, routes::uploads::complete,
         routes::driver::get_application, routes::driver::save_application, routes::driver::submit, routes::driver::add_document,
+        routes::places::search, routes::places::reverse,
+        routes::rides::quote, routes::rides::create, routes::rides::active, routes::rides::get, routes::rides::cancel, routes::rides::retry,
+        routes::driving::status, routes::driving::go_online, routes::driving::go_offline, routes::driving::location,
+        routes::driving::accept, routes::driving::decline,
         ops::auth::login, ops::auth::logout,
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
         ops::drivers::queue, ops::drivers::detail, ops::drivers::set_tiers, ops::drivers::decide,
@@ -34,6 +38,8 @@ use crate::{ops, routes};
         (name = "legal", description = "Terms, Privacy Policy and consent"),
         (name = "uploads", description = "Signed-URL uploads for identity photos and driver documents"),
         (name = "driver", description = "Driver application"),
+        (name = "booking", description = "Places, quotes and ride requests (rider app)"),
+        (name = "dispatch", description = "Going online, positions and ride requests (driver app). Live updates: WebSocket `/v1/ws`"),
         (name = "ops", description = "Staff: verification and driver review"),
     )
 )]
@@ -95,6 +101,19 @@ mod tests {
             "/v1/ops/verifications/{id}/decision",
             "/v1/ops/drivers/{id}/tiers",
             "/v1/ops/vehicles/{id}/decision",
+            "/v1/places",
+            "/v1/places/reverse",
+            "/v1/rides/quote",
+            "/v1/rides",
+            "/v1/rides/active",
+            "/v1/rides/{id}/cancel",
+            "/v1/rides/{id}/retry",
+            "/v1/driver/status",
+            "/v1/driver/online",
+            "/v1/driver/offline",
+            "/v1/driver/location",
+            "/v1/offers/{id}/accept",
+            "/v1/offers/{id}/decline",
         ] {
             assert!(doc.contains(&format!("\"{path}\"")), "{path} missing from OpenAPI");
         }

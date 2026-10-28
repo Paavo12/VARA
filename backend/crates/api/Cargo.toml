@@ -9,12 +9,13 @@ publish.workspace = true
 
 [dependencies]
 argon2 = "0.6.0"
-axum = "0.8.9"
+axum = { version = "0.8.9", features = ["ws"] }
 base64 = "0.23.1"
 fuber-common = { version = "0.1.0", path = "../common" }
 fuber-db = { version = "0.1.0", path = "../db" }
 fuber-domain = { version = "0.1.0", path = "../domain" }
 fuber-integrations = { version = "0.1.0", path = "../integrations" }
+futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
 rand = "0.10.3"
 redis = { version = "1.2.2", features = ["tokio-comp", "connection-manager", "script"] }
 secrecy = "0.10.3"
@@ -28,6 +29,7 @@ tokio = { version = "1.54.1", features = ["full"] }
 tower = { version = "0.5.3", features = ["limit", "timeout", "util"] }
 tower-http = { version = "0.7.1", features = ["cors", "limit", "timeout", "trace", "set-header", "request-id", "util"] }
 tracing = "0.1.44"
+unicode-normalization = "0.1.26"
 utoipa = { version = "5.5.0", features = ["uuid", "time"] }
 uuid = { version = "1.26.1", features = ["serde", "v4"] }
 zeroize = "1.9.1"
@@ -39,7 +41,9 @@ workspace = true
 argon2 = "0.6.0"
 fuber-integrations = { path = "../integrations" }
 fuber-worker = { path = "../worker" }
+futures-util = "0.3.34"
 http-body-util = "0.1.5"
 image = { version = "0.25.10", default-features = false, features = ["png"] }
 tokio = { version = "1.54.1", features = ["full"] }
+tokio-tungstenite = "0.29"
 tower = { version = "0.5.3", features = ["util"] }
