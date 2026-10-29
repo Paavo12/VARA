@@ -863,8 +863,9 @@ async fn load_500_drivers_and_50_requests() {
          p AS (INSERT INTO driver_profiles (user_id, application_status, can_go_online) SELECT id, 'approved', true FROM d RETURNING user_id),
          v AS (INSERT INTO vehicles (driver_id, make, model, colour, year, plate, approved)
                SELECT user_id, 'Toyota', 'Corolla', 'White', 2020, 'N ' || (100000 + row_number() OVER ()) || ' LD', true FROM p RETURNING id, driver_id),
-         a AS (UPDATE driver_profiles dp SET active_vehicle_id = v.id FROM v WHERE dp.user_id = v.driver_id RETURNING dp.user_id),
-         tr AS (INSERT INTO driver_tiers (driver_id, tier) SELECT user_id, 'classic' FROM a RETURNING driver_id),
+         -- Not chained through an UPDATE of driver_profiles: it cannot see rows inserted by `p`
+         -- in the same statement, so it would match none (active_vehicle_id is set below).
+         tr AS (INSERT INTO driver_tiers (driver_id, tier) SELECT driver_id, 'classic' FROM v RETURNING driver_id),
          s AS (INSERT INTO sessions (user_id, app, family_id, refresh_hash, expires_at)
                SELECT driver_id, 'driver', gen_random_uuid(), sha256(gen_random_uuid()::text::bytea), now() + interval '1 day' FROM tr RETURNING id, user_id),
          sh AS (INSERT INTO driver_shifts (driver_id, vehicle_id, tier)
@@ -877,6 +878,12 @@ async fn load_500_drivers_and_50_requests() {
     .execute(db)
     .await
     .unwrap();
+    sqlx::query("UPDATE driver_profiles dp SET active_vehicle_id = v.id FROM vehicles v WHERE dp.user_id = v.driver_id")
+        .execute(db)
+        .await
+        .unwrap();
+    let online: i64 = sqlx::query_scalar("SELECT count(*) FROM driver_presence").fetch_one(db).await.unwrap();
+    assert_eq!(online, 500);
     println!("500 drivers online in {:?}", started.elapsed());
 
     let mut riders = Vec::new();
