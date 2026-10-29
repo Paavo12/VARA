@@ -38,6 +38,10 @@ async fn main() -> ExitCode {
 
     let addr = config.bind_addr;
     let state = AppState::new(config, db, limiter, limits);
+    if state.routing.source() == "estimate" {
+        tracing::warn!("routing uses straight-line estimates (local development only)");
+    }
+    tokio::spawn(fuber_api::live::listen(state.db.clone(), state.hub.clone()));
     let app = fuber_api::router(state);
 
     let listener = match tokio::net::TcpListener::bind(addr).await {

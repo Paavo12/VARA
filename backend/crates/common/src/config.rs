@@ -41,6 +41,7 @@ pub struct Config {
     pub sms_provider: SmsProvider,
     pub storage: StorageConfig,
     pub virus_scan: VirusScan,
+    pub routing: RoutingConfig,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +49,15 @@ pub enum SmsProvider {
     /// Records messages in memory and, in local development only, prints them to the log.
     /// Real providers are added once the SMS vendors are chosen (PRD §10).
     Fake,
+}
+
+/// Road routing for quotes and ETAs (TRD §2.1).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RoutingConfig {
+    /// The self-hosted OSRM server, e.g. `http://osrm:5000`.
+    Osrm(String),
+    /// Straight line × 1.3 at free-flow speed. Local development only.
+    Estimate,
 }
 
 #[derive(Debug, Clone)]
@@ -196,6 +206,20 @@ impl Config {
             }
         };
 
+        let routing = match (get("ROUTING").as_deref().unwrap_or("estimate"), get("OSRM_URL")) {
+            // OSRM runs on the private network next to the API, so plain HTTP.
+            ("osrm", Some(url)) if url.starts_with("http://") => RoutingConfig::Osrm(url),
+            ("osrm", _) => {
+                errors.push("ROUTING=osrm needs OSRM_URL (http://host:port)".into());
+                RoutingConfig::Estimate
+            }
+            ("estimate", _) => RoutingConfig::Estimate,
+            (other, _) => {
+                errors.push(format!("ROUTING must be osrm or estimate (got {other:?})"));
+                RoutingConfig::Estimate
+            }
+        };
+
         if env == Some(Environment::Production) {
             if sms_provider == SmsProvider::Fake {
                 errors.push("SMS_PROVIDER=fake is not allowed in production".into());
@@ -206,6 +230,9 @@ impl Config {
         }
         if env.is_some_and(|e| e != Environment::Local) && virus_scan == VirusScan::Disabled {
             errors.push("VIRUS_SCAN=disabled is only allowed with APP_ENV=local".into());
+        }
+        if env.is_some_and(|e| e != Environment::Local) && routing == RoutingConfig::Estimate {
+            errors.push("ROUTING=estimate is only allowed with APP_ENV=local".into());
         }
 
         if !errors.is_empty() {
@@ -227,6 +254,7 @@ impl Config {
             sms_provider,
             storage,
             virus_scan,
+            routing,
         })
     }
 }
@@ -281,8 +309,8 @@ mod tests {
             ("CLAMAV_ADDR", "clamav:3310"),
         ])
         .unwrap_err();
-        // Dev password, plain Redis, fake SMS gateway, local storage.
-        assert_eq!(e.0.len(), 4, "{e}");
+        // Dev password, plain Redis, fake SMS gateway, local storage, estimated routing.
+        assert_eq!(e.0.len(), 5, "{e}");
     }
 
     #[test]
@@ -302,6 +330,8 @@ mod tests {
             ("REDIS_URL", "rediss://r"),
             ("VIRUS_SCAN", "clamav"),
             ("CLAMAV_ADDR", "clamav:3310"),
+            ("ROUTING", "osrm"),
+            ("OSRM_URL", "http://osrm:5000"),
             ("HASH_SECRET", "local-only-0123456789abcdef0123456789"),
         ]);
         assert_eq!(example.unwrap_err().0.len(), 1);
@@ -311,6 +341,17 @@ mod tests {
     fn virus_scanning_required_outside_local() {
         let e = load(&[("APP_ENV", "staging"), ("DATABASE_URL", "postgres://u:from-vault@db/x"), ("REDIS_URL", "rediss://r")]).unwrap_err();
         assert!(e.to_string().contains("VIRUS_SCAN"), "{e}");
+    }
+
+    #[test]
+    fn real_routing_required_outside_local() {
+        let staging = [("APP_ENV", "staging"), ("DATABASE_URL", "postgres://u:from-vault@db/x"), ("REDIS_URL", "rediss://r")];
+        let e = load(&staging).unwrap_err();
+        assert!(e.to_string().contains("ROUTING=estimate"), "{e}");
+        let e = load(&[&staging[..], &[("ROUTING", "osrm"), ("OSRM_URL", "https://maps.example.com")]].concat()).unwrap_err();
+        assert!(e.to_string().contains("OSRM_URL"), "{e}");
+        let local = load(&[("APP_ENV", "local"), ("DATABASE_URL", "x"), ("REDIS_URL", "y")]).unwrap();
+        assert_eq!(local.routing, RoutingConfig::Estimate);
     }
 
     #[test]

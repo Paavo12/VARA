@@ -77,6 +77,17 @@ pub struct RateLimits {
     pub ops_login: Rule,
     /// Every signed-in ops request, per staff member.
     pub ops: Rule,
+    /// Places search and naming the pickup pin, per user.
+    pub places: Rule,
+    /// `POST /rides/quote`, per user.
+    pub quote: Rule,
+    /// `POST /rides` (request a ride), per user: a short and a long window.
+    pub ride_request: Rule,
+    pub ride_request_hourly: Rule,
+    /// Driver position updates over HTTP, per user (the WebSocket has its own per-connection limit).
+    pub location: Rule,
+    /// WebSocket handshakes, per IP.
+    pub ws_connect: Rule,
 }
 
 impl Default for RateLimits {
@@ -95,6 +106,12 @@ impl Default for RateLimits {
             legal: Rule::per_minute(60),
             ops_login: Rule { limit: 5, window_s: 900 },
             ops: Rule::per_minute(300),
+            places: Rule::per_minute(60),
+            quote: Rule::per_minute(30),
+            ride_request: Rule::per_minute(5),
+            ride_request_hourly: Rule::per_hour(30),
+            location: Rule::per_minute(40),
+            ws_connect: Rule::per_minute(30),
         }
     }
 }

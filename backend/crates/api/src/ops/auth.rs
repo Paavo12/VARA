@@ -165,7 +165,7 @@ pub async fn login(
     Ok(Json(StaffSession { token, expires_at, roles }))
 }
 
-#[utoipa::path(post, path = "/v1/ops/auth/logout", tag = "ops", security(("staff" = [])), responses((status = 204)))]
+#[utoipa::path(post, path = "/v1/ops/auth/logout", operation_id = "ops_logout", tag = "ops", security(("staff" = [])), responses((status = 204)))]
 pub async fn logout(State(s): State<AppState>, staff: Staff) -> Result<StatusCode, ApiError> {
     sqlx::query("UPDATE staff_sessions SET revoked_at = now() WHERE id = $1").bind(staff.session_id).execute(&s.db).await?;
     Ok(StatusCode::NO_CONTENT)

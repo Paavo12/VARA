@@ -7,7 +7,7 @@
       "name": "UNLICENSED",
       "identifier": "UNLICENSED"
     },
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "paths": {
     "/v1/auth/logout": {
@@ -414,6 +414,159 @@
         ]
       }
     },
+    "/v1/driver/location": {
+      "put": {
+        "tags": [
+          "dispatch"
+        ],
+        "operationId": "location",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Recorded. The app normally sends this over the WebSocket (`location.update`)."
+          },
+          "409": {
+            "description": "`offline`: go online first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "40 a minute",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/driver/offline": {
+      "post": {
+        "tags": [
+          "dispatch"
+        ],
+        "operationId": "go_offline",
+        "responses": {
+          "200": {
+            "description": "Offline: no new requests. A trip in progress continues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/driver/online": {
+      "post": {
+        "tags": [
+          "dispatch"
+        ],
+        "operationId": "go_online",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Online: requests can arrive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverStatus"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`not_approved` (application, documents, vehicle or tier) or `account_suspended`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Position outside the service area",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/driver/status": {
+      "get": {
+        "tags": [
+          "dispatch"
+        ],
+        "operationId": "driver_status",
+        "responses": {
+          "200": {
+            "description": "Online state, pending request and current trip (refetch after reconnecting)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/fares/estimate": {
       "post": {
         "tags": [
@@ -762,6 +915,111 @@
         ]
       }
     },
+    "/v1/offers/{id}/accept": {
+      "post": {
+        "tags": [
+          "dispatch"
+        ],
+        "operationId": "accept_offer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The ride is hers: drive to the pickup area",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`offer_gone`: expired, withdrawn, or the rider cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/offers/{id}/decline": {
+      "post": {
+        "tags": [
+          "dispatch"
+        ],
+        "operationId": "decline",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Declined; the request goes to the next driver"
+          },
+          "404": {
+            "description": "Not her offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`offer_gone`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/ops/auth/login": {
       "post": {
         "tags": [
@@ -817,7 +1075,7 @@
         "tags": [
           "ops"
         ],
-        "operationId": "logout",
+        "operationId": "ops_logout",
         "responses": {
           "204": {
             "description": ""
@@ -891,7 +1149,7 @@
         "tags": [
           "ops"
         ],
-        "operationId": "queue",
+        "operationId": "driver_queue",
         "responses": {
           "200": {
             "description": "Submitted applications, oldest first",
@@ -919,7 +1177,7 @@
         "tags": [
           "ops"
         ],
-        "operationId": "detail",
+        "operationId": "driver_detail",
         "parameters": [
           {
             "name": "id",
@@ -966,7 +1224,7 @@
         "tags": [
           "ops"
         ],
-        "operationId": "decide",
+        "operationId": "decide_driver",
         "parameters": [
           {
             "name": "id",
@@ -1269,6 +1527,110 @@
         ]
       }
     },
+    "/v1/places": {
+      "get": {
+        "tags": [
+          "booking"
+        ],
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Up to 80 characters. Empty returns the landmarks (quick-place chips).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Up to 20 places, best first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Place"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Query too long",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/places/reverse": {
+      "get": {
+        "tags": [
+          "booking"
+        ],
+        "operationId": "reverse",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A name for a point on the map (the pickup pin)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinName"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Outside the service area",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/ready": {
       "get": {
         "tags": [
@@ -1284,6 +1646,353 @@
             "description": "A dependency is unavailable"
           }
         }
+      }
+    },
+    "/v1/rides": {
+      "post": {
+        "tags": [
+          "booking"
+        ],
+        "operationId": "create_ride",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Random per booking attempt; a retry with the same key returns the same ride",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RideRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Same Idempotency-Key as an earlier request: that ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderRide"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Requested (searching) or scheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderRide"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`not_verified`: identity verification must be approved first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`ride_in_progress`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid or expired quote, bad schedule time, unsupported payment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "5 a minute, 30 an hour",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/active": {
+      "get": {
+        "tags": [
+          "booking"
+        ],
+        "operationId": "active",
+        "responses": {
+          "200": {
+            "description": "The rider's active or scheduled ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderRide"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No active ride"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/quote": {
+      "post": {
+        "tags": [
+          "booking"
+        ],
+        "operationId": "quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Locked prices for every ride type, valid for 5 minutes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quote"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Outside the service area, too short, or no road route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "30 quotes a minute",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`routing_unavailable`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}": {
+      "get": {
+        "tags": [
+          "booking"
+        ],
+        "operationId": "get_ride",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/cancel": {
+      "post": {
+        "tags": [
+          "booking"
+        ],
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled. Free, but every cancellation costs priority (PRD D-5)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`invalid_state`: the trip has started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/retry": {
+      "post": {
+        "tags": [
+          "booking"
+        ],
+        "operationId": "retry",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Searching again; drivers who passed before may be asked again",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`invalid_state`: only after *No drivers accepted*",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/v1/uploads": {
@@ -1580,6 +2289,85 @@
           }
         }
       },
+      "Area": {
+        "type": "object",
+        "required": [
+          "label",
+          "lat",
+          "lon",
+          "radius_m"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "\"Near Maerua Mall\" or \"Klein Windhoek area\"."
+          },
+          "lat": {
+            "type": "number",
+            "format": "double",
+            "description": "Centre of the circle: the pickup moved 100–200 m in a random direction."
+          },
+          "lon": {
+            "type": "number",
+            "format": "double"
+          },
+          "radius_m": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "AssignedDriver": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "rating_count",
+          "vehicle"
+        ],
+        "properties": {
+          "eta_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Estimated seconds until she reaches the pickup."
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Last reported position."
+          },
+          "lon": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "rating_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vehicle": {
+            "$ref": "#/components/schemas/RideVehicle"
+          }
+        }
+      },
       "Cents": {
         "type": "integer",
         "format": "int64",
@@ -1843,6 +2631,127 @@
           }
         }
       },
+      "DriverRide": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "state",
+          "tier",
+          "passengers",
+          "wheelchair",
+          "passenger",
+          "pickup_area",
+          "earning",
+          "payment_method"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "dropoff": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Stop",
+                "description": "Only from `PIN_VERIFIED`."
+              }
+            ]
+          },
+          "earning": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "What she earns for this trip, in cents."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "passenger": {
+            "$ref": "#/components/schemas/Passenger"
+          },
+          "passengers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "pickup": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Stop",
+                "description": "Only from `DRIVER_ARRIVED`."
+              }
+            ]
+          },
+          "pickup_area": {
+            "$ref": "#/components/schemas/Area"
+          },
+          "state": {
+            "type": "string",
+            "example": "DRIVER_EN_ROUTE"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/Tier"
+          },
+          "wheelchair": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DriverStatus": {
+        "type": "object",
+        "required": [
+          "online",
+          "tiers"
+        ],
+        "properties": {
+          "offer": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OfferCard",
+                "description": "The request on her screen, if any (15 s to answer)."
+              }
+            ]
+          },
+          "online": {
+            "type": "boolean"
+          },
+          "online_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "ride": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DriverRide",
+                "description": "The trip she is on, if any."
+              }
+            ]
+          },
+          "tiers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Ride types she receives requests for."
+          }
+        }
+      },
       "EmergencyContact": {
         "type": "object",
         "required": [
@@ -2004,6 +2913,25 @@
           }
         }
       },
+      "Guest": {
+        "type": "object",
+        "required": [
+          "name",
+          "phone"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ndapandula Shikongo"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Receives the driver, plate and PIN by SMS once a driver accepts (PRD B-5).",
+            "example": "+264811234567"
+          }
+        },
+        "additionalProperties": false
+      },
       "LatLng": {
         "type": "object",
         "description": "A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is\nreplaced by the `service_areas` polygon once the database is wired in.",
@@ -2059,6 +2987,34 @@
           "cookies",
           "driver_agreement"
         ]
+      },
+      "LocationUpdate": {
+        "type": "object",
+        "required": [
+          "at"
+        ],
+        "properties": {
+          "at": {
+            "$ref": "#/components/schemas/LatLng"
+          },
+          "heading": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Degrees from north, 0–359.",
+            "minimum": 0
+          },
+          "speed_kmh": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "float"
+          }
+        },
+        "additionalProperties": false
       },
       "Login": {
         "type": "object",
@@ -2175,6 +3131,75 @@
           }
         }
       },
+      "OfferCard": {
+        "type": "object",
+        "description": "The request card (PRD D-4). No destination, no exact pickup.",
+        "required": [
+          "offer_id",
+          "ride_id",
+          "expires_at",
+          "seconds_left",
+          "tier",
+          "passengers",
+          "wheelchair",
+          "passenger",
+          "pickup_area",
+          "distance_m",
+          "eta_s",
+          "earning",
+          "payment_method"
+        ],
+        "properties": {
+          "distance_m": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Road distance and time from her position to the pickup."
+          },
+          "earning": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "eta_s": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "offer_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "passenger": {
+            "$ref": "#/components/schemas/Passenger"
+          },
+          "passengers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "pickup_area": {
+            "$ref": "#/components/schemas/Area"
+          },
+          "ride_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seconds_left": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Seconds left to answer, as of sending."
+          },
+          "tier": {
+            "$ref": "#/components/schemas/Tier"
+          },
+          "wheelchair": {
+            "type": "boolean"
+          }
+        }
+      },
       "OtpChallenge": {
         "type": "object",
         "required": [
@@ -2186,6 +3211,13 @@
           "challenge_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "dev_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Local development only: the code itself, so sign-in works without a real SMS gateway.\nNever present in any other environment."
           },
           "expires_in_s": {
             "type": "integer",
@@ -2247,6 +3279,41 @@
         },
         "additionalProperties": false
       },
+      "Passenger": {
+        "type": "object",
+        "description": "Who the driver is picking up (PRD D-4, B-5).",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "booked_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For a guest: \"booked by Ndeshi (verified)\". The demo showed a guest as \"Verified\" with\nthe booker's rating, which was wrong."
+          },
+          "name": {
+            "type": "string",
+            "description": "First name of the rider, or the guest's name."
+          },
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The booking rider's rating; absent for a guest."
+          }
+        }
+      },
+      "PaymentMethod": {
+        "type": "string",
+        "enum": [
+          "cash",
+          "card"
+        ]
+      },
       "PayoutAccount": {
         "type": "object",
         "description": "Bank account for weekly payouts. Stored encrypted; never returned by the API.",
@@ -2274,6 +3341,68 @@
           }
         },
         "additionalProperties": false
+      },
+      "PinName": {
+        "type": "object",
+        "required": [
+          "address",
+          "area",
+          "lat",
+          "lon"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "What to show for the pin, e.g. \"Sam Nujoma Drive\" or \"Near Maerua Mall\"."
+          },
+          "area": {
+            "type": "string",
+            "description": "The suburb, e.g. \"Klein Windhoek\"."
+          },
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lon": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "Place": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "detail",
+          "lat",
+          "lon"
+        ],
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`landmark`, `suburb` or `street`."
+          },
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lon": {
+            "type": "number",
+            "format": "double"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
       },
       "PreviousAttempt": {
         "type": "object",
@@ -2330,6 +3459,107 @@
             "format": "uuid"
           }
         }
+      },
+      "Quote": {
+        "type": "object",
+        "required": [
+          "quote",
+          "expires_at",
+          "distance_m",
+          "duration_s",
+          "routing",
+          "demand",
+          "currency",
+          "options"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "demand": {
+            "type": "string",
+            "description": "`normal`, `high` or `peak`."
+          },
+          "distance_m": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "duration_s": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Trip time at the current demand level.",
+            "minimum": 0
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteOption"
+            }
+          },
+          "quote": {
+            "type": "string",
+            "description": "Present this with `POST /v1/rides` before `expires_at`."
+          },
+          "routing": {
+            "type": "string",
+            "description": "`osrm` (real roads) or `estimate` (local development)."
+          }
+        }
+      },
+      "QuoteOption": {
+        "type": "object",
+        "required": [
+          "tier",
+          "fare"
+        ],
+        "properties": {
+          "fare": {
+            "$ref": "#/components/schemas/Fare",
+            "description": "The exact price for this ride type, in cents (PRD B-3)."
+          },
+          "pickup_eta_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Seconds for the nearest available driver to reach the pickup; null when no driver of\nthis type is online within the dispatch radius (\"No driver online within 3 km\")."
+          },
+          "tier": {
+            "$ref": "#/components/schemas/Tier"
+          }
+        }
+      },
+      "QuoteRequest": {
+        "type": "object",
+        "required": [
+          "pickup",
+          "pickup_address",
+          "dropoff",
+          "dropoff_address"
+        ],
+        "properties": {
+          "dropoff": {
+            "$ref": "#/components/schemas/LatLng"
+          },
+          "dropoff_address": {
+            "type": "string",
+            "example": "Maerua Mall"
+          },
+          "pickup": {
+            "$ref": "#/components/schemas/LatLng"
+          },
+          "pickup_address": {
+            "type": "string",
+            "example": "Post Street Mall"
+          }
+        },
+        "additionalProperties": false
       },
       "RefreshRequest": {
         "type": "object",
@@ -2441,6 +3671,188 @@
           }
         }
       },
+      "RideRequest": {
+        "type": "object",
+        "required": [
+          "quote",
+          "tier",
+          "passengers",
+          "payment_method"
+        ],
+        "properties": {
+          "guest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Guest",
+                "description": "Booking for someone else."
+              }
+            ]
+          },
+          "passengers": {
+            "type": "integer",
+            "format": "int64",
+            "maximum": 4,
+            "minimum": 1
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "quote": {
+            "type": "string",
+            "description": "From `POST /v1/rides/quote`."
+          },
+          "scheduled_for": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Book ahead: 30 minutes to 7 days from now (PRD B-6)."
+          },
+          "tier": {
+            "$ref": "#/components/schemas/Tier"
+          },
+          "wheelchair": {
+            "type": "boolean",
+            "description": "Only wheelchair-accessible vehicles (PRD B-4)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "RideVehicle": {
+        "type": "object",
+        "description": "The assigned car as the rider sees it.",
+        "required": [
+          "make",
+          "model",
+          "colour",
+          "year",
+          "plate"
+        ],
+        "properties": {
+          "colour": {
+            "type": "string"
+          },
+          "make": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "plate": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RiderRide": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "state",
+          "tier",
+          "passengers",
+          "wheelchair",
+          "pickup",
+          "dropoff",
+          "fare",
+          "payment_method",
+          "pin",
+          "requested_at"
+        ],
+        "properties": {
+          "cancelled_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`rider`, `driver`, `system` or `staff` for cancelled rides."
+          },
+          "code": {
+            "type": "string",
+            "description": "Short reference such as `FU-4102`."
+          },
+          "driver": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AssignedDriver"
+              }
+            ]
+          },
+          "dropoff": {
+            "$ref": "#/components/schemas/Stop"
+          },
+          "fare": {
+            "$ref": "#/components/schemas/Fare",
+            "description": "The locked price (PRD P-1), in cents."
+          },
+          "guest_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set when booked for someone else."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "passengers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "payment_method": {
+            "type": "string",
+            "description": "`cash` or `card`."
+          },
+          "pickup": {
+            "$ref": "#/components/schemas/Stop"
+          },
+          "pin": {
+            "type": "string",
+            "description": "Say it to the driver at pickup. Never sent to the driver."
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scheduled_for": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "search_started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the current search started (searching rides)."
+          },
+          "state": {
+            "type": "string",
+            "example": "SEARCHING"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/Tier"
+          },
+          "wheelchair": {
+            "type": "boolean"
+          }
+        }
+      },
       "SaveApplication": {
         "type": "object",
         "required": [
@@ -2533,6 +3945,27 @@
           "token": {
             "type": "string",
             "description": "Send as `Authorization: Bearer <token>` to `/v1/ops/*`."
+          }
+        }
+      },
+      "Stop": {
+        "type": "object",
+        "required": [
+          "address",
+          "lat",
+          "lon"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lon": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -2902,6 +4335,14 @@
     {
       "name": "driver",
       "description": "Driver application"
+    },
+    {
+      "name": "booking",
+      "description": "Places, quotes and ride requests (rider app)"
+    },
+    {
+      "name": "dispatch",
+      "description": "Going online, positions and ride requests (driver app). Live updates: WebSocket `/v1/ws`"
     },
     {
       "name": "ops",

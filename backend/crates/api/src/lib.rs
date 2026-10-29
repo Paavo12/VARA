@@ -4,17 +4,22 @@ pub mod audit;
 pub mod auth;
 pub mod error;
 pub mod extract;
+pub mod live;
 pub mod openapi;
 pub mod rate_limit;
 pub mod security;
+pub mod views;
 
 mod routes {
     pub mod auth;
     pub mod driver;
+    pub mod driving;
     pub mod fares;
     pub mod health;
     pub mod legal;
     pub mod me;
+    pub mod places;
+    pub mod rides;
     pub mod storage;
     pub mod uploads;
 }
@@ -30,8 +35,9 @@ use axum::{
     middleware,
     routing::{get, post, put},
 };
-use fuber_common::{Config, Environment, SmsProvider};
+use fuber_common::{Config, Environment, RoutingConfig, SmsProvider};
 use fuber_integrations::{
+    routing::Routing,
     sms::{FakeSms, SmsGateway},
     storage::{MAX_UPLOAD_BYTES, ObjectStore},
 };
@@ -61,6 +67,9 @@ pub struct AppState {
     pub keys: Arc<Keys>,
     pub sms: Arc<SmsGateway>,
     pub store: Arc<ObjectStore>,
+    pub routing: Arc<Routing>,
+    /// This instance's WebSockets; `live::listen` feeds it.
+    pub hub: Arc<live::Hub>,
 }
 
 impl AppState {
@@ -71,7 +80,21 @@ impl AppState {
             SmsProvider::Fake => SmsGateway::Fake(FakeSms::new(config.env == Environment::Local)),
         };
         let store = ObjectStore::from_config(&config, keys.hasher.clone());
-        AppState { config: Arc::new(config), db, limiter: Arc::new(limiter), limits, keys, sms: Arc::new(sms), store: Arc::new(store) }
+        let routing = match &config.routing {
+            RoutingConfig::Osrm(url) => Routing::osrm(url),
+            RoutingConfig::Estimate => Routing::Estimate,
+        };
+        AppState {
+            config: Arc::new(config),
+            db,
+            limiter: Arc::new(limiter),
+            limits,
+            keys,
+            sms: Arc::new(sms),
+            store: Arc::new(store),
+            routing: Arc::new(routing),
+            hub: Arc::new(live::Hub::default()),
+        }
     }
 }
 
@@ -108,6 +131,24 @@ pub fn router(state: AppState) -> Router {
         .route("/driver/application", get(routes::driver::get_application).put(routes::driver::save_application))
         .route("/driver/application/submit", post(routes::driver::submit))
         .route("/driver/documents", post(routes::driver::add_document))
+        // Booking (rider)
+        .route("/places", get(routes::places::search))
+        .route("/places/reverse", get(routes::places::reverse))
+        .route("/rides/quote", post(routes::rides::quote))
+        .route("/rides", post(routes::rides::create))
+        .route("/rides/active", get(routes::rides::active))
+        .route("/rides/{id}", get(routes::rides::get))
+        .route("/rides/{id}/cancel", post(routes::rides::cancel))
+        .route("/rides/{id}/retry", post(routes::rides::retry))
+        // Dispatch (driver)
+        .route("/driver/status", get(routes::driving::status))
+        .route("/driver/online", post(routes::driving::go_online))
+        .route("/driver/offline", post(routes::driving::go_offline))
+        .route("/driver/location", put(routes::driving::location))
+        .route("/offers/{id}/accept", post(routes::driving::accept))
+        .route("/offers/{id}/decline", post(routes::driving::decline))
+        // Real-time updates
+        .route("/ws", get(live::upgrade))
         // Ops (staff)
         .nest("/ops", ops::router(&state));
 

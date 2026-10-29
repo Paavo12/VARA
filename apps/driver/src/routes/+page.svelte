@@ -1,7 +1,7 @@
 <!--
 	Driver app: sign-in and application (App Flow §2.2). The application hub shows what's done
 	and what's missing; the driver submits once everything is in, then follows the review.
-	Going online arrives in Phase 2.
+	An approved driver goes online from the driving screen.
 -->
 <script lang="ts">
 	import type { DriverApplication, Me } from '@fuber/api-client';
@@ -16,6 +16,7 @@
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
 	import Documents from '#lib/Documents.svelte';
+	import Driving from '#lib/Driving.svelte';
 	import VehicleForm from '#lib/VehicleForm.svelte';
 	import { driverSession } from '#lib/session.ts';
 
@@ -130,21 +131,24 @@
 	</Screen>
 {:else if view === 'hub' && app && me}
 	{#if app.status === 'approved'}
-		<Screen title="You’re approved, {me.display_name}" lead="Welcome to FUber.">
-			<Notice tone="success">
-				<p>Approved ride types: {app.approved_tiers.join(', ') || 'none yet'}.</p>
-			</Notice>
-			{#if !app.can_go_online}
+		{#if app.can_go_online}
+			<Driving
+				name={me.display_name ?? 'there'}
+				tiers={app.approved_tiers}
+				ondocuments={() => (view = 'documents')}
+				onsettings={() => (view = 'settings')}
+			/>
+		{:else}
+			<Screen title="You’re approved, {me.display_name}" lead="Welcome to FUber.">
 				<Notice tone="attention" title="You can’t go online right now">
 					<p>A document has expired or needs review. Check your documents.</p>
 				</Notice>
-			{/if}
-			<Button variant="secondary" onclick={() => (view = 'documents')}>Documents</Button>
-			{#snippet footer()}
-				<Button size="driver" disabled>Go online (next update)</Button>
-				<Button variant="ghost" onclick={() => (view = 'settings')}>Settings</Button>
-			{/snippet}
-		</Screen>
+				<Button variant="secondary" onclick={() => (view = 'documents')}>Documents</Button>
+				{#snippet footer()}
+					<Button variant="ghost" onclick={() => (view = 'settings')}>Settings</Button>
+				{/snippet}
+			</Screen>
+		{/if}
 	{:else if app.status === 'pending'}
 		<Screen
 			title="Application in review"

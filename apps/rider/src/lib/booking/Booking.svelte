@@ -1,0 +1,187 @@
+<!--
+	Booking (App Flow §3): home → Where to? → ride options → the ride. Owns the live connection:
+	ride updates and the driver's position arrive over the socket, and after every (re)connect
+	the active ride is refetched, so a reload or a dropped connection resumes where it was.
+-->
+<script lang="ts">
+	import { connectLive, type LiveMessage, type Me, type RiderRide } from '@fuber/api-client';
+	import { useSession } from '@fuber/account';
+	import { Button, Notice, Screen } from '@fuber/ui';
+	import { onMount } from 'svelte';
+	import Options from './Options.svelte';
+	import RideStatus from './RideStatus.svelte';
+	import Search from './Search.svelte';
+	import { DEV_LOCATION, inServiceArea, type Stop } from './types';
+
+	interface Props {
+		me: Me;
+		onsettings: () => void;
+	}
+
+	let { me, onsettings }: Props = $props();
+	const session = useSession();
+
+	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride';
+	let stage = $state<Stage>('loading');
+	let ride = $state<RiderRide | null>(null);
+	let current = $state<Stop | null>(null);
+	let pickup = $state<Stop | null>(null);
+	let dropoff = $state<Stop | null>(null);
+
+	const FINISHED = ['COMPLETED', 'CANCELLED'];
+
+	async function loadActive() {
+		const { data, response } = await session.api
+			.GET('/v1/rides/active')
+			.catch(() => ({ data: undefined, response: undefined }));
+		if (data) {
+			ride = data;
+			stage = 'ride';
+		} else if (response?.status === 204) {
+			// No ride on the server: keep a finished ride on screen until the rider closes it.
+			if (stage === 'ride' && ride && FINISHED.includes(ride.state)) return;
+			ride = null;
+			if (stage === 'loading' || stage === 'ride') stage = 'home';
+		} else if (stage === 'loading') {
+			stage = 'home';
+		}
+	}
+
+	function onmessage(m: LiveMessage) {
+		if (m.type === 'ride.updated') {
+			const next = m.data as RiderRide;
+			if (ride && next.id !== ride.id && !FINISHED.includes(ride.state)) return;
+			ride = next;
+			stage = 'ride';
+		} else if (m.type === 'driver.location' && ride?.driver) {
+			const d = m.data as { ride_id: string; lat: number; lon: number };
+			if (d.ride_id === ride.id) ride.driver = { ...ride.driver, lat: d.lat, lon: d.lon };
+		}
+	}
+
+	/** The phone's position named by the nearest street or landmark; null if unavailable. */
+	async function locate(): Promise<Stop | null> {
+		const fix = await new Promise<GeolocationPosition | null>((resolve) => {
+			if (!navigator.geolocation) return resolve(null);
+			navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), {
+				enableHighAccuracy: true,
+				timeout: 8000,
+				maximumAge: 60_000
+			});
+		});
+		const { latitude: lat, longitude: lon } = fix?.coords ?? {};
+		if (lat == null || lon == null || !inServiceArea(lat, lon)) {
+			return import.meta.env.DEV ? DEV_LOCATION : null;
+		}
+		const { data } = await session.api
+			.GET('/v1/places/reverse', { params: { query: { lat, lon } } })
+			.catch(() => ({ data: undefined }));
+		return { address: data?.address ?? 'Current location', lat, lon };
+	}
+
+	onMount(() => {
+		const live = connectLive({
+			baseUrl: session.baseUrl,
+			token: session.accessToken,
+			onmessage,
+			onconnect: loadActive,
+			onrevoked: () => session.signOut()
+		});
+		void loadActive();
+		void locate().then((s) => {
+			current = s;
+			pickup ??= s;
+		});
+		return () => live.close();
+	});
+
+	function whereTo() {
+		pickup ??= current;
+		stage = 'where';
+	}
+
+	function done() {
+		ride = null;
+		dropoff = null;
+		pickup = current;
+		stage = 'home';
+	}
+</script>
+
+{#if stage === 'loading'}
+	<div class="splash" aria-label="Loading"><span>FUber</span></div>
+{:else if stage === 'home'}
+	<Screen title="Hi {me.display_name}" lead="Where are you going today?">
+		{#if me.emergency_contacts === 0}
+			<Notice tone="attention" title="Add an emergency contact">
+				<p>We’ll alert them if you press SOS during a ride.</p>
+			</Notice>
+		{/if}
+		<p class="from">
+			<small>Pickup</small>
+			<span>{current?.address ?? 'Finding your location…'}</span>
+		</p>
+		{#snippet footer()}
+			<Button onclick={whereTo}>Where to?</Button>
+			<Button variant="ghost" onclick={onsettings}>Settings</Button>
+		{/snippet}
+	</Screen>
+{:else if stage === 'where'}
+	<Search
+		title="Where to?"
+		label="Destination"
+		onpick={(s) => {
+			dropoff = s;
+			stage = pickup ? 'options' : 'pickup';
+		}}
+		onback={() => (stage = 'home')}
+	/>
+{:else if stage === 'pickup'}
+	<Search
+		title="Pickup"
+		label="Where should she pick you up?"
+		{current}
+		onpick={(s) => {
+			pickup = s;
+			stage = dropoff ? 'options' : 'where';
+		}}
+		onback={() => (stage = dropoff ? 'options' : 'home')}
+	/>
+{:else if stage === 'options' && pickup && dropoff}
+	{#key `${pickup.lat},${pickup.lon}→${dropoff.lat},${dropoff.lon}`}
+		<Options
+			{pickup}
+			{dropoff}
+			onrequested={(r) => {
+				ride = r;
+				stage = 'ride';
+			}}
+			onchangepickup={() => (stage = 'pickup')}
+			onback={() => (stage = 'where')}
+		/>
+	{/key}
+{:else if stage === 'ride' && ride}
+	<RideStatus {ride} onchange={(r) => (ride = r)} ondone={done} />
+{/if}
+
+<style>
+	.splash {
+		min-height: 100dvh;
+		display: grid;
+		place-content: center;
+		font-size: var(--text-3xl);
+		font-weight: 800;
+		color: var(--color-brand);
+	}
+	.from {
+		margin: 0;
+		display: grid;
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+	}
+	.from small {
+		color: var(--color-text-muted);
+		font-size: var(--text-sm);
+	}
+</style>
