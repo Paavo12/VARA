@@ -1,0 +1,36 @@
+name: OSRM image
+
+# Rebuilds the OSRM image with the latest Namibia OpenStreetMap extract (TRD §8: monthly).
+# The internal services VM pulls :latest when it restarts (infra/terraform/README.md).
+on:
+  schedule:
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REGION: ${{ vars.GCP_REGION }}
+      REGISTRY: ${{ vars.GCP_REGISTRY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+      - uses: google-github-actions/setup-gcloud@v3
+      - run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - name: Build and push
+        run: |
+          month=$(date -u +%Y-%m)
+          docker build --tag "$REGISTRY/osrm:$month" --tag "$REGISTRY/osrm:latest" infra/osrm
+          docker push --all-tags "$REGISTRY/osrm"
