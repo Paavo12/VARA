@@ -1,0 +1,7 @@
+# Keep the build context small and free of local secrets and uploads.
+target/
+var/
+.env
+.env.*
+!.env.example
+**/*.rs.bk
