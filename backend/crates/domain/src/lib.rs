@@ -2,6 +2,7 @@
 //! priority points. Ported from the demo engine (`demo/public/js/engine.js`), which is the
 //! behavioural reference; tests here pin the same numbers.
 
+pub mod geo;
 pub mod matching;
 pub mod money;
 pub mod pricing;
@@ -23,6 +24,27 @@ pub enum Tier {
 
 impl Tier {
     pub const ALL: [Tier; 3] = [Tier::Classic, Tier::Comfort, Tier::SoftLife];
+
+    /// The Postgres `ride_tier` label (same as the JSON name).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Tier::Classic => "classic",
+            Tier::Comfort => "comfort",
+            Tier::SoftLife => "softlife",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Tier> {
+        Tier::ALL.into_iter().find(|t| t.as_str() == s)
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Tier::Classic => "Classic",
+            Tier::Comfort => "Comfort",
+            Tier::SoftLife => "Soft Life",
+        }
+    }
 }
 
 /// Demand level. Drives the surge multiplier, the base traffic factor used for pricing,
@@ -36,6 +58,18 @@ pub enum Demand {
 }
 
 impl Demand {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Demand::Normal => "normal",
+            Demand::High => "high",
+            Demand::Peak => "peak",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Demand> {
+        [Demand::Normal, Demand::High, Demand::Peak].into_iter().find(|d| d.as_str() == s)
+    }
+
     /// Surge multiplier in basis points (10 000 = 1.0×).
     pub fn surge_bp(self) -> u32 {
         match self {

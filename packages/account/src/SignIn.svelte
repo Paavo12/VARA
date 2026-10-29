@@ -1,6 +1,7 @@
 <!--
 	Phone + SMS code sign-in (App Flow §2.1, PRD A-1). Two steps on one screen: number, then
 	the 6-digit code with a resend countdown. Calls `onsignedin` when the session is ready.
+	Locally there is no SMS gateway, so the API returns the code and sign-in skips that step.
 -->
 <script lang="ts">
 	import { Button, Notice, Screen, TextField, formatPhone } from '@fuber/ui';
@@ -60,11 +61,12 @@
 		phone = normalised;
 		challenge = data.challenge_id;
 		resendAt = Date.now() + data.resend_after_s * 1000;
-		code = '';
+		code = data.dev_code ?? '';
+		if (data.dev_code) await verify();
 	}
 
-	async function verify(e: Event) {
-		e.preventDefault();
+	async function verify(e?: Event) {
+		e?.preventDefault();
 		if (!phone || !challenge) return;
 		error = null;
 		if (!/^\d{6}$/.test(code.trim())) {
@@ -98,12 +100,12 @@
 				placeholder="081 123 4567"
 				bind:value={phoneInput}
 				{error}
-				hint="We’ll send you a 6-digit code by SMS. Namibian numbers only."
+				hint="Namibian numbers only."
 			/>
 		</form>
 		<p class="small">FUber is for women only. Every rider and driver is verified.</p>
 		{#snippet footer()}
-			<Button type="submit" form="phone-form" loading={busy}>Send code</Button>
+			<Button type="submit" form="phone-form" loading={busy}>Continue</Button>
 		{/snippet}
 	</Screen>
 {:else}

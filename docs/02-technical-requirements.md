@@ -48,6 +48,7 @@ flowchart LR
 
 - **Modular monolith** in Rust: one `api` binary and one `worker` binary from the same Cargo workspace. Split into services only when a measured need appears.
 - The API is **stateless** apart from WebSocket connections; WebSocket fan-out across instances goes through Redis pub/sub so we can run ≥ 2 instances from day one.
+- **Phase 2 deviation (2026-10-28):** driver presence and event fan-out run on Postgres, not Redis. Positions live in `driver_presence` (one row per online driver, PostGIS point, GiST index) and matching queries it with `ST_DWithin`; ride and offer events go out with `pg_notify('fuber_events')` from triggers, and every API instance `LISTEN`s and pushes to its own sockets. At v1 volumes (TRD §6: 500 online drivers, one position every 4 s ≈ 125 writes/s) this is well within one Postgres, needs no second source of truth, and survives restarts. Redis stays for rate limits. Revisit if the 500-driver load test or production shows presence writes contending with ride traffic.
 - **The server is authoritative** for all ride state, prices, PINs and matching — as `demo/server.js` already is. Clients only send intents (`request_ride`, `accept_offer`, `verify_pin`…).
 
 ## 2. Technology choices
@@ -141,20 +142,20 @@ States (from the demo, plus terminal states): `REQUESTED → SEARCHING → DRIVE
 
 - Transitions are a single Rust `enum` + `fn transition(state, event) -> Result<State, DomainError>`; invalid transitions are impossible to persist.
 - Each transition is written in one DB transaction with optimistic locking (`version` column) and appended to `ride_events`.
-- After commit, the event is published to Redis channel `ride:{id}` and pushed to both parties' WebSockets.
+- After commit, a trigger sends the event with `pg_notify('fuber_events')`; each API instance pushes a role-specific view to both parties' WebSockets (the driver's view never carries the PIN, and the destination only from `PIN_VERIFIED`).
 
 ### 4.2 Matching
 
-1. `GEOSEARCH drivers:online:{tier} FROMLONLAT … BYRADIUS 3000 m` → candidate IDs.
+1. `driver_presence` rows within 3000 m (`ST_DWithin`), fresh position, offering the ride's tier → candidate IDs.
 2. Filter: not on a trip, documents valid, wheelchair flag, not excluded for this ride, not held by priority rules.
 3. ETA via OSRM `table` service (one call for all candidates).
 4. Score with the PRD D-2 formula (pure function in `domain`), apply priority-point adjustments (D-5).
-5. Offer to the top driver; Redis key `offer:{ride_id}` with 15 s TTL + worker timer; on decline/expiry re-run from step 1 excluding previous drivers.
-6. Accept uses a Redis lock + DB `UPDATE … WHERE state='SEARCHING' AND version=$n` so two drivers can never win the same ride, and one driver can never accept two rides.
+5. Offer to the top driver: a `ride_offers` row with `expires_at` 15 s ahead (unique indexes allow one pending offer per ride and per driver); the worker ticks every second, expires stale offers and re-runs from step 1 excluding drivers already asked this round.
+6. Accept locks the offer with `FOR UPDATE SKIP LOCKED` (a loser gets `409 offer_gone` at once instead of queueing) and requires the ride to still be `SEARCHING`; a unique index on the assigned driver of active rides means one driver can never hold two rides.
 
 ### 4.3 Pricing
 
-`fare = max(minimum, base + perKm × km + perMin × min × baseTraffic) × surge`. Each receipt line (base, distance, time, minimum top-up, surge) is rounded to the cent and the total is their sum, so receipts always add up (within 3 cents of the demo, which rounds only the total). Inputs are the OSRM route distance and duration. Stored as integer **cents** (`BIGINT`) — never floats. The quote is signed (HMAC) and valid for 5 minutes; `request_ride` must present a valid quote, so the price charged is exactly the one shown.
+`fare = max(minimum, base + perKm × km + perMin × min × baseTraffic) × surge`. Each receipt line (base, distance, time, minimum top-up, surge) is rounded to the cent and the total is their sum, so receipts always add up (within 3 cents of the demo, which rounds only the total). Inputs are the OSRM route distance and duration. Stored as integer **cents** (`BIGINT`) — never floats. The quote is signed (Ed25519 token carrying the route, surge and the pricing-tier versions) and valid for 5 minutes; `request_ride` must present a valid quote, so the price charged is exactly the one shown.
 
 ### 4.4 Location & privacy rules
 

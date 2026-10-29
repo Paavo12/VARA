@@ -127,6 +127,9 @@ export function createSession(opts: SessionOptions) {
 		/** Typed client with authentication. */
 		api,
 		app: opts.app,
+		baseUrl: opts.baseUrl,
+		/** A current access token, refreshed if needed (for the WebSocket handshake). */
+		accessToken: token,
 		/** True if a stored refresh token could be exchanged for a session. */
 		async restore(): Promise<boolean> {
 			return refresh();

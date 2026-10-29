@@ -9,6 +9,14 @@ export type LegalDocument = components['schemas']['LegalDocument'];
 export type DriverApplication = components['schemas']['Application'];
 export type DriverDocument = components['schemas']['DriverDocument'];
 export type Tier = components['schemas']['Tier'];
+export type Place = components['schemas']['Place'];
+export type Quote = components['schemas']['Quote'];
+export type QuoteOption = components['schemas']['QuoteOption'];
+export type RiderRide = components['schemas']['RiderRide'];
+export type DriverRide = components['schemas']['DriverRide'];
+export type DriverStatus = components['schemas']['DriverStatus'];
+export type OfferCard = components['schemas']['OfferCard'];
+export type Fare = components['schemas']['Fare'];
 
 export {
 	createSession,
@@ -19,6 +27,7 @@ export {
 	type SessionOptions,
 	type TokenStore
 } from './session';
+export { connectLive, wsUrl, type Live, type LiveMessage, type LiveOptions } from './live';
 export {
 	MAX_UPLOAD_BYTES,
 	UploadError,

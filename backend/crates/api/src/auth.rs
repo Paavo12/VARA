@@ -50,7 +50,7 @@ impl Keys {
 }
 
 /// Which app a session belongs to. One person can hold both (PRD A-9), with separate sessions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum App {
     Rider,
@@ -156,34 +156,47 @@ fn bearer(parts: &Parts) -> Option<&str> {
     scheme.eq_ignore_ascii_case("bearer").then(|| token.trim())
 }
 
+/// Checks an access token and that its session is still live (not signed out, not
+/// suspended, not deleted). Used by the HTTP extractor and the WebSocket handshake.
+pub async fn authenticate(s: &AppState, token: &str) -> Result<AuthUser, ApiError> {
+    let claims: Claims = s.keys.tokens.verify(token, OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| ApiError::unauthorized())?;
+    if claims.iss != ISSUER {
+        return Err(ApiError::unauthorized());
+    }
+    let user = AuthUser { user_id: claims.sub, app: claims.role, session_id: claims.sid };
+    match session_status(s, &user).await?.as_deref() {
+        None | Some("deleted") => Err(ApiError::unauthorized()),
+        Some("suspended") => Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact FUber support.")),
+        Some(_) => Ok(user),
+    }
+}
+
+/// The account status if the session is live, else None.
+async fn session_status(s: &AppState, u: &AuthUser) -> Result<Option<String>, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT u.status::text FROM sessions s JOIN users u ON u.id = s.user_id
+         WHERE s.id = $1 AND s.user_id = $2 AND s.app = $3 AND s.revoked_at IS NULL AND s.expires_at > now()",
+    )
+    .bind(u.session_id)
+    .bind(u.user_id)
+    .bind(u.app.as_str())
+    .fetch_optional(&s.db)
+    .await
+}
+
+/// Whether a long-lived connection's session may continue.
+pub async fn session_live(s: &AppState, u: &AuthUser) -> Result<bool, sqlx::Error> {
+    Ok(matches!(session_status(s, u).await?.as_deref(), Some(st) if st != "deleted" && st != "suspended"))
+}
+
 impl FromRequestParts<AppState> for AuthUser {
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, s: &AppState) -> Result<Self, ApiError> {
         let token = bearer(parts).ok_or_else(ApiError::unauthorized)?;
-        let claims: Claims =
-            s.keys.tokens.verify(token, OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| ApiError::unauthorized())?;
-        if claims.iss != ISSUER {
-            return Err(ApiError::unauthorized());
-        }
-        let status: Option<String> = sqlx::query_scalar(
-            "SELECT u.status::text FROM sessions s JOIN users u ON u.id = s.user_id
-             WHERE s.id = $1 AND s.user_id = $2 AND s.app = $3 AND s.revoked_at IS NULL AND s.expires_at > now()",
-        )
-        .bind(claims.sid)
-        .bind(claims.sub)
-        .bind(claims.role.as_str())
-        .fetch_optional(&s.db)
-        .await?;
-        match status.as_deref() {
-            None | Some("deleted") => return Err(ApiError::unauthorized()),
-            Some("suspended") => {
-                return Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact FUber support."));
-            }
-            Some(_) => {}
-        }
-        s.limiter.check("user", &claims.sub.to_string(), s.limits.user).await?;
-        Ok(AuthUser { user_id: claims.sub, app: claims.role, session_id: claims.sid })
+        let user = authenticate(s, token).await?;
+        s.limiter.check("user", &user.user_id.to_string(), s.limits.user).await?;
+        Ok(user)
     }
 }
 

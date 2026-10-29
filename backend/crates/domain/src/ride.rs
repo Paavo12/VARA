@@ -62,6 +62,45 @@ pub struct TransitionError {
 }
 
 impl RideState {
+    pub const ALL: [RideState; 13] = [
+        RideState::Scheduled,
+        RideState::Requested,
+        RideState::Searching,
+        RideState::NoDrivers,
+        RideState::DriverAssigned,
+        RideState::DriverEnRoute,
+        RideState::DriverArrived,
+        RideState::PinVerified,
+        RideState::InTrip,
+        RideState::Completed,
+        RideState::Rated,
+        RideState::Cancelled,
+        RideState::Blocked,
+    ];
+
+    /// The Postgres `ride_state` label (same as the JSON name).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RideState::Scheduled => "SCHEDULED",
+            RideState::Requested => "REQUESTED",
+            RideState::Searching => "SEARCHING",
+            RideState::NoDrivers => "NO_DRIVERS",
+            RideState::DriverAssigned => "DRIVER_ASSIGNED",
+            RideState::DriverEnRoute => "DRIVER_EN_ROUTE",
+            RideState::DriverArrived => "DRIVER_ARRIVED",
+            RideState::PinVerified => "PIN_VERIFIED",
+            RideState::InTrip => "IN_TRIP",
+            RideState::Completed => "COMPLETED",
+            RideState::Rated => "RATED",
+            RideState::Cancelled => "CANCELLED",
+            RideState::Blocked => "BLOCKED",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<RideState> {
+        RideState::ALL.into_iter().find(|r| r.as_str() == s)
+    }
+
     pub fn apply(self, event: RideEvent) -> Result<RideState, TransitionError> {
         use RideEvent as E;
         use RideState as S;
@@ -124,6 +163,14 @@ mod tests {
     use super::*;
     use RideEvent as E;
     use RideState as S;
+
+    #[test]
+    fn labels_round_trip_and_match_serde() {
+        for st in RideState::ALL {
+            assert_eq!(RideState::parse(st.as_str()), Some(st));
+            assert_eq!(serde_json::to_value(st).unwrap(), st.as_str());
+        }
+    }
 
     #[test]
     fn happy_path() {

@@ -10,6 +10,8 @@ pub mod kind {
     pub const PROCESS_UPLOAD: &str = "upload.process";
     /// `{"user_id": uuid}`: erase a deleted account after its grace period.
     pub const ERASE_ACCOUNT: &str = "account.erase";
+    /// `{"ride_id": uuid}`: text a guest passenger her driver, car, plate and PIN (PRD B-5).
+    pub const GUEST_SMS: &str = "ride.guest_sms";
 }
 
 /// How long a claimed job is hidden from other workers before it is retried.

@@ -5,8 +5,11 @@
 //! - `account.erase`: erase a deleted account after its 30-day grace period (PRD A-8).
 //! - Daily document check: expire documents and send 30/7/1-day warnings (PRD A-5).
 //! - Hourly cleanup: OTP challenges, old sessions, abandoned uploads (retention, schema §12).
+//! - Every second: matching (see [`dispatch`]).
 
-use fuber_common::{telemetry::mask_phone, validate::PhoneE164};
+pub mod dispatch;
+
+use fuber_common::{crypto::Sealer, telemetry::mask_phone, validate::PhoneE164};
 use fuber_db::{
     drivers::refresh_can_go_online,
     jobs::{self, Job},
@@ -14,6 +17,7 @@ use fuber_db::{
 };
 use fuber_integrations::{
     media,
+    routing::Routing,
     sms::SmsGateway,
     storage::ObjectStore,
     virus::{Verdict, VirusScanner},
@@ -24,9 +28,12 @@ use uuid::Uuid;
 
 pub struct Ctx {
     pub db: PgPool,
+    /// Opens the 🔒 columns this worker needs (guest phone numbers).
+    pub sealer: Sealer,
     pub store: ObjectStore,
     pub scanner: VirusScanner,
     pub sms: SmsGateway,
+    pub routing: Routing,
 }
 
 /// A failure worth retrying (database or scanner down). Problems with the file itself are
@@ -66,6 +73,7 @@ async fn run(ctx: &Ctx, job: &Job) -> Result<(), JobError> {
     match job.kind.as_str() {
         jobs::kind::PROCESS_UPLOAD => process_upload(ctx, id("upload_id")?).await,
         jobs::kind::ERASE_ACCOUNT => erase_account(ctx, id("user_id")?).await,
+        jobs::kind::GUEST_SMS => guest_sms(ctx, id("ride_id")?).await,
         other => Err(JobError::Other(format!("unknown job kind {other}"))),
     }
 }
@@ -237,6 +245,36 @@ pub async fn erase_account(ctx: &Ctx, user_id: Uuid) -> Result<(), JobError> {
         delete_object(ctx, k).await;
     }
     tracing::info!(%user_id, files = keys.len(), "account erased");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------------------------
+
+type GuestRow = (Vec<u8>, String, String, Option<String>, Option<String>, String, String, String, String);
+
+/// Texts a guest passenger who is coming to pick her up (PRD B-5). Sent once, after a driver
+/// accepts; a ride cancelled before then sends nothing.
+pub async fn guest_sms(ctx: &Ctx, ride_id: Uuid) -> Result<(), JobError> {
+    let row: Option<GuestRow> = sqlx::query_as(
+        "SELECT r.guest_phone, r.guest_name, r.pin, booker.display_name, d.display_name, v.colour, v.make || ' ' || v.model, v.plate, r.code
+         FROM rides r
+         JOIN users booker ON booker.id = r.rider_id
+         JOIN users d ON d.id = r.driver_id
+         JOIN vehicles v ON v.id = r.vehicle_id
+         WHERE r.id = $1 AND r.guest_phone IS NOT NULL AND r.state::text = ANY($2)",
+    )
+    .bind(ride_id)
+    .bind(&fuber_db::rides::DRIVER_ACTIVE[..])
+    .fetch_optional(&ctx.db)
+    .await?;
+    let Some((phone, guest, pin, booker, driver, colour, car, plate, code)) = row else { return Ok(()) };
+    let phone = ctx.sealer.open_str("rides.guest_phone", &phone).map_err(|e| JobError::Other(format!("guest phone: {e}")))?;
+    let driver = driver.unwrap_or_else(|| "Your driver".into());
+    let booker = booker.unwrap_or_else(|| "A friend".into());
+    let body = format!(
+        "FUber {code}: Hi {guest}, {booker} booked you a ride. {driver} is coming in a {colour} {car}, plate {plate}.          Your PIN is {pin}: say it to her at pickup, and only get in if the plate matches."
+    );
+    notify(ctx, Some(phone), &body).await;
     Ok(())
 }
 

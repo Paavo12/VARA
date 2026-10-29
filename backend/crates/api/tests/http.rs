@@ -82,8 +82,13 @@ async fn health_is_ok_with_hardening_headers() {
 
 #[tokio::test]
 async fn hsts_outside_local() {
-    let cfg =
-        config(&[("APP_ENV", "staging"), ("DATABASE_URL", "postgres://fuber:s3cret-from-vault@db/fuber"), ("REDIS_URL", "rediss://cache")]);
+    let cfg = config(&[
+        ("APP_ENV", "staging"),
+        ("DATABASE_URL", "postgres://fuber:s3cret-from-vault@db/fuber"),
+        ("REDIS_URL", "rediss://cache"),
+        ("ROUTING", "osrm"),
+        ("OSRM_URL", "http://osrm:5000"),
+    ]);
     let (_, headers, _) = send(&app_with(RateLimits::default(), cfg), get("/v1/health")).await;
     assert!(headers["strict-transport-security"].to_str().unwrap().contains("max-age="));
 }

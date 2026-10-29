@@ -6,6 +6,7 @@
 
 use axum::{Json, extract::State, http::StatusCode};
 use fuber_common::{
+    config::Environment,
     crypto::{ct_eq, random_bytes},
     telemetry::mask_phone,
     validate::{Line, PhoneE164},
@@ -59,6 +60,10 @@ pub struct OtpChallenge {
     pub expires_in_s: i64,
     /// Seconds before another code can be requested for this number.
     pub resend_after_s: i64,
+    /// Local development only: the code itself, so sign-in works without a real SMS gateway.
+    /// Never present in any other environment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dev_code: Option<String>,
 }
 
 #[utoipa::path(
@@ -110,7 +115,13 @@ pub async fn request_otp(
         tracing::error!(error = %e, to = %mask_phone(req.phone.as_str()), "OTP SMS failed");
         return Err(ApiError::unavailable("sms_unavailable", "We couldn't send the code. Please try again in a minute."));
     }
-    let challenge = OtpChallenge { challenge_id: id, expires_in_s: OTP_TTL.whole_seconds(), resend_after_s: cooldown_s(recent + 1) };
+    let local = s.config.env == Environment::Local;
+    let challenge = OtpChallenge {
+        challenge_id: id,
+        expires_in_s: OTP_TTL.whole_seconds(),
+        resend_after_s: cooldown_s(recent + 1),
+        dev_code: local.then_some(code),
+    };
     Ok((StatusCode::ACCEPTED, Json(challenge)))
 }
 
@@ -335,10 +346,21 @@ pub async fn refresh(
     responses((status = 204, description = "This device's session is ended"), (status = 401, description = "Not signed in", body = ErrorBody))
 )]
 pub async fn logout(State(s): State<AppState>, user: AuthUser) -> Result<StatusCode, ApiError> {
+    let mut tx = s.db.begin().await?;
     sqlx::query("UPDATE sessions SET revoked_at = now(), revoked_reason = 'logout' WHERE id = $1 AND revoked_at IS NULL")
         .bind(user.session_id)
-        .execute(&s.db)
+        .execute(&mut *tx)
         .await?;
+    // Nobody is left to answer her requests, so a driver who signs out goes offline (demo rule).
+    let online_here: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM driver_presence WHERE driver_id = $1 AND session_id = $2)")
+        .bind(user.user_id)
+        .bind(user.session_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    if online_here {
+        fuber_db::presence::go_offline(&mut tx, user.user_id, "signed_out").await?;
+    }
+    tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

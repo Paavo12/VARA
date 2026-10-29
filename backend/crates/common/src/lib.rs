@@ -5,4 +5,4 @@ pub mod crypto;
 pub mod telemetry;
 pub mod validate;
 
-pub use config::{Config, ConfigError, Environment, SmsProvider, StorageConfig, VirusScan};
+pub use config::{Config, ConfigError, Environment, RoutingConfig, SmsProvider, StorageConfig, VirusScan};
