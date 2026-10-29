@@ -17,7 +17,7 @@ fuber-domain = { version = "0.1.0", path = "../domain" }
 fuber-integrations = { version = "0.1.0", path = "../integrations" }
 futures-util = { version = "0.3.34", default-features = false, features = ["sink", "std"] }
 rand = "0.10.3"
-redis = { version = "1.2.2", features = ["tokio-comp", "connection-manager", "script"] }
+redis = { version = "1.2.2", features = ["tokio-comp", "tokio-rustls-comp", "connection-manager", "script"] }
 secrecy = "0.10.3"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
