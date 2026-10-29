@@ -24,7 +24,7 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let (db, limiter) = match (fuber_db::pool(&config.database_url), RateLimiter::new(&config.redis_url)) {
+    let (db, limiter) = match (fuber_db::pool(&config.database_url), RateLimiter::new(&config.redis_url, config.redis_ca_cert.as_deref())) {
         (Ok(db), Ok(l)) => (db, l),
         (Err(e), _) => {
             tracing::error!(error = %e, "DATABASE_URL is not valid");

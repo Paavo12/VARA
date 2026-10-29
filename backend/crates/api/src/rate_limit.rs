@@ -158,8 +158,16 @@ struct RedisBackend {
 }
 
 impl RateLimiter {
-    pub fn new(redis_url: &SecretString) -> Result<Self, redis::RedisError> {
-        let client = redis::Client::open(redis_url.expose_secret())?;
+    /// `ca_cert` (PEM) replaces the system roots for `rediss://` URLs, for managed Redis that
+    /// signs its server certificate with its own CA (Memorystore).
+    pub fn new(redis_url: &SecretString, ca_cert: Option<&str>) -> Result<Self, redis::RedisError> {
+        let client = match ca_cert {
+            Some(pem) => redis::Client::build_with_tls(
+                redis_url.expose_secret(),
+                redis::TlsCertificates { client_tls: None, root_cert: Some(pem.as_bytes().to_vec()) },
+            )?,
+            None => redis::Client::open(redis_url.expose_secret())?,
+        };
         Ok(RateLimiter {
             redis: Some(RedisBackend {
                 client,
