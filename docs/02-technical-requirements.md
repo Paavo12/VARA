@@ -29,7 +29,7 @@ flowchart LR
   end
   PG[(PostgreSQL 16 + PostGIS)]
   RD[(Redis 7<br/>geo index, rate limits,<br/>pub/sub, locks)]
-  S3[(Object storage<br/>private bucket: ID docs)]
+  GCS[(Cloud Storage<br/>private bucket: ID docs)]
   RT[Routing engine<br/>OSRM, Namibia OSM extract]
   EXT[[External: SMS, push FCM/APNs,<br/>payments, ID verification,<br/>masked calls, map tiles]]
 
@@ -38,7 +38,7 @@ flowchart LR
   LB --> API
   API <--> PG
   API <--> RD
-  API --> S3
+  API --> GCS
   API --> RT
   WK <--> PG
   WK <--> RD
@@ -68,7 +68,7 @@ flowchart LR
 | API docs | `utoipa` → OpenAPI 3.1 → generated TypeScript client for Svelte apps | One source of truth for request/response types. |
 | Jobs | `worker` binary: Postgres-backed queue (`SELECT … FOR UPDATE SKIP LOCKED`) + Redis timers for 15 s offer expiry | No extra broker in v1. |
 | Observability | `tracing` + OpenTelemetry (OTLP) → Grafana stack (or vendor); Sentry for panics | |
-| Config / secrets | `figment` or env vars, loaded from the cloud secret manager at start | §7.3. |
+| Config / secrets | Env vars, injected from Google Secret Manager by Cloud Run at start | §7.3. |
 | Testing | `cargo nextest`, `sqlx::test` (real Postgres per test), `insta` snapshots, `proptest` for pricing/matching | |
 
 ### 2.2 Front end (Svelte)
@@ -99,13 +99,14 @@ Front-end rules:
 
 | Item | Choice |
 | --- | --- |
-| Region | Cloud region in **South Africa** (e.g. AWS `af-south-1` Cape Town or Azure South Africa North) for latency to Namibia. Confirm data-residency position with counsel (PRD §10). |
-| Compute | Containers (ECS Fargate / Azure Container Apps / Kubernetes later). ≥ 2 API instances across 2 AZs. |
-| Database | Managed PostgreSQL 16 with PostGIS, Multi-AZ, PITR backups 14 days, encrypted at rest. |
-| Redis | Managed Redis 7, TLS + AUTH. |
-| Object storage | Private bucket for identity documents; SSE-KMS; no public access; access only via 5-minute pre-signed URLs issued to ops reviewers. |
+| Cloud | **Google Cloud**, one project per environment. Terraform in `infra/terraform/` (setup: its README). |
+| Region | `africa-south1` (Johannesburg), the closest Google Cloud region to Namibia. Confirm data-residency position with counsel (PRD §10). |
+| Compute | Cloud Run: the API as a service (CPU always allocated, 3600 s timeout for WebSockets, session affinity, min instances ≥ 1; ≥ 2 in production, spread across zones by Cloud Run), the worker as a worker pool (fixed instance count, always running), migrations as a job run before each deploy. Direct VPC egress to the private network. ClamAV and OSRM on a small internal VM (clamd is raw TCP, which Cloud Run cannot serve). Distroless, non-root images in Artifact Registry. |
+| Database | Cloud SQL for PostgreSQL 16 with PostGIS, private IP only, TLS required, high availability (regional) in production, backups 14 days + point-in-time recovery, encrypted at rest. Separate migrator and app roles. |
+| Redis | Memorystore for Redis 7, TLS + AUTH (Standard HA in production). |
+| Object storage | Cloud Storage bucket for identity documents; uniform bucket-level access, public access prevention enforced, customer-managed Cloud KMS key; access only via 5-minute V4 signed URLs issued to ops reviewers. |
 | Map tiles | Commercial vector-tile plan (e.g. MapTiler, Stadia) — **not** `tile.openstreetmap.org` (its usage policy forbids production apps). Keep "© OpenStreetMap contributors" attribution. |
-| CI/CD | GitHub Actions: build, test, lint, `cargo audit`, `cargo deny`, `npm audit`, gitleaks, container scan, migrations dry-run, deploy to staging on `main`, production on tag. |
+| CI/CD | GitHub Actions: build, test, lint, `cargo audit`, `cargo deny`, `npm audit`, gitleaks, container scan, migrations dry-run, deploy to staging on `main`, production on tag. Google Cloud access through Workload Identity Federation, never service-account key files. |
 | Environments | `local` (docker-compose), `staging` (prod-like, fake payments, test SMS), `production`. No production data outside production. |
 | IaC | Terraform (or OpenTofu) for all cloud resources. |
 
@@ -231,11 +232,11 @@ Rate-limit settings are config, not code, and are covered by integration tests.
 ### 7.3 Secure API key and secret handling
 
 - **No secrets in the apps.** Mobile and web bundles contain only public, restricted identifiers (map-tile key restricted by bundle ID / domain + quota, payment provider publishable key, FCM sender config). Everything else (SMS, payments secret, ID-vendor, OSRM, DB, JWT signing key) lives on the server only.
-- Secrets are stored in the cloud **secret manager**, injected at runtime; never in Git, Docker images, Terraform state in plain text, or logs.
+- Secrets are stored in **Google Secret Manager**, injected at runtime; never in Git, Docker images, Terraform state in plain text, or logs.
 - `.env` files only for local development with fake/test credentials; `.env.example` committed, `.env` git-ignored (already in `.gitignore`).
 - CI runs **gitleaks** on every push; a pre-commit hook does the same locally.
 - Rotation: JWT signing keys rotated every 90 days with `kid` overlap; third-party keys every 180 days or immediately on staff departure/suspected leak. Runbook in `infra/runbooks/rotate-secrets.md`.
-- Least privilege: API and worker run with separate cloud identities; the API cannot read the documents bucket except to issue pre-signed URLs; ops staff never hold production DB credentials (break-glass account with alert).
+- Least privilege: API, worker and migration job run as separate Google service accounts; only the API can sign URLs for the documents bucket (signBlob on its own identity, no key file), and its code never reads objects itself (a V4 signed URL needs the signer to hold the object permission, so the API's account has create and view on the bucket); the worker reads and rewrites objects but cannot sign; ops staff never hold production DB credentials (break-glass account with alert).
 - Incoming webhooks (payments, SMS delivery, ID vendor) are verified by signature (HMAC) and timestamp (±5 min), and are idempotent.
 - Existing repo hygiene: the demo's `docker-compose.yml` password and `demo/android/debug.keystore` are dev-only; production signing keys live in the CI secret store / Play App Signing, never in the repo.
 
@@ -257,7 +258,7 @@ Rate-limit settings are config, not code, and are covered by integration tests.
 
 ### 7.6 Data protection
 
-- Encryption at rest everywhere (DB, Redis, backups, bucket). Application-level envelope encryption (AES-256-GCM, KMS data keys) for **national ID numbers, dates of birth and emergency-contact phones**.
+- Encryption at rest everywhere (DB, Redis, backups, bucket). Application-level envelope encryption (AES-256-GCM, Cloud KMS data keys) for **national ID numbers, dates of birth and emergency-contact phones**.
 - Identity images are never sent to clients other than ops reviewers; the rider/driver profile photo is a separate, cropped image.
 - Data retention jobs implement the [Privacy Policy](legal/privacy-policy.md) schedule (e.g. trip GPS tracks deleted after 90 days unless tied to an incident).
 - Logs: no OTPs, tokens, PINs, full phone numbers (mask to `+264 81 *** **12`), or exact addresses. Structured logging with a redaction layer.
