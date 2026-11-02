@@ -84,7 +84,7 @@ Report lost items in the app within 24 hours of the trip; we will put you in tou
 - You must hold a valid driver's licence, vehicle insurance, a police clearance certificate, any transport permit required by law, and keep them current. Your account goes offline automatically when a document expires.
 - Your vehicle must be roadworthy, match the details in the app, and meet the standards of the ride types you are approved for.
 - You choose when to go online and which offers to accept. Before accepting, you see your earnings for the trip. The destination is shown after the rider's PIN is entered.
-- You earn the trip price less FUber's service fee (currently 2 % Classic, 2.5 % Comfort, 3 % Soft Life). For cash trips, the service fee is added to your balance owed to FUber and settled **[weekly]**. Card earnings are paid out **[weekly]** to your registered bank account.
+- You earn the trip price less FUber's service fee (currently 15 % Classic, 16.5 % Comfort, 18 % Soft Life). For cash trips, the service fee is added to your balance owed to FUber and settled **[weekly]**. Card earnings are paid out **[weekly]** to your registered bank account.
 - You are responsible for your own taxes **[counsel/finance to confirm VAT and income-tax treatment]**.
 - You must follow road laws, verify the rider's PIN before starting a trip, and never ask a rider for her phone number or contact her outside the app.
 
