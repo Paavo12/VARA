@@ -8,7 +8,7 @@
 <script lang="ts">
 	import type { RiderRide } from '@fuber/api-client';
 	import { messageOf, useSession } from '@fuber/account';
-	import { Button, Notice, Plate, Screen, formatMinutes, formatNad } from '@fuber/ui';
+	import { Button, Notice, Plate, Screen, Stars, formatMinutes, formatNad } from '@fuber/ui';
 
 	interface Props {
 		ride: RiderRide;
@@ -21,6 +21,40 @@
 	let busy = $state(false);
 	let error = $state<string | null>(null);
 	let confirmCancel = $state(false);
+	let stars = $state(0);
+	let lowReasons = $state<string[]>([]);
+	let favourite = $state(false);
+
+	type Reason =
+		'unsafe_driving' | 'car_condition' | 'route' | 'late' | 'rude' | 'felt_unsafe' | 'other';
+	const LOW_REASONS: { id: Reason; label: string }[] = [
+		{ id: 'unsafe_driving', label: 'Unsafe driving' },
+		{ id: 'felt_unsafe', label: 'I didn’t feel safe' },
+		{ id: 'late', label: 'Late' },
+		{ id: 'rude', label: 'Rude' },
+		{ id: 'car_condition', label: 'Car not clean or not as shown' },
+		{ id: 'route', label: 'Took a strange route' },
+		{ id: 'other', label: 'Something else' }
+	];
+
+	async function rate() {
+		error = null;
+		busy = true;
+		const { data, error: err } = await session.api
+			.POST('/v1/rides/{id}/rating', {
+				params: { path: { id: ride.id } },
+				body: {
+					stars,
+					reasons: stars < 3 ? (lowReasons as Reason[]) : [],
+					comment: null,
+					favourite: stars >= 4 && favourite
+				}
+			})
+			.catch(() => ({ data: undefined, error: undefined }));
+		busy = false;
+		if (data) onchange({ ...ride, rated: true, state: data.state as RiderRide['state'] });
+		else error = messageOf(err, 'We couldn’t send your rating. Check your connection.');
+	}
 
 	async function act(path: '/v1/rides/{id}/cancel' | '/v1/rides/{id}/retry') {
 		error = null;
@@ -184,13 +218,73 @@
 		<p class="total">{formatNad(ride.fare.total)}</p>
 		<Notice tone="success">
 			<p>
-				{ride.payment_method === 'cash'
-					? 'Please pay your driver this amount in cash.'
-					: 'Paid by card. Your receipt is on its way.'}
+				{ride.payment_method === 'card'
+					? 'Paid by card. Your receipt is on its way.'
+					: ride.payment_status === 'cash_confirmed'
+						? 'Paid in cash. Thank you.'
+						: 'Please pay your driver this amount in cash.'}
 			</p>
 		</Notice>
-		{@render trip()}
-		{#snippet footer()}<Button onclick={ondone}>Done</Button>{/snippet}
+		<dl class="breakdown">
+			<div>
+				<dt>Base</dt>
+				<dd>{formatNad(ride.fare.base)}</dd>
+			</div>
+			<div>
+				<dt>Distance</dt>
+				<dd>{formatNad(ride.fare.distance)}</dd>
+			</div>
+			<div>
+				<dt>Time</dt>
+				<dd>{formatNad(ride.fare.time)}</dd>
+			</div>
+			{#if ride.fare.minimum_adjustment > 0}
+				<div>
+					<dt>Minimum fare</dt>
+					<dd>{formatNad(ride.fare.minimum_adjustment)}</dd>
+				</div>
+			{/if}
+			{#if ride.fare.surge > 0}<div>
+					<dt>Busy time</dt>
+					<dd>{formatNad(ride.fare.surge)}</dd>
+				</div>{/if}
+			<div class="sum">
+				<dt>Total (locked at booking)</dt>
+				<dd>{formatNad(ride.fare.total)}</dd>
+			</div>
+		</dl>
+		{#if !ride.rated && ride.driver}
+			<Stars label="How was your trip with {ride.driver.first_name}?" bind:value={stars} />
+			{#if stars > 0 && stars < 3}
+				<fieldset class="reasons">
+					<legend>What went wrong?</legend>
+					{#each LOW_REASONS as r (r.id)}
+						<label><input type="checkbox" value={r.id} bind:group={lowReasons} /> {r.label}</label>
+					{/each}
+				</fieldset>
+			{/if}
+			{#if stars >= 4}
+				<label class="fav"
+					><input type="checkbox" bind:checked={favourite} /> Add {ride.driver.first_name} to my favourite
+					drivers</label
+				>
+			{/if}
+		{:else if ride.rated}
+			<Notice tone="info"><p>Thanks for rating your trip.</p></Notice>
+		{/if}
+		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
+		{#snippet footer()}
+			{#if !ride.rated && ride.driver}
+				<Button
+					onclick={rate}
+					loading={busy}
+					disabled={stars === 0 || (stars < 3 && lowReasons.length === 0)}>Send rating</Button
+				>
+				<Button variant="ghost" onclick={ondone}>Not now</Button>
+			{:else}
+				<Button onclick={ondone}>Done</Button>
+			{/if}
+		{/snippet}
 	</Screen>
 {:else if ride.state === 'BLOCKED'}
 	<Screen title="Trip stopped for your safety" lead="Your driver entered the wrong PIN too often.">
@@ -316,6 +410,44 @@
 		justify-content: space-between;
 		gap: var(--space-3);
 		font-weight: 600;
+	}
+	.breakdown {
+		display: grid;
+		gap: var(--space-1);
+		margin: 0;
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+		font-variant-numeric: tabular-nums;
+	}
+	.breakdown div {
+		display: flex;
+		justify-content: space-between;
+	}
+	.breakdown dt {
+		color: var(--color-text-muted);
+	}
+	.breakdown dd {
+		margin: 0;
+	}
+	.breakdown .sum {
+		padding-top: var(--space-1);
+		border-top: 1px solid var(--color-border);
+		font-weight: 700;
+	}
+	.reasons {
+		display: grid;
+		gap: var(--space-1);
+		border: 0;
+		margin: 0;
+		padding: 0;
+	}
+	.reasons label,
+	.fav {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-height: var(--touch-target);
 	}
 	.total {
 		margin: 0;
