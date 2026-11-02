@@ -251,7 +251,7 @@ Rider (or driver) taps **Share trip** → token created → native share sheet /
 
 | Who / when | Result | Priority points |
 | --- | --- | --- |
-| Rider, before assignment | CANCELLED, no fee | No cost |
+| Rider, before assignment | CANCELLED, no fee | −5 × nth cancellation (a scheduled ride cancelled before dispatch: no cost) |
 | Rider, after assignment | CANCELLED, no fee; driver notified | −5 × nth cancellation |
 | Driver, after accepting | Back to SEARCHING, she is excluded | −5 × nth cancellation |
 | Driver, no-show after 5-min wait | CANCELLED | Counts against the **rider** |
