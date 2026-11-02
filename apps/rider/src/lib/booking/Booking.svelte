@@ -28,7 +28,7 @@
 	let pickup = $state<Stop | null>(null);
 	let dropoff = $state<Stop | null>(null);
 
-	const FINISHED = ['COMPLETED', 'CANCELLED'];
+	const FINISHED = ['COMPLETED', 'RATED', 'CANCELLED', 'BLOCKED'];
 
 	async function loadActive() {
 		const { data, response } = await session.api
