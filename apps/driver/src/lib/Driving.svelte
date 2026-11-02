@@ -15,6 +15,7 @@
 	import { messageOf, useSession } from '@fuber/account';
 	import { Button, Notice, Screen, formatDistance, formatMinutes, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
+	import Trip from './Trip.svelte';
 
 	interface Props {
 		name: string;
@@ -51,7 +52,9 @@
 
 	function show(s: DriverStatus) {
 		status = s;
-		ride = s.ride ?? null;
+		// A trip that just ended stays on screen (summary) until she taps Done.
+		const ended = ride && ['COMPLETED', 'RATED', 'CANCELLED', 'BLOCKED'].includes(ride.state);
+		ride = s.ride ?? (ended ? ride : null);
 		setOffer(s.offer ?? null);
 	}
 
@@ -77,7 +80,9 @@
 				if (d.response === 'withdrawn') notice = 'The passenger cancelled the request.';
 			}
 		} else if (m.type === 'ride.updated') {
-			ride = m.data as DriverRide;
+			// Keep the finished trip on screen until she taps Done.
+			const next = m.data as DriverRide;
+			if (ride?.id === next.id || !ride) ride = next;
 		} else if (m.type === 'ride.removed') {
 			ride = null;
 			notice = 'The passenger cancelled the trip. No fee for you.';
@@ -192,28 +197,18 @@
 </script>
 
 {#if ride}
-	<Screen
-		title={ride.state === 'DRIVER_ARRIVED' ? 'You’ve arrived' : 'Head to the pickup'}
-		lead="Trip {ride.code} · {NAMES[ride.tier] ?? ride.tier}"
-	>
-		<div class="card">
-			<p class="earning">{formatNad(ride.earning)}</p>
-			<p><small>Passenger</small><strong>{ride.passenger.name}</strong></p>
-			{#if ride.passenger.booked_by}<p><small>{ride.passenger.booked_by}</small></p>{/if}
-			<p>
-				<small>Pickup</small>{ride.pickup?.address ?? ride.pickup_area.label}
-				{#if !ride.pickup}<small>The exact spot shows when you arrive.</small>{/if}
-			</p>
-			<p>
-				<small>Passengers</small>{ride.passengers}{ride.wheelchair ? ' · wheelchair' : ''} ·
-				{ride.payment_method === 'cash' ? 'Cash' : 'Card'}
-			</p>
-		</div>
-		<Notice tone="info">
-			<p>Ask for her 4-digit PIN before she gets in. The destination shows once it’s entered.</p>
-		</Notice>
-		{#if notice}<Notice tone="attention"><p>{notice}</p></Notice>{/if}
-	</Screen>
+	<Trip
+		{ride}
+		onchange={(r) => (ride = r)}
+		onreleased={() => {
+			ride = null;
+			notice = 'You cancelled. The request went to another driver.';
+		}}
+		ondone={() => {
+			ride = null;
+			void load();
+		}}
+	/>
 {:else if offer}
 	<Screen title="New request" lead="{NAMES[offer.tier] ?? offer.tier} · {offer.pickup_area.label}">
 		<div class="offer" role="alert">
