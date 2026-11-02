@@ -24,6 +24,8 @@ use crate::{ops, routes};
         routes::rides::quote, routes::rides::create, routes::rides::active, routes::rides::get, routes::rides::cancel, routes::rides::retry,
         routes::driving::status, routes::driving::go_online, routes::driving::go_offline, routes::driving::location,
         routes::driving::accept, routes::driving::decline,
+        routes::trip::arrive, routes::trip::pin, routes::trip::wait, routes::trip::no_show, routes::trip::start,
+        routes::trip::complete, routes::trip::driver_cancel,
         ops::auth::login, ops::auth::logout,
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
         ops::drivers::queue, ops::drivers::detail, ops::drivers::set_tiers, ops::drivers::decide,
@@ -40,6 +42,7 @@ use crate::{ops, routes};
         (name = "driver", description = "Driver application"),
         (name = "booking", description = "Places, quotes and ride requests (rider app)"),
         (name = "dispatch", description = "Going online, positions and ride requests (driver app). Live updates: WebSocket `/v1/ws`"),
+        (name = "trip", description = "Arriving, the PIN, the free wait, start, complete and cancel (driver app)"),
         (name = "ops", description = "Staff: verification and driver review"),
     )
 )]
@@ -114,6 +117,13 @@ mod tests {
             "/v1/driver/location",
             "/v1/offers/{id}/accept",
             "/v1/offers/{id}/decline",
+            "/v1/rides/{id}/arrive",
+            "/v1/rides/{id}/pin",
+            "/v1/rides/{id}/wait",
+            "/v1/rides/{id}/no-show",
+            "/v1/rides/{id}/start",
+            "/v1/rides/{id}/complete",
+            "/v1/rides/{id}/driver-cancel",
         ] {
             assert!(doc.contains(&format!("\"{path}\"")), "{path} missing from OpenAPI");
         }

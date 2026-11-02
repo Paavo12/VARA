@@ -1,10 +1,16 @@
 //! Test harness shared by the database-backed integration tests: a scratch PostGIS database
 //! per test (copied from a migrated template), the API router, the worker context, and
-//! helpers for signing in and onboarding.
+//! helpers for signing in, onboarding and booking.
 //!
 //! Runs only when TEST_DATABASE_URL is set (CI provides one).
 
 #![allow(dead_code)]
+
+mod booking;
+
+// Only the dispatch and trip tests use these.
+#[allow(unused_imports)]
+pub use booking::*;
 
 use std::net::SocketAddr;
 
