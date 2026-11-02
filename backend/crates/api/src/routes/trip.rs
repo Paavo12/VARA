@@ -298,6 +298,14 @@ pub async fn complete(State(s): State<AppState>, DriverUser(user): DriverUser, P
     .await
     .map_err(ride_error)?;
     sqlx::query("UPDATE rides SET completed_at = now() WHERE id = $1").bind(id).execute(&mut *tx).await?;
+    // The locked fare is now due (PRD P-1, P-2). Cash: the driver confirms receipt next.
+    sqlx::query(
+        "INSERT INTO payments (ride_id, method, amount_cents, status)
+         SELECT id, payment_method, fare_cents, 'pending' FROM rides WHERE id = $1",
+    )
+    .bind(id)
+    .execute(&mut *tx)
+    .await?;
     rides::reward(&mut tx, rider_id, Party::Rider, id).await?;
     rides::reward(&mut tx, user.user_id, Party::Driver, id).await?;
     tx.commit().await?;

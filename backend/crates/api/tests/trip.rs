@@ -9,51 +9,9 @@ mod common;
 
 use axum::http::{Method, StatusCode};
 use fuber_db::sqlx;
-use serde_json::{Value, json};
+use serde_json::json;
 
 use common::*;
-
-/// Mid-way between Post Street Mall and Maerua Mall, for "in trip" positions.
-const ON_THE_WAY: (f64, f64) = (-22.5750, 17.0870);
-
-struct Trip {
-    rider: Session,
-    driver: Session,
-    id: String,
-    pin: String,
-}
-
-impl T {
-    /// A Classic ride Post Street Mall → Maerua Mall, accepted by a driver about 600 m away.
-    async fn accepted(&self) -> Trip {
-        let rider = self.rider().await;
-        let driver = self.online_driver("Hilma Nangolo", "classic", NEAR).await;
-        let ride = self.book(&rider).await;
-        assert_eq!(self.tick().await.offered, 1);
-        let offer = self.driver_status(&driver).await["offer"]["offer_id"].as_str().unwrap().to_owned();
-        let (status, view) = self.post(&format!("/v1/offers/{offer}/accept"), &driver.access, json!({})).await;
-        assert_eq!(status, StatusCode::OK, "{view}");
-        Trip { id: ride["id"].as_str().unwrap().to_owned(), pin: ride["pin"].as_str().unwrap().to_owned(), rider, driver }
-    }
-
-    /// Reports the driver's position the way the app does every few seconds.
-    async fn drive_to(&self, d: &Session, p: (f64, f64)) {
-        let (status, body) = self.put("/v1/driver/location", &d.access, json!({ "at": at(p), "speed_kmh": 30.0 })).await;
-        assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
-    }
-
-    async fn trip_action(&self, trip: &Trip, action: &str, body: Value) -> (StatusCode, Value) {
-        self.post(&format!("/v1/rides/{}/{action}", trip.id), &trip.driver.access, body).await
-    }
-
-    async fn points(&self, table: &str, s: &Session) -> i32 {
-        sqlx::query_scalar(&format!("SELECT priority_points FROM {table} WHERE user_id = $1"))
-            .bind(s.user_id)
-            .fetch_one(&self.state.db)
-            .await
-            .unwrap()
-    }
-}
 
 fn wrong(pin: &str) -> String {
     format!("{:04}", (pin.parse::<u32>().unwrap() + 1) % 10_000)

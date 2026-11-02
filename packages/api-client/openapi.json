@@ -414,6 +414,46 @@
         ]
       }
     },
+    "/v1/driver/earnings": {
+      "get": {
+        "tags": [
+          "earnings"
+        ],
+        "operationId": "earnings",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "description": "`today` (default) or `week` (since Monday), Windhoek time.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "today",
+                "week"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Earnings dashboard (PRD P-6)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Earnings"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/driver/location": {
       "put": {
         "tags": [
@@ -555,6 +595,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DriverStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/driver/trips": {
+      "get": {
+        "tags": [
+          "history"
+        ],
+        "operationId": "driver_trips",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Trips requested before this time (the last item's `requested_at`); omit for the newest.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Her trips, newest first, 20 at a time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DriverTrip"
+                  }
                 }
               }
             }
@@ -851,6 +931,63 @@
                 }
               }
             }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/me/favourite-drivers": {
+      "get": {
+        "tags": [
+          "ratings"
+        ],
+        "operationId": "favourites",
+        "responses": {
+          "200": {
+            "description": "Her favourite drivers; matching prefers them",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FavouriteDriver"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/me/favourite-drivers/{driver_id}": {
+      "delete": {
+        "tags": [
+          "ratings"
+        ],
+        "operationId": "remove_favourite",
+        "parameters": [
+          {
+            "name": "driver_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed (also when she wasn't a favourite)"
           }
         },
         "security": [
@@ -1649,6 +1786,44 @@
       }
     },
     "/v1/rides": {
+      "get": {
+        "tags": [
+          "history"
+        ],
+        "operationId": "rider_trips",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Trips requested before this time (the last item's `requested_at`); omit for the newest.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Her trips, newest first, 20 at a time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RiderTrip"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
       "post": {
         "tags": [
           "booking"
@@ -1995,6 +2170,62 @@
         ]
       }
     },
+    "/v1/rides/{id}/cash-received": {
+      "post": {
+        "tags": [
+          "earnings"
+        ],
+        "operationId": "cash_received",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cash recorded (tapping again changes nothing)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashConfirmed"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`not_cash` or `not_completed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/rides/{id}/complete": {
       "post": {
         "tags": [
@@ -2226,6 +2457,138 @@
           },
           "422": {
             "description": "`wrong_pin` (the message says how many attempts are left) or not 4 digits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/rating": {
+      "post": {
+        "tags": [
+          "ratings"
+        ],
+        "operationId": "rate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Rated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rated"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`already_rated` or `not_completed`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No reason below 3 stars, a reason for the other side, or `favourite` from the driver app",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/rating/skip": {
+      "post": {
+        "tags": [
+          "ratings"
+        ],
+        "operationId": "skip",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Skipped (the driver's \"Back to requests\")",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rated"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`not_completed`",
             "content": {
               "application/json": {
                 "schema": {
@@ -2783,6 +3146,33 @@
           }
         }
       },
+      "CashConfirmed": {
+        "type": "object",
+        "required": [
+          "ride_id",
+          "payment_status",
+          "service_fee",
+          "balance"
+        ],
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Her balance after this trip: negative means she owes FUber."
+          },
+          "payment_status": {
+            "type": "string",
+            "description": "`cash_confirmed`."
+          },
+          "ride_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "service_fee": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "FUber's service fee on this trip, added to what she owes."
+          }
+        }
+      },
       "Cents": {
         "type": "integer",
         "format": "int64",
@@ -3081,6 +3471,7 @@
           "pickup_area",
           "earning",
           "payment_method",
+          "rated",
           "pin_attempts_left"
         ],
         "properties": {
@@ -3131,6 +3522,13 @@
           "payment_method": {
             "type": "string"
           },
+          "payment_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Once the trip is complete: `pending` until she confirms the cash, then `cash_confirmed`."
+          },
           "pickup": {
             "oneOf": [
               {
@@ -3149,6 +3547,10 @@
             "type": "integer",
             "format": "int32",
             "description": "Wrong PINs she may still enter before the trip is blocked."
+          },
+          "rated": {
+            "type": "boolean",
+            "description": "She has rated the passenger or skipped rating (PRD R-1)."
           },
           "started_at": {
             "type": [
@@ -3222,6 +3624,166 @@
               "type": "string"
             },
             "description": "Ride types she receives requests for."
+          }
+        }
+      },
+      "DriverTrip": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "state",
+          "requested_at",
+          "earning",
+          "payment_method"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "dropoff_address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Only if the PIN was verified."
+          },
+          "earning": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "my_rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "payment_status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pickup_address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Only if she reached the pickup."
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "type": "string",
+            "example": "RATED"
+          }
+        }
+      },
+      "Earnings": {
+        "type": "object",
+        "required": [
+          "period",
+          "since",
+          "trips",
+          "earnings",
+          "cash_collected",
+          "service_fees",
+          "online_s",
+          "balance",
+          "recent"
+        ],
+        "properties": {
+          "balance": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "All-time balance: positive means FUber pays her at settlement, negative means she owes FUber."
+          },
+          "cash_collected": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Cash she collected from passengers."
+          },
+          "earnings": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "What she earned: fares minus FUber's service fee."
+          },
+          "online_s": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Time online in the period."
+          },
+          "period": {
+            "type": "string",
+            "description": "`today` or `week`."
+          },
+          "recent": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EarningsTrip"
+            },
+            "description": "Completed trips in the period, newest first."
+          },
+          "service_fees": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "FUber's service fee on these trips."
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "trips": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "EarningsTrip": {
+        "type": "object",
+        "required": [
+          "ride_id",
+          "code",
+          "completed_at",
+          "earning",
+          "payment_method"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "earning": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "payment_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`pending` until she confirms the cash."
+          },
+          "ride_id": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
@@ -3383,6 +3945,34 @@
           "total": {
             "$ref": "#/components/schemas/Cents",
             "description": "What the rider pays: base + distance + time + minimum_adjustment + surge."
+          }
+        }
+      },
+      "FavouriteDriver": {
+        "type": "object",
+        "required": [
+          "driver_id",
+          "first_name",
+          "added_at"
+        ],
+        "properties": {
+          "added_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "driver_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },
@@ -4048,6 +4638,69 @@
         },
         "additionalProperties": false
       },
+      "Rated": {
+        "type": "object",
+        "required": [
+          "ride_id",
+          "state"
+        ],
+        "properties": {
+          "ride_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "description": "`COMPLETED`, or `RATED` once both sides are done."
+          }
+        }
+      },
+      "RatingReason": {
+        "type": "string",
+        "description": "Why a trip got fewer than 3 stars. The rider rates the driver, the driver rates the rider;\nsome reasons apply to one side only.",
+        "enum": [
+          "unsafe_driving",
+          "car_condition",
+          "route",
+          "damage",
+          "late",
+          "rude",
+          "felt_unsafe",
+          "other"
+        ]
+      },
+      "RatingRequest": {
+        "type": "object",
+        "required": [
+          "stars"
+        ],
+        "properties": {
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "favourite": {
+            "type": "boolean",
+            "description": "Rider only: add this driver to her favourites."
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RatingReason"
+            },
+            "description": "Required below 3 stars."
+          },
+          "stars": {
+            "type": "integer",
+            "format": "int64",
+            "maximum": 5,
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
       "RefreshRequest": {
         "type": "object",
         "required": [
@@ -4251,6 +4904,7 @@
           "dropoff",
           "fare",
           "payment_method",
+          "rated",
           "pin",
           "requested_at",
           "trip_duration_s"
@@ -4318,12 +4972,23 @@
             "type": "string",
             "description": "`cash` or `card`."
           },
+          "payment_status": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Once the trip is complete: `pending`, then `cash_confirmed` (or a card status)."
+          },
           "pickup": {
             "$ref": "#/components/schemas/Stop"
           },
           "pin": {
             "type": "string",
             "description": "Say it to the driver at pickup. Never sent to the driver."
+          },
+          "rated": {
+            "type": "boolean",
+            "description": "She has rated this trip (PRD R-1)."
           },
           "requested_at": {
             "type": "string",
@@ -4373,6 +5038,69 @@
           },
           "wheelchair": {
             "type": "boolean"
+          }
+        }
+      },
+      "RiderTrip": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "state",
+          "requested_at",
+          "pickup_address",
+          "dropoff_address",
+          "fare",
+          "payment_method"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "driver_first_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dropoff_address": {
+            "type": "string"
+          },
+          "fare": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "my_rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The stars she gave, if she rated."
+          },
+          "payment_method": {
+            "type": "string"
+          },
+          "pickup_address": {
+            "type": "string"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "type": "string",
+            "example": "RATED"
           }
         }
       },
@@ -4870,6 +5598,18 @@
     {
       "name": "trip",
       "description": "Arriving, the PIN, the free wait, start, complete and cancel (driver app)"
+    },
+    {
+      "name": "earnings",
+      "description": "Cash confirmation and the driver's earnings (driver app)"
+    },
+    {
+      "name": "ratings",
+      "description": "Ratings and favourite drivers"
+    },
+    {
+      "name": "history",
+      "description": "Trip history for riders and drivers"
     },
     {
       "name": "ops",

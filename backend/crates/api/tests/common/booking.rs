@@ -151,3 +151,59 @@ impl T {
             .unwrap();
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Trips (Phase 3 onwards)
+
+/// Mid-way between Post Street Mall and Maerua Mall, for "in trip" positions.
+pub const ON_THE_WAY: (f64, f64) = (-22.5750, 17.0870);
+
+pub struct Trip {
+    pub rider: Session,
+    pub driver: Session,
+    pub id: String,
+    pub pin: String,
+}
+
+impl T {
+    /// A Classic ride Post Street Mall → Maerua Mall, accepted by a driver about 600 m away.
+    pub async fn accepted(&self) -> Trip {
+        let rider = self.rider().await;
+        let driver = self.online_driver("Hilma Nangolo", "classic", NEAR).await;
+        let ride = self.book(&rider).await;
+        assert_eq!(self.tick().await.offered, 1);
+        let offer = self.driver_status(&driver).await["offer"]["offer_id"].as_str().unwrap().to_owned();
+        let (status, view) = self.post(&format!("/v1/offers/{offer}/accept"), &driver.access, json!({})).await;
+        assert_eq!(status, StatusCode::OK, "{view}");
+        Trip { id: ride["id"].as_str().unwrap().to_owned(), pin: ride["pin"].as_str().unwrap().to_owned(), rider, driver }
+    }
+
+    /// Reports the driver's position the way the app does every few seconds.
+    pub async fn drive_to(&self, d: &Session, p: (f64, f64)) {
+        let (status, body) = self.put("/v1/driver/location", &d.access, json!({ "at": at(p), "speed_kmh": 30.0 })).await;
+        assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+    }
+
+    pub async fn trip_action(&self, trip: &Trip, action: &str, body: Value) -> (StatusCode, Value) {
+        self.post(&format!("/v1/rides/{}/{action}", trip.id), &trip.driver.access, body).await
+    }
+
+    pub async fn points(&self, table: &str, s: &Session) -> i32 {
+        sqlx::query_scalar(&format!("SELECT priority_points FROM {table} WHERE user_id = $1"))
+            .bind(s.user_id)
+            .fetch_one(&self.state.db)
+            .await
+            .unwrap()
+    }
+
+    /// An accepted trip driven to the destination and completed (cash).
+    pub async fn completed(&self) -> Trip {
+        let trip = self.accepted().await;
+        self.drive_to(&trip.driver, POST_ST_MALL).await;
+        for (action, body) in [("pin", json!({ "pin": trip.pin })), ("start", json!({})), ("complete", json!({}))] {
+            let (status, v) = self.trip_action(&trip, action, body).await;
+            assert_eq!(status, StatusCode::OK, "{action}: {v}");
+        }
+        trip
+    }
+}

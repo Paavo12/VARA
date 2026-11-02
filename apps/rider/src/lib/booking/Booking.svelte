@@ -9,6 +9,7 @@
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
 	import Options from './Options.svelte';
+	import History from './History.svelte';
 	import RideStatus from './RideStatus.svelte';
 	import Search from './Search.svelte';
 	import { DEV_LOCATION, inServiceArea, type Stop } from './types';
@@ -21,7 +22,7 @@
 	let { me, onsettings }: Props = $props();
 	const session = useSession();
 
-	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride';
+	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride' | 'history';
 	let stage = $state<Stage>('loading');
 	let ride = $state<RiderRide | null>(null);
 	let current = $state<Stop | null>(null);
@@ -123,9 +124,12 @@
 		</p>
 		{#snippet footer()}
 			<Button onclick={whereTo}>Where to?</Button>
+			<Button variant="secondary" onclick={() => (stage = 'history')}>Your trips</Button>
 			<Button variant="ghost" onclick={onsettings}>Settings</Button>
 		{/snippet}
 	</Screen>
+{:else if stage === 'history'}
+	<History onback={() => (stage = 'home')} />
 {:else if stage === 'where'}
 	<Search
 		title="Where to?"

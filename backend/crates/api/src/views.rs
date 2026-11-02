@@ -78,6 +78,10 @@ pub struct RiderRide {
     pub fare: Fare,
     /// `cash` or `card`.
     pub payment_method: String,
+    /// Once the trip is complete: `pending`, then `cash_confirmed` (or a card status).
+    pub payment_status: Option<String>,
+    /// She has rated this trip (PRD R-1).
+    pub rated: bool,
     /// Say it to the driver at pickup. Never sent to the driver.
     pub pin: String,
     #[serde(with = "time::serde::rfc3339::option")]
@@ -145,6 +149,10 @@ pub struct DriverRide {
     /// What she earns for this trip, in cents.
     pub earning: Cents,
     pub payment_method: String,
+    /// Once the trip is complete: `pending` until she confirms the cash, then `cash_confirmed`.
+    pub payment_status: Option<String>,
+    /// She has rated the passenger or skipped rating (PRD R-1).
+    pub rated: bool,
     #[serde(with = "time::serde::rfc3339::option")]
     pub arrived_at: Option<OffsetDateTime>,
     /// When she started the free wait at the pickup.
@@ -191,7 +199,7 @@ type RiderRow = (
     (String, f64, f64),
     (String, f64, f64),
     serde_json::Value,
-    String,
+    (String, Option<String>, bool),
     String,
     Times,
     Option<Uuid>,
@@ -205,7 +213,10 @@ pub async fn rider_ride(db: &PgPool, rider_id: Uuid, ride_id: Uuid) -> Result<Op
         "SELECT r.id, r.code, r.state::text, r.tier::text, r.passengers, r.wheelchair, r.guest_name,
                 ROW(r.pickup_address, ST_Y(r.pickup::geometry), ST_X(r.pickup::geometry)),
                 ROW(r.dropoff_address, ST_Y(r.dropoff::geometry), ST_X(r.dropoff::geometry)),
-                r.fare_breakdown, r.payment_method::text, r.pin,
+                r.fare_breakdown,
+                ROW(r.payment_method::text, (SELECT p.status::text FROM payments p WHERE p.ride_id = r.id),
+                    EXISTS (SELECT 1 FROM ratings g WHERE g.ride_id = r.id AND g.rater = 'rider')),
+                r.pin,
                 ROW(r.scheduled_for, r.requested_at, r.search_started_at, r.arrived_at, r.wait_started_at, r.started_at, r.completed_at),
                 r.driver_id, r.cancelled_by::text, r.quote_duration_s
          FROM rides r WHERE r.id = $1 AND r.rider_id = $2",
@@ -251,7 +262,9 @@ pub async fn rider_ride(db: &PgPool, rider_id: Uuid, ride_id: Uuid) -> Result<Op
         pickup: Stop { address: pickup.0, lat: pickup.1, lon: pickup.2 },
         dropoff: Stop { address: dropoff.0, lat: dropoff.1, lon: dropoff.2 },
         fare: serde_json::from_value(fare).map_err(|e| sqlx::Error::Decode(Box::new(e)))?,
-        payment_method: payment,
+        payment_method: payment.0,
+        payment_status: payment.1,
+        rated: payment.2,
         pin,
         scheduled_for: times.0,
         requested_at: times.1,
@@ -338,7 +351,7 @@ type DriverRow = (
     (String, f64, f64),
     (String, f64, f64),
     i64,
-    String,
+    (String, Option<String>, bool),
     (Option<OffsetDateTime>, Option<OffsetDateTime>, Option<OffsetDateTime>),
     i16,
 );
@@ -350,7 +363,9 @@ pub async fn driver_ride(db: &PgPool, driver_id: Uuid, ride_id: Uuid) -> Result<
                 ROW(ST_Y(r.pickup_fuzzed::geometry), ST_X(r.pickup_fuzzed::geometry)),
                 ROW(r.pickup_address, ST_Y(r.pickup::geometry), ST_X(r.pickup::geometry)),
                 ROW(r.dropoff_address, ST_Y(r.dropoff::geometry), ST_X(r.dropoff::geometry)),
-                r.driver_earning_cents, r.payment_method::text,
+                r.driver_earning_cents,
+                ROW(r.payment_method::text, (SELECT p.status::text FROM payments p WHERE p.ride_id = r.id),
+                    r.driver_rating_skipped OR EXISTS (SELECT 1 FROM ratings g WHERE g.ride_id = r.id AND g.rater = 'driver')),
                 ROW(r.arrived_at, r.wait_started_at, r.started_at), r.pin_attempts
          FROM rides r WHERE r.id = $1 AND r.driver_id = $2",
     )
@@ -374,7 +389,9 @@ pub async fn driver_ride(db: &PgPool, driver_id: Uuid, ride_id: Uuid) -> Result<
         pickup: state.driver_sees_exact_pickup().then_some(Stop { address: pickup.0, lat: pickup.1, lon: pickup.2 }),
         dropoff: state.driver_sees_destination().then_some(Stop { address: dropoff.0, lat: dropoff.1, lon: dropoff.2 }),
         earning: Cents(earning),
-        payment_method: payment,
+        payment_method: payment.0,
+        payment_status: payment.1,
+        rated: payment.2,
         arrived_at: times.0,
         wait_started_at: times.1,
         no_show_from: times.1.map(|w| w + time::Duration::seconds(trip::FREE_WAIT_S)),
