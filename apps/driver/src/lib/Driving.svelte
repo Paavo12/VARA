@@ -1,6 +1,7 @@
 <!--
 	Driving (App Flow §4, PRD D-3 – D-5): go online and offline, the request card with its 15 s
 	countdown (earnings largest; no destination, only the pickup area), and the accepted trip.
+	After a PIN lockout she stays online but requests pause (App Flow §7), with a countdown.
 	While online the position goes over the socket every 4 s. After every (re)connect the
 	status is refetched, so a reload or a dropped connection resumes where it was.
 -->
@@ -194,6 +195,19 @@
 	});
 
 	const left = $derived(Math.max(0, Math.ceil((deadline - now) / 1000)));
+	const holdLeft = $derived(
+		status?.hold?.until ? Math.max(0, Math.ceil((Date.parse(status.hold.until) - now) / 1000)) : 0
+	);
+	// When the pause runs out, ask the API once whether requests are back.
+	let reloadedFor = '';
+	$effect(() => {
+		const until = status?.hold?.until;
+		if (until && holdLeft === 0 && reloadedFor !== until) {
+			reloadedFor = until;
+			void load();
+		}
+	});
+	const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 	const progress = $derived(offer ? Math.max(0, (deadline - now) / 15_000) : 0);
 	const RING = 2 * Math.PI * 44;
 </script>
@@ -252,8 +266,20 @@
 {:else if showEarnings}
 	<Earnings onback={() => (showEarnings = false)} />
 {:else if status?.online}
-	<Screen title="You’re online" lead="Looking for passengers near you…">
-		<div class="radar" aria-hidden="true"><span class="ring-pulse"></span></div>
+	<Screen
+		title="You’re online"
+		lead={status.hold ? 'New requests are paused.' : 'Looking for passengers near you…'}
+	>
+		{#if status.hold}
+			<Notice tone="attention">
+				<p>{status.hold.message}</p>
+				{#if status.hold.until}
+					<p class="pause">Requests resume in <strong>{mmss(holdLeft)}</strong></p>
+				{/if}
+			</Notice>
+		{:else}
+			<div class="radar" aria-hidden="true"><span class="ring-pulse"></span></div>
+		{/if}
 		<p class="hint">Ride types: {status.tiers.map((t) => NAMES[t] ?? t).join(', ')}</p>
 		{#if notice}<Notice tone="info"><p>{notice}</p></Notice>{/if}
 		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
@@ -362,6 +388,10 @@
 		.bar {
 			transition: none;
 		}
+	}
+	.pause {
+		margin-top: var(--space-2);
+		font-variant-numeric: tabular-nums;
 	}
 	.hint {
 		margin: 0;

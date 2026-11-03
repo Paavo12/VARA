@@ -4,8 +4,9 @@
 //! - **Arrival** needs her last reported position within 50 m of the exact pickup (she has
 //!   only seen the fuzzy circle until then). Location updates mark it automatically; `arrive`
 //!   is the button for when they are slow.
-//! - **PIN**: five wrong entries block the trip (`BLOCKED`) and raise a `pin_lockout` incident
-//!   for the safety desk. The correct one unlocks the destination.
+//! - **PIN**: five wrong entries block the trip (`BLOCKED`), raise a `pin_lockout` incident
+//!   for the safety desk and hold her from new requests for a while (see
+//!   [`presence::lockout_hold`]). The correct one unlocks the destination.
 //! - Every action locks the ride row and goes through the state machine, so a double tap or a
 //!   rider cancelling at the same moment can never apply twice.
 
@@ -15,7 +16,11 @@ use axum::{
     http::StatusCode,
 };
 use fuber_common::validate::{LatLng, Pin4};
-use fuber_db::rides::{self, RideError};
+use fuber_db::{
+    presence,
+    rides::{self, RideError},
+    settings::Dispatch,
+};
 use fuber_domain::{
     Party, RideEvent, RideState, TransitionError,
     trip::{self, PinCheck},
@@ -176,11 +181,20 @@ pub async fn pin(
             .bind(user.user_id)
             .execute(&mut *tx)
             .await?;
+            // No priority points are taken: the wrong PINs may not be her fault.
+            let rules = Dispatch::load(&mut *tx).await?.lockout;
+            let hold = presence::lockout_hold(&mut *tx, user.user_id, &rules).await?;
             tx.commit().await?;
-            tracing::warn!(security_event = "pin_lockout", ride_id = %id, driver_id = %user.user_id, "trip blocked after 5 wrong PINs");
+            tracing::warn!(security_event = "pin_lockout", ride_id = %id, driver_id = %user.user_id, review = hold.is_some_and(|h| h.until.is_none()), "trip blocked after 5 wrong PINs");
+            let pause = match hold {
+                Some(presence::Hold { until: None }) => "You'll get no new requests until they have reviewed it.".to_owned(),
+                _ => format!("You'll get no new requests for {} minutes.", (rules.hold_s + 59) / 60),
+            };
             Err(ApiError::conflict(
                 "pin_locked",
-                "Too many wrong PINs. This trip is blocked and FUber's safety team has been alerted. Don't start the trip; they will call you.",
+                format!(
+                    "Too many wrong PINs. This trip is blocked and FUber's safety team has been alerted. Don't start the trip; they will call you. {pause}"
+                ),
             ))
         }
     }

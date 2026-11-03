@@ -145,6 +145,7 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
             exclude: &asked,
             rider_id: Some(rider_id),
             limit: cfg.max_candidates,
+            lockout: cfg.lockout,
         },
     )
     .await?;

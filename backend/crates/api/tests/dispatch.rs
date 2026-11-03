@@ -402,6 +402,7 @@ async fn only_approved_drivers_signed_in_on_a_phone_receive_requests() {
             exclude: &[],
             rider_id: None,
             limit: 10,
+            lockout: fuber_db::settings::Dispatch::default().lockout,
         },
     )
     .await
