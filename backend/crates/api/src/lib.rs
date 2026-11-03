@@ -21,6 +21,7 @@ mod routes {
     pub mod places;
     pub mod rides;
     pub mod storage;
+    pub mod trip;
     pub mod uploads;
 }
 
@@ -147,6 +148,14 @@ pub fn router(state: AppState) -> Router {
         .route("/driver/location", put(routes::driving::location))
         .route("/offers/{id}/accept", post(routes::driving::accept))
         .route("/offers/{id}/decline", post(routes::driving::decline))
+        // Trip (driver)
+        .route("/rides/{id}/arrive", post(routes::trip::arrive))
+        .route("/rides/{id}/pin", post(routes::trip::pin))
+        .route("/rides/{id}/wait", post(routes::trip::wait))
+        .route("/rides/{id}/no-show", post(routes::trip::no_show))
+        .route("/rides/{id}/start", post(routes::trip::start))
+        .route("/rides/{id}/complete", post(routes::trip::complete))
+        .route("/rides/{id}/driver-cancel", post(routes::trip::driver_cancel))
         // Real-time updates
         .route("/ws", get(live::upgrade))
         // Ops (staff)

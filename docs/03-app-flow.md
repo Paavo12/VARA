@@ -251,13 +251,16 @@ Rider (or driver) taps **Share trip** → token created → native share sheet /
 
 | Who / when | Result | Priority points |
 | --- | --- | --- |
-| Rider, before assignment | CANCELLED, no fee | No cost |
+| Rider, before assignment | CANCELLED, no fee | −5 × nth cancellation (a scheduled ride cancelled before dispatch: no cost) |
 | Rider, after assignment | CANCELLED, no fee; driver notified | −5 × nth cancellation |
 | Driver, after accepting | Back to SEARCHING, she is excluded | −5 × nth cancellation |
 | Driver, no-show after 5-min wait | CANCELLED | Counts against the **rider** |
 | Completed trip | — | +2 each (max 150) |
+| 5 wrong PINs at pickup | BLOCKED, safety desk alerted; driver held from new requests (below) | No cost to either |
 
 Points are never shown in the apps; only ops sees them.
+
+**Hold after a PIN lockout** (decided 2026-11-03): the driver gets no new requests for **15 minutes**, then requests resume on their own, whether or not ops has reviewed the incident. She can stay online and sees why, with a countdown. Ops can release her early (closing the incident) or suspend her at any time. **3 lockouts within 7 days** hold her until ops closes the latest one. The three numbers are settings (`safety.lockout_hold_s`, `safety.lockout_repeat`, `safety.lockout_window_days`).
 
 ## 8. Payment & rating
 

@@ -8,7 +8,7 @@
 //! The HTTP endpoints and the WebSocket push use these same functions.
 
 use fuber_common::validate::LatLng;
-use fuber_domain::{Cents, RideState, Tier, pricing::Fare};
+use fuber_domain::{Cents, RideState, Tier, pricing::Fare, trip};
 use serde::Serialize;
 use sqlx::PgPool;
 use time::OffsetDateTime;
@@ -90,7 +90,30 @@ pub struct RiderRide {
     pub driver: Option<AssignedDriver>,
     /// `rider`, `driver`, `system` or `staff` for cancelled rides.
     pub cancelled_by: Option<String>,
+    /// Trip time once she is in the car ("trip takes Y min", PRD T-1).
+    pub trip_duration_s: i32,
+    /// The driver reached the pickup.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub arrived_at: Option<OffsetDateTime>,
+    /// The driver's 5-minute free wait started (after it she may cancel as a no-show).
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub wait_started_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub started_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub completed_at: Option<OffsetDateTime>,
 }
+
+/// Timestamps of a ride, in order.
+type Times = (
+    Option<OffsetDateTime>,
+    OffsetDateTime,
+    Option<OffsetDateTime>,
+    Option<OffsetDateTime>,
+    Option<OffsetDateTime>,
+    Option<OffsetDateTime>,
+    Option<OffsetDateTime>,
+);
 
 /// Who the driver is picking up (PRD D-4, B-5).
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -122,6 +145,18 @@ pub struct DriverRide {
     /// What she earns for this trip, in cents.
     pub earning: Cents,
     pub payment_method: String,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub arrived_at: Option<OffsetDateTime>,
+    /// When she started the free wait at the pickup.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub wait_started_at: Option<OffsetDateTime>,
+    /// From then she may cancel as a rider no-show (`POST /rides/{id}/no-show`).
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub no_show_from: Option<OffsetDateTime>,
+    /// Wrong PINs she may still enter before the trip is blocked.
+    pub pin_attempts_left: i16,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub started_at: Option<OffsetDateTime>,
 }
 
 /// The request card (PRD D-4). No destination, no exact pickup.
@@ -158,9 +193,10 @@ type RiderRow = (
     serde_json::Value,
     String,
     String,
-    (Option<OffsetDateTime>, OffsetDateTime, Option<OffsetDateTime>),
+    Times,
     Option<Uuid>,
     Option<String>,
+    i32,
 );
 
 /// The rider's view of one of her rides.
@@ -170,8 +206,8 @@ pub async fn rider_ride(db: &PgPool, rider_id: Uuid, ride_id: Uuid) -> Result<Op
                 ROW(r.pickup_address, ST_Y(r.pickup::geometry), ST_X(r.pickup::geometry)),
                 ROW(r.dropoff_address, ST_Y(r.dropoff::geometry), ST_X(r.dropoff::geometry)),
                 r.fare_breakdown, r.payment_method::text, r.pin,
-                ROW(r.scheduled_for, r.requested_at, r.search_started_at),
-                r.driver_id, r.cancelled_by::text
+                ROW(r.scheduled_for, r.requested_at, r.search_started_at, r.arrived_at, r.wait_started_at, r.started_at, r.completed_at),
+                r.driver_id, r.cancelled_by::text, r.quote_duration_s
          FROM rides r WHERE r.id = $1 AND r.rider_id = $2",
     )
     .bind(ride_id)
@@ -194,6 +230,7 @@ pub async fn rider_ride(db: &PgPool, rider_id: Uuid, ride_id: Uuid) -> Result<Op
         times,
         driver_id,
         cancelled_by,
+        trip_duration_s,
     )) = row
     else {
         return Ok(None);
@@ -221,6 +258,11 @@ pub async fn rider_ride(db: &PgPool, rider_id: Uuid, ride_id: Uuid) -> Result<Op
         search_started_at: if state == RideState::Searching { times.2 } else { None },
         driver,
         cancelled_by,
+        trip_duration_s,
+        arrived_at: times.3,
+        wait_started_at: times.4,
+        started_at: times.5,
+        completed_at: times.6,
     }))
 }
 
@@ -285,7 +327,21 @@ async fn area(db: &PgPool, lat: f64, lon: f64) -> Result<Area, sqlx::Error> {
     Ok(Area { label: places::approx_area(db, LatLng { lat, lon }).await?, lat, lon, radius_m: FUZZY_RADIUS_M })
 }
 
-type DriverRow = (Uuid, String, String, String, i16, bool, (f64, f64), (String, f64, f64), (String, f64, f64), i64, String);
+type DriverRow = (
+    Uuid,
+    String,
+    String,
+    String,
+    i16,
+    bool,
+    (f64, f64),
+    (String, f64, f64),
+    (String, f64, f64),
+    i64,
+    String,
+    (Option<OffsetDateTime>, Option<OffsetDateTime>, Option<OffsetDateTime>),
+    i16,
+);
 
 /// The driver's view of the ride she is assigned to.
 pub async fn driver_ride(db: &PgPool, driver_id: Uuid, ride_id: Uuid) -> Result<Option<DriverRide>, sqlx::Error> {
@@ -294,14 +350,17 @@ pub async fn driver_ride(db: &PgPool, driver_id: Uuid, ride_id: Uuid) -> Result<
                 ROW(ST_Y(r.pickup_fuzzed::geometry), ST_X(r.pickup_fuzzed::geometry)),
                 ROW(r.pickup_address, ST_Y(r.pickup::geometry), ST_X(r.pickup::geometry)),
                 ROW(r.dropoff_address, ST_Y(r.dropoff::geometry), ST_X(r.dropoff::geometry)),
-                r.driver_earning_cents, r.payment_method::text
+                r.driver_earning_cents, r.payment_method::text,
+                ROW(r.arrived_at, r.wait_started_at, r.started_at), r.pin_attempts
          FROM rides r WHERE r.id = $1 AND r.driver_id = $2",
     )
     .bind(ride_id)
     .bind(driver_id)
     .fetch_optional(db)
     .await?;
-    let Some((id, code, state, tier, passengers, wheelchair, fuzzed, pickup, dropoff, earning, payment)) = row else { return Ok(None) };
+    let Some((id, code, state, tier, passengers, wheelchair, fuzzed, pickup, dropoff, earning, payment, times, pin_attempts)) = row else {
+        return Ok(None);
+    };
     let state = RideState::parse(&state).unwrap_or(RideState::Cancelled);
     Ok(Some(DriverRide {
         id,
@@ -316,6 +375,11 @@ pub async fn driver_ride(db: &PgPool, driver_id: Uuid, ride_id: Uuid) -> Result<
         dropoff: state.driver_sees_destination().then_some(Stop { address: dropoff.0, lat: dropoff.1, lon: dropoff.2 }),
         earning: Cents(earning),
         payment_method: payment,
+        arrived_at: times.0,
+        wait_started_at: times.1,
+        no_show_from: times.1.map(|w| w + time::Duration::seconds(trip::FREE_WAIT_S)),
+        pin_attempts_left: (trip::PIN_ATTEMPTS - pin_attempts).max(0),
+        started_at: times.2,
     }))
 }
 

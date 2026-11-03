@@ -1883,6 +1883,62 @@
         ]
       }
     },
+    "/v1/rides/{id}/arrive": {
+      "post": {
+        "tags": [
+          "trip"
+        ],
+        "operationId": "arrive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arrived: the exact pickup is unlocked; ask for the PIN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`not_at_pickup` (more than 50 m away, or no recent position) or `invalid_state`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/rides/{id}/cancel": {
       "post": {
         "tags": [
@@ -1939,6 +1995,253 @@
         ]
       }
     },
+    "/v1/rides/{id}/complete": {
+      "post": {
+        "tags": [
+          "trip"
+        ],
+        "operationId": "complete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Completed. Cash: collect the locked fare",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`invalid_state`: the trip hasn't started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/driver-cancel": {
+      "post": {
+        "tags": [
+          "trip"
+        ],
+        "operationId": "driver_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriverCancel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Released: the request goes back to the pool without her. Free, but it costs priority (PRD T-7)"
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`invalid_state`: not after the PIN",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/no-show": {
+      "post": {
+        "tags": [
+          "trip"
+        ],
+        "operationId": "no_show",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled as a rider no-show: free, and it counts against the rider",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`wait_not_over` (start the wait, then 5 minutes) or `invalid_state`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/pin": {
+      "post": {
+        "tags": [
+          "trip"
+        ],
+        "operationId": "pin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinEntry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Correct: the destination is unlocked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`pin_locked`: that was the 5th wrong PIN; the trip is blocked and the safety desk alerted. Or `invalid_state`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`wrong_pin` (the message says how many attempts are left) or not 4 digits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/rides/{id}/retry": {
       "post": {
         "tags": [
@@ -1979,6 +2282,118 @@
           },
           "409": {
             "description": "`invalid_state`: only after *No drivers accepted*",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/start": {
+      "post": {
+        "tags": [
+          "trip"
+        ],
+        "operationId": "start",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "In trip: drive to the destination",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`invalid_state`: the PIN must be verified first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/wait": {
+      "post": {
+        "tags": [
+          "trip"
+        ],
+        "operationId": "wait",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The 5-minute free wait is running (starting it again changes nothing)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriverRide"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`invalid_state`: only at the pickup, before the PIN",
             "content": {
               "application/json": {
                 "schema": {
@@ -2485,6 +2900,28 @@
           "transport_permit"
         ]
       },
+      "DriverCancel": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/DriverCancelReason"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DriverCancelReason": {
+        "type": "string",
+        "enum": [
+          "rider_asked_me",
+          "cant_reach_pickup",
+          "feel_unsafe",
+          "vehicle_problem",
+          "other"
+        ]
+      },
       "DriverDocument": {
         "type": "object",
         "required": [
@@ -2643,9 +3080,17 @@
           "passenger",
           "pickup_area",
           "earning",
-          "payment_method"
+          "payment_method",
+          "pin_attempts_left"
         ],
         "properties": {
+          "arrived_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "code": {
             "type": "string"
           },
@@ -2667,6 +3112,14 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "no_show_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "From then she may cancel as a rider no-show (`POST /rides/{id}/no-show`)."
           },
           "passenger": {
             "$ref": "#/components/schemas/Passenger"
@@ -2692,12 +3145,32 @@
           "pickup_area": {
             "$ref": "#/components/schemas/Area"
           },
+          "pin_attempts_left": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Wrong PINs she may still enter before the trip is blocked."
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "state": {
             "type": "string",
             "example": "DRIVER_EN_ROUTE"
           },
           "tier": {
             "$ref": "#/components/schemas/Tier"
+          },
+          "wait_started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When she started the free wait at the pickup."
           },
           "wheelchair": {
             "type": "boolean"
@@ -2711,6 +3184,17 @@
           "tiers"
         ],
         "properties": {
+          "hold": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HoldView",
+                "description": "Set while she gets no requests after a PIN lockout; she may stay online meanwhile."
+              }
+            ]
+          },
           "offer": {
             "oneOf": [
               {
@@ -2931,6 +3415,25 @@
           }
         },
         "additionalProperties": false
+      },
+      "HoldView": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When requests start again. Absent while the safety desk reviews repeated lockouts."
+          }
+        }
       },
       "LatLng": {
         "type": "object",
@@ -3338,6 +3841,20 @@
           "branch_code": {
             "type": "string",
             "example": "483872"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PinEntry": {
+        "type": "object",
+        "required": [
+          "pin"
+        ],
+        "properties": {
+          "pin": {
+            "type": "string",
+            "description": "The 4 digits the passenger shows or says.",
+            "example": "0427"
           }
         },
         "additionalProperties": false
@@ -3765,9 +4282,18 @@
           "fare",
           "payment_method",
           "pin",
-          "requested_at"
+          "requested_at",
+          "trip_duration_s"
         ],
         "properties": {
+          "arrived_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The driver reached the pickup."
+          },
           "cancelled_by": {
             "type": [
               "string",
@@ -3778,6 +4304,13 @@
           "code": {
             "type": "string",
             "description": "Short reference such as `FU-4102`."
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           },
           "driver": {
             "oneOf": [
@@ -3841,12 +4374,32 @@
             "format": "date-time",
             "description": "When the current search started (searching rides)."
           },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "state": {
             "type": "string",
             "example": "SEARCHING"
           },
           "tier": {
             "$ref": "#/components/schemas/Tier"
+          },
+          "trip_duration_s": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Trip time once she is in the car (\"trip takes Y min\", PRD T-1)."
+          },
+          "wait_started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The driver's 5-minute free wait started (after it she may cancel as a no-show)."
           },
           "wheelchair": {
             "type": "boolean"
@@ -4343,6 +4896,10 @@
     {
       "name": "dispatch",
       "description": "Going online, positions and ride requests (driver app). Live updates: WebSocket `/v1/ws`"
+    },
+    {
+      "name": "trip",
+      "description": "Arriving, the PIN, the free wait, start, complete and cancel (driver app)"
     },
     {
       "name": "ops",
