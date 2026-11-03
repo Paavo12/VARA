@@ -26,6 +26,9 @@ use crate::{ops, routes};
         routes::driving::accept, routes::driving::decline,
         routes::trip::arrive, routes::trip::pin, routes::trip::wait, routes::trip::no_show, routes::trip::start,
         routes::trip::complete, routes::trip::driver_cancel,
+        routes::earnings::cash_received, routes::earnings::earnings,
+        routes::ratings::rate, routes::ratings::skip, routes::ratings::favourites, routes::ratings::remove_favourite,
+        routes::history::rider_trips, routes::history::driver_trips,
         routes::safety::sos,
         ops::auth::login, ops::auth::logout,
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
@@ -45,6 +48,9 @@ use crate::{ops, routes};
         (name = "booking", description = "Places, quotes and ride requests (rider app)"),
         (name = "dispatch", description = "Going online, positions and ride requests (driver app). Live updates: WebSocket `/v1/ws`"),
         (name = "trip", description = "Arriving, the PIN, the free wait, start, complete and cancel (driver app)"),
+        (name = "earnings", description = "Cash confirmation and the driver's earnings (driver app)"),
+        (name = "ratings", description = "Ratings and favourite drivers"),
+        (name = "history", description = "Trip history for riders and drivers"),
         (name = "safety", description = "SOS from either app"),
         (name = "ops", description = "Staff: verification and driver review, the safety desk's incident queue"),
     )
@@ -127,6 +133,13 @@ mod tests {
             "/v1/rides/{id}/start",
             "/v1/rides/{id}/complete",
             "/v1/rides/{id}/driver-cancel",
+            "/v1/rides/{id}/cash-received",
+            "/v1/rides/{id}/rating",
+            "/v1/rides/{id}/rating/skip",
+            "/v1/me/favourite-drivers",
+            "/v1/me/favourite-drivers/{driver_id}",
+            "/v1/driver/trips",
+            "/v1/driver/earnings",
         ] {
             assert!(doc.contains(&format!("\"{path}\"")), "{path} missing from OpenAPI");
         }
