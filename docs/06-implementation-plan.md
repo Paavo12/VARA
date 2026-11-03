@@ -106,7 +106,7 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** full ride on staging with real devices; SOS reaches the (API-level) incident queue and emergency-contact SMS in < 5 s; RideCheck fires in a scripted drive.
 
-**Status (2026-11-02):** in progress on branch `phase-3/trip-safety`. Done (backend, T-2 – T-7): arrival within 50 m (marked by location updates or `POST /rides/{id}/arrive`), PIN entry with 5-attempt lockout to `BLOCKED` plus a `pin_lockout` incident, the 5-minute free wait and rider no-show, start, complete (+2 priority each), driver cancel with a reason back to the pool without her, the rider following the car until drop-off, and the trip GPS track (10 s samples). Integration tests in `crates/api/tests/trip.rs` cover the full trip, lockout, no-show, driver cancel and wrong-user access on every trip endpoint. Cancelling always costs priority points, also for a rider before assignment (decided 2026-11-02; App Flow §7 said no cost). Still open: the driver and rider trip screens, chat and masked calling (T-8), SOS, Share trip, RideCheck (S-1 – S-3) and Report an issue (S-5).
+**Status (2026-11-02):** in progress on branch `phase-3/trip-safety`. Done (backend, T-2 – T-7): arrival within 50 m (marked by location updates or `POST /rides/{id}/arrive`), PIN entry with 5-attempt lockout to `BLOCKED` plus a `pin_lockout` incident, the 5-minute free wait and rider no-show, start, complete (+2 priority each), driver cancel with a reason back to the pool without her, the rider following the car until drop-off, and the trip GPS track (10 s samples). Integration tests in `crates/api/tests/trip.rs` cover the full trip, lockout, no-show, driver cancel and wrong-user access on every trip endpoint. Cancelling always costs priority points, also for a rider before assignment (decided 2026-11-02; App Flow §7 said no cost). After a PIN lockout the driver gets no requests for 15 minutes (until ops reviews, after 3 lockouts in 7 days) and loses no points (decided 2026-11-03, App Flow §7). Still open: the driver and rider trip screens, chat and masked calling (T-8), SOS, Share trip, RideCheck (S-1 – S-3) and Report an issue (S-5).
 
 ### Phase 4 — Payments, ratings, earnings (3 weeks)
 
@@ -129,6 +129,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 - Reports (O-8).
 
 **Exit:** a safety agent handles a scripted SOS end-to-end within 60 s; every ops action appears in the audit log.
+
+**Status (2026-11-02):** a first review page (O-1) is in `apps/ops` on branch `ops/review-page`, ahead of the rest of this phase: staff sign-in (password + authenticator code), the queues of driver applications and rider ID checks, and review screens to approve or reject each document, the car, the ride types and the application, and to verify riders. The staff token is kept in memory only (a reload signs out) until the cookie + CSRF session below. Locally it runs at `http://127.0.0.1:5175` (`npm run dev -w @fuber/ops`); create staff with the `staff` binary.
 
 ### Phase 6 — Hardening (3 weeks)
 

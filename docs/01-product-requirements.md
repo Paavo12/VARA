@@ -39,7 +39,7 @@ Plus a public website (`fuber.app`, placeholder domain) for driver applications,
 | Trustworthy verification | Rider verification decided within | ≤ 24 h (median ≤ 2 h) |
 | | Driver application decided within | ≤ 5 working days |
 | Safety response | SOS acknowledged by a human | ≤ 60 s, 24/7 |
-| Driver earnings | Drivers keep of each fare | 97–98 % (service fee 2–3 %) |
+| Driver earnings | Drivers keep of each fare | 82–85 % (service fee 15–18 %, below Bolt's 18–24 %) |
 | Reliability | API availability | ≥ 99.5 % monthly |
 
 ### Non-goals (v1)
@@ -109,7 +109,7 @@ Priority: **M** = must for launch, **S** = should (launch if ready), **C** = cou
 | --- | --- | --- |
 | T-1 | Rider sees driver photo, first name, verified badge, rating, car, colour, plate, live position, *arriving in X min*, *trip takes Y min*, and a **4-digit PIN**. | M |
 | T-2 | Driver navigates to a **fuzzy pickup circle**. The exact pickup address unlocks within 50 m of the pin. | M |
-| T-3 | At pickup the driver enters the rider's PIN. Wrong PIN → rejection; 5 wrong attempts → trip blocked and safety desk alerted. Correct PIN → **destination unlocks** for the driver. | M |
+| T-3 | At pickup the driver enters the rider's PIN. Wrong PIN → rejection; 5 wrong attempts → trip blocked, safety desk alerted, and the driver gets no requests for 15 min (until reviewed after 3 lockouts in 7 days; App Flow §7). Correct PIN → **destination unlocks** for the driver. | M |
 | T-4 | Driver starts the trip; both apps follow the live route. Turn-by-turn on the driver app (in-app, or hand-off to Google Maps/Waze — §10). | M |
 | T-5 | Wait timer: driver may start a 5-minute free wait at pickup; afterwards she may cancel as rider no-show (counts as a rider cancellation for priority points). | M |
 | T-6 | Driver completes the trip with a slide gesture at or near the destination. | M |
@@ -136,7 +136,7 @@ Priority: **M** = must for launch, **S** = should (launch if ready), **C** = cou
 | P-2 | **Cash**: driver confirms cash received at trip end. | M |
 | P-3 | **Card**: card saved via a PCI-compliant payment provider (tokenised; FUber never sees card numbers). Pre-authorise at request, capture at completion, release on cancellation. | M |
 | P-4 | Fare breakdown after trip: base + distance + time + surge; receipt by email (optional) and in trip history. | M |
-| P-5 | Service fee (2 / 2.5 / 3 %) deducted from the driver's share. Drivers see per-trip earnings before accepting. | M |
+| P-5 | Service fee (15 / 16.5 / 18 %) deducted from the driver's share. Drivers see per-trip earnings before accepting. | M |
 | P-6 | Driver earnings dashboard: today, week, trips, hours online, per-trip list. Cash trips accrue a service-fee balance owed to FUber; card trips accrue a payout balance. Weekly settlement. | M |
 | P-7 | FUber wallet / mobile money top-up. | C |
 | P-8 | Tipping. | C |
@@ -189,9 +189,11 @@ Detailed in the [TRD](02-technical-requirements.md).
 
 | Type | Base | Per km | Per min | Minimum | Service fee |
 | --- | --- | --- | --- | --- | --- |
-| Classic | 15 | 8 | 1.20 | 35 | 2 % |
-| Comfort | 20 | 10 | 1.50 | 45 | 2.5 % |
-| Soft Life | 28 | 13 | 2.00 | 60 | 3 % |
+| Classic | 15 | 8 | 1.20 | 35 | 15 % |
+| Comfort | 20 | 10 | 1.50 | 45 | 16.5 % |
+| Soft Life | 28 | 13 | 2.00 | 60 | 18 % |
+
+Service fee raised on 2 November 2026 from the demo's 2 / 2.5 / 3 %, which earned N$2–3 on a N$100 fare against N$2.10–3.60 of per-trip costs (SMS, maps, payment fees), a loss on every ride. At 15–18 % the platform keeps about N$12–15 per N$100 trip after those costs and breaks even at about 7,600 trips a month (fixed overhead N$48,500–97,500 a month, including the 24/7 safety desk). Bolt takes 18–24 % and Yango 15–20 %. Fares for riders did not change (migration `0007_service_fees.sql`).
 
 Surge: High 1.4×, Peak 1.8×, set per zone by ops (automatic surge is phase 2). Time component uses the demand level's base traffic factor, so the quote is stable (fixed demo bug, see commit c284f3e). No booking, cancellation or no-show fees in v1.
 

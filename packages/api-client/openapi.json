@@ -3586,6 +3586,17 @@
           "tiers"
         ],
         "properties": {
+          "hold": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HoldView",
+                "description": "Set while she gets no requests after a PIN lockout; she may stay online meanwhile."
+              }
+            ]
+          },
           "offer": {
             "oneOf": [
               {
@@ -3994,6 +4005,25 @@
           }
         },
         "additionalProperties": false
+      },
+      "HoldView": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When requests start again. Absent while the safety desk reviews repeated lockouts."
+          }
+        }
       },
       "LatLng": {
         "type": "object",

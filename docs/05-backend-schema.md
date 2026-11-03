@@ -698,6 +698,10 @@ Migration `0003_identity_onboarding.sql` adds `uploads` (signed-URL upload pipel
 
 Migration `0005_booking_dispatch.sql` adds the `unaccent` and `pg_trgm` extensions, `fold_text()` (case- and accent-insensitive search key), `places` (landmarks, suburbs and streets with a trigram index), `driver_presence` (online drivers: session, shift, vehicle, tiers, wheelchair, position, heading, speed), `driver_shifts.end_reason`, ride fields `idempotency_key` (unique per rider), `demand_level`, `search_round` and `search_started_at`, and `ride_offers.round` and `earning_cents` with one pending offer per ride and per driver; triggers `notify_ride_event` and `notify_offer` feed `pg_notify('fuber_events')`. New settings: `dispatch.location_stale_s`, `dispatch.max_candidates`, `dispatch.fuzz_min_m` / `fuzz_max_m`, `booking.quote_ttl_s` and `booking.schedule_min_s` / `schedule_max_s` / `schedule_lead_s`. `0006_seed_places.sql` seeds 1,789 Windhoek places generated from the demo's OSM data by `infra/places/build-places.js`.
 
+### Service fee change
+
+Migration `0007_service_fees.sql` adds new `pricing_tiers` rows effective 2 November 2026 with service fees of 15 / 16.5 / 18 % (1500 / 1650 / 1800 bp); fares are unchanged. Rides keep the `pricing_tier_id` they were quoted with.
+
 ### Phase 4 schema changes
 
 Migration `0008_payments_ratings.sql` (0007 is the service-fee change) adds `rides.driver_rating_skipped`, a unique index so each trip books one ledger entry per kind, and history indexes on `rides`. Completing a trip inserts a `pending` row in `payments`; for cash, `cash-received` moves it to `cash_confirmed` and books `service_fee` (negative) in `driver_ledger`.
