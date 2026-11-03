@@ -15,6 +15,7 @@ use fuber_common::validate::LatLng;
 use fuber_db::{
     presence::{self, NotEligible, Position},
     rides,
+    settings::Dispatch,
 };
 use fuber_domain::{Party, RideEvent};
 use serde::{Deserialize, Serialize};
@@ -64,16 +65,40 @@ pub struct DriverStatus {
     pub offer: Option<OfferCard>,
     /// The trip she is on, if any.
     pub ride: Option<DriverRide>,
+    /// Set while she gets no requests after a PIN lockout; she may stay online meanwhile.
+    pub hold: Option<HoldView>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct HoldView {
+    /// When requests start again. Absent while the safety desk reviews repeated lockouts.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub until: Option<OffsetDateTime>,
+    pub message: String,
+}
+
+impl HoldView {
+    pub fn new(hold: presence::Hold) -> HoldView {
+        let message = match hold.until {
+            Some(_) => "After a PIN lockout you get no new requests for a short while. FUber's safety team may call you.",
+            None => {
+                "You've had several PIN lockouts recently. FUber's safety team will contact you and review them before you get new requests."
+            }
+        };
+        HoldView { until: hold.until, message: message.into() }
+    }
 }
 
 pub(crate) async fn status_of(s: &AppState, user: &AuthUser) -> Result<DriverStatus, ApiError> {
     let online = presence::status(&s.db, user.user_id, user.session_id).await?;
+    let rules = Dispatch::load(&s.db).await?.lockout;
     Ok(DriverStatus {
         online: online.is_some(),
         online_since: online.as_ref().map(|o| o.online_since),
         tiers: online.map(|o| o.tiers).unwrap_or_default(),
         offer: views::pending_offer(&s.db, user.user_id).await?,
         ride: views::driver_current(&s.db, user.user_id).await?,
+        hold: presence::lockout_hold(&s.db, user.user_id, &rules).await?.map(HoldView::new),
     })
 }
 

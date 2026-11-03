@@ -109,7 +109,7 @@ Priority: **M** = must for launch, **S** = should (launch if ready), **C** = cou
 | --- | --- | --- |
 | T-1 | Rider sees driver photo, first name, verified badge, rating, car, colour, plate, live position, *arriving in X min*, *trip takes Y min*, and a **4-digit PIN**. | M |
 | T-2 | Driver navigates to a **fuzzy pickup circle**. The exact pickup address unlocks within 50 m of the pin. | M |
-| T-3 | At pickup the driver enters the rider's PIN. Wrong PIN → rejection; 5 wrong attempts → trip blocked and safety desk alerted. Correct PIN → **destination unlocks** for the driver. | M |
+| T-3 | At pickup the driver enters the rider's PIN. Wrong PIN → rejection; 5 wrong attempts → trip blocked, safety desk alerted, and the driver gets no requests for 15 min (until reviewed after 3 lockouts in 7 days; App Flow §7). Correct PIN → **destination unlocks** for the driver. | M |
 | T-4 | Driver starts the trip; both apps follow the live route. Turn-by-turn on the driver app (in-app, or hand-off to Google Maps/Waze — §10). | M |
 | T-5 | Wait timer: driver may start a 5-minute free wait at pickup; afterwards she may cancel as rider no-show (counts as a rider cancellation for priority points). | M |
 | T-6 | Driver completes the trip with a slide gesture at or near the destination. | M |

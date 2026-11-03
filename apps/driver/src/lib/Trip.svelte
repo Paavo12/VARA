@@ -270,6 +270,9 @@
 		<Notice tone="attention" title="Don’t start the trip">
 			<p>FUber’s safety team has been alerted and will call you. Don’t let anyone in the car.</p>
 		</Notice>
+		<p class="note">
+			New requests pause for a while. You can stay online; the app shows when they resume.
+		</p>
 		{#snippet footer()}<Button variant="secondary" onclick={ondone}>Back</Button>{/snippet}
 	</Screen>
 {:else}
@@ -369,6 +372,10 @@
 		75% {
 			transform: translateX(8px);
 		}
+	}
+	.note {
+		margin: 0;
+		color: var(--color-text-muted);
 	}
 	.reasons {
 		display: grid;

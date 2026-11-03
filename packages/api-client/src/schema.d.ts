@@ -999,6 +999,7 @@ export interface components {
             wheelchair: boolean;
         };
         DriverStatus: {
+            hold?: null | components["schemas"]["HoldView"];
             offer?: null | components["schemas"]["OfferCard"];
             online: boolean;
             /** Format: date-time */
@@ -1063,6 +1064,14 @@ export interface components {
              * @example +264811234567
              */
             phone: string;
+        };
+        HoldView: {
+            message: string;
+            /**
+             * Format: date-time
+             * @description When requests start again. Absent while the safety desk reviews repeated lockouts.
+             */
+            until?: string | null;
         };
         /**
          * @description A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is
