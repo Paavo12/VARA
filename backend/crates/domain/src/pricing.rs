@@ -13,7 +13,7 @@ pub struct Rates {
     pub per_km: Cents,
     pub per_min: Cents,
     pub minimum: Cents,
-    /// FUber's service fee in basis points (200 = 2 %), taken from the driver's share.
+    /// FUber's service fee in basis points (1500 = 15 %), taken from the driver's share.
     pub service_fee_bp: u32,
 }
 
@@ -21,13 +21,13 @@ impl Rates {
     pub fn default_for(tier: Tier) -> Rates {
         match tier {
             Tier::Classic => {
-                Rates { base: Cents(1500), per_km: Cents(800), per_min: Cents(120), minimum: Cents(3500), service_fee_bp: 200 }
+                Rates { base: Cents(1500), per_km: Cents(800), per_min: Cents(120), minimum: Cents(3500), service_fee_bp: 1500 }
             }
             Tier::Comfort => {
-                Rates { base: Cents(2000), per_km: Cents(1000), per_min: Cents(150), minimum: Cents(4500), service_fee_bp: 250 }
+                Rates { base: Cents(2000), per_km: Cents(1000), per_min: Cents(150), minimum: Cents(4500), service_fee_bp: 1650 }
             }
             Tier::SoftLife => {
-                Rates { base: Cents(2800), per_km: Cents(1300), per_min: Cents(200), minimum: Cents(6000), service_fee_bp: 300 }
+                Rates { base: Cents(2800), per_km: Cents(1300), per_min: Cents(200), minimum: Cents(6000), service_fee_bp: 1800 }
             }
         }
     }
@@ -110,11 +110,20 @@ mod tests {
 
     #[test]
     fn comfort_example_matches_hand_calculation() {
-        // 7.4 km, 15 min: 20 + 74 + 22.50 = N$116.50; 2.5 % fee = N$2.91 (2.9125 rounds down).
+        // 7.4 km, 15 min: 20 + 74 + 22.50 = N$116.50; 16.5 % fee = N$19.22 (19.2225 rounds down).
         let f = fare(&Rates::default_for(Tier::Comfort), 7400, 900, 10_000);
         assert_eq!(f.total, Cents(11650));
-        assert_eq!(f.service_fee, Cents(291));
-        assert_eq!(f.driver_earning, Cents(11359));
+        assert_eq!(f.service_fee, Cents(1922));
+        assert_eq!(f.driver_earning, Cents(9728));
+    }
+
+    #[test]
+    fn on_a_n100_fare_drivers_keep_85_83_50_and_82() {
+        for (tier, fee, kept) in [(Tier::Classic, 1500, 8500), (Tier::Comfort, 1650, 8350), (Tier::SoftLife, 1800, 8200)] {
+            let r = Rates::default_for(tier);
+            let fee_on_100 = Cents(10_000).mul_bp(r.service_fee_bp);
+            assert_eq!((fee_on_100, Cents(10_000) - fee_on_100), (Cents(fee), Cents(kept)), "{tier:?}");
+        }
     }
 
     #[test]
