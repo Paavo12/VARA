@@ -20,6 +20,7 @@ mod routes {
     pub mod me;
     pub mod places;
     pub mod rides;
+    pub mod safety;
     pub mod storage;
     pub mod trip;
     pub mod uploads;
@@ -156,6 +157,8 @@ pub fn router(state: AppState) -> Router {
         .route("/rides/{id}/start", post(routes::trip::start))
         .route("/rides/{id}/complete", post(routes::trip::complete))
         .route("/rides/{id}/driver-cancel", post(routes::trip::driver_cancel))
+        // Safety (either app; never rate-limited, see rate_limit::enforce)
+        .route("/safety/sos", post(routes::safety::sos))
         // Real-time updates
         .route("/ws", get(live::upgrade))
         // Ops (staff)

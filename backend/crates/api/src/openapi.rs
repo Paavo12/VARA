@@ -26,10 +26,12 @@ use crate::{ops, routes};
         routes::driving::accept, routes::driving::decline,
         routes::trip::arrive, routes::trip::pin, routes::trip::wait, routes::trip::no_show, routes::trip::start,
         routes::trip::complete, routes::trip::driver_cancel,
+        routes::safety::sos,
         ops::auth::login, ops::auth::logout,
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
         ops::drivers::queue, ops::drivers::detail, ops::drivers::set_tiers, ops::drivers::decide,
         ops::drivers::decide_document, ops::drivers::decide_vehicle,
+        ops::incidents::queue,
     ),
     components(schemas(routes::legal::LegalKind)),
     modifiers(&Security),
@@ -43,7 +45,8 @@ use crate::{ops, routes};
         (name = "booking", description = "Places, quotes and ride requests (rider app)"),
         (name = "dispatch", description = "Going online, positions and ride requests (driver app). Live updates: WebSocket `/v1/ws`"),
         (name = "trip", description = "Arriving, the PIN, the free wait, start, complete and cancel (driver app)"),
-        (name = "ops", description = "Staff: verification and driver review"),
+        (name = "safety", description = "SOS from either app"),
+        (name = "ops", description = "Staff: verification and driver review, the safety desk's incident queue"),
     )
 )]
 pub struct ApiDoc;

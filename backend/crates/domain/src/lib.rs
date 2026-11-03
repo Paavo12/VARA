@@ -8,6 +8,7 @@ pub mod money;
 pub mod pricing;
 pub mod priority;
 pub mod ride;
+pub mod safety;
 pub mod trip;
 
 pub use money::Cents;
