@@ -23,7 +23,7 @@ pub const DELETION_GRACE: Duration = Duration::days(30);
 
 const DOB_AAD: &str = "users.date_of_birth";
 const NATIONAL_ID_AAD: &str = "users.national_id";
-const CONTACT_PHONE_AAD: &str = "emergency_contacts.phone";
+use fuber_db::safety::CONTACT_PHONE_AAD;
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct Me {
