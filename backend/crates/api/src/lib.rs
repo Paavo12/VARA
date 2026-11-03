@@ -14,11 +14,14 @@ mod routes {
     pub mod auth;
     pub mod driver;
     pub mod driving;
+    pub mod earnings;
     pub mod fares;
     pub mod health;
+    pub mod history;
     pub mod legal;
     pub mod me;
     pub mod places;
+    pub mod ratings;
     pub mod rides;
     pub mod storage;
     pub mod trip;
@@ -34,7 +37,7 @@ use axum::{
     extract::{DefaultBodyLimit, MatchedPath, Request},
     http::{HeaderName, StatusCode},
     middleware,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
 };
 use fuber_common::{Config, Environment, RoutingConfig, SmsProvider};
 use fuber_integrations::{
@@ -136,7 +139,7 @@ pub fn router(state: AppState) -> Router {
         .route("/places", get(routes::places::search))
         .route("/places/reverse", get(routes::places::reverse))
         .route("/rides/quote", post(routes::rides::quote))
-        .route("/rides", post(routes::rides::create))
+        .route("/rides", post(routes::rides::create).get(routes::history::rider_trips))
         .route("/rides/active", get(routes::rides::active))
         .route("/rides/{id}", get(routes::rides::get))
         .route("/rides/{id}/cancel", post(routes::rides::cancel))
@@ -156,6 +159,14 @@ pub fn router(state: AppState) -> Router {
         .route("/rides/{id}/start", post(routes::trip::start))
         .route("/rides/{id}/complete", post(routes::trip::complete))
         .route("/rides/{id}/driver-cancel", post(routes::trip::driver_cancel))
+        // After the trip: cash, ratings, favourites, history, earnings
+        .route("/rides/{id}/cash-received", post(routes::earnings::cash_received))
+        .route("/rides/{id}/rating", post(routes::ratings::rate))
+        .route("/rides/{id}/rating/skip", post(routes::ratings::skip))
+        .route("/me/favourite-drivers", get(routes::ratings::favourites))
+        .route("/me/favourite-drivers/{driver_id}", delete(routes::ratings::remove_favourite))
+        .route("/driver/trips", get(routes::history::driver_trips))
+        .route("/driver/earnings", get(routes::earnings::earnings))
         // Real-time updates
         .route("/ws", get(live::upgrade))
         // Ops (staff)
