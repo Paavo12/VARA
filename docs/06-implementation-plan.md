@@ -117,6 +117,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** card and cash rides reconcile to the cent between `rides`, `payments` and `driver_ledger`; refund flow works from ops API.
 
+**Status (2026-11-02):** first slice on branch `phase-4/payments-ratings` (from `phase-3/trip-safety`). Done: completed trips open a pending payment; the driver confirms cash (`POST /rides/{id}/cash-received`), which books FUber's service fee against her in `driver_ledger` (P-2, P-5); the earnings dashboard for today or the week with hours online and the balance (P-6); two-way ratings with reasons below 3 stars, running averages, the driver's skip and rider favourites, ending in `RATED` (R-1); trip history for riders and drivers that follows the same privacy rules as the live views (R-2); and the matching screens in both apps (cash received, rating, fare breakdown, earnings and trips, your trips). Integration tests in `crates/api/tests/after_trip.rs`. Still open: card payments, refunds and webhooks (P-3, P-4; blocked on the payment provider, PRD §10 decision 6), weekly settlement and payouts, receipts by email, the lost-item flow (R-3) and the notifications matrix with push and SMS fallback.
+
 ### Phase 5 — Ops console (9 weeks, in parallel from Phase 2)
 
 - Staff auth with argon2 + mandatory TOTP/WebAuthn; roles; audit log (O-7).
