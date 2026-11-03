@@ -2,6 +2,10 @@ import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 
+// The console calls the API and shows review images from it (short-lived signed links).
+const API_ORIGIN = new URL(process.env.VITE_API_URL ?? 'http://127.0.0.1:8080')
+	.origin as `${string}://${string}.${string}:${number}`;
+
 export default defineConfig({
 	plugins: [
 		sveltekit({
@@ -18,8 +22,8 @@ export default defineConfig({
 					'default-src': ['self'],
 					'script-src': ['self'],
 					'style-src': ['self', 'unsafe-inline'],
-					'img-src': ['self', 'data:'],
-					'connect-src': ['self'],
+					'img-src': ['self', 'data:', API_ORIGIN],
+					'connect-src': ['self', API_ORIGIN],
 					'font-src': ['self'],
 					'object-src': ['none'],
 					'base-uri': ['self'],

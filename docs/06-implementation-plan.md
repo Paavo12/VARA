@@ -128,6 +128,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** a safety agent handles a scripted SOS end-to-end within 60 s; every ops action appears in the audit log.
 
+**Status (2026-11-02):** a first review page (O-1) is in `apps/ops` on branch `ops/review-page`, ahead of the rest of this phase: staff sign-in (password + authenticator code), the queues of driver applications and rider ID checks, and review screens to approve or reject each document, the car, the ride types and the application, and to verify riders. The staff token is kept in memory only (a reload signs out) until the cookie + CSRF session below. Locally it runs at `http://127.0.0.1:5175` (`npm run dev -w @fuber/ops`); create staff with the `staff` binary.
+
 ### Phase 6 — Hardening (3 weeks)
 
 - External **penetration test** (API, mobile apps, ops console); fix all High/Critical.
