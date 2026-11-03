@@ -15,6 +15,7 @@ use fuber_common::validate::LatLng;
 use fuber_db::{
     presence::{self, NotEligible, Position},
     rides,
+    settings::Dispatch,
 };
 use fuber_domain::{Party, RideEvent};
 use serde::{Deserialize, Serialize};
@@ -28,7 +29,7 @@ use crate::{
     auth::{AuthUser, DriverUser},
     error::{ApiError, ErrorBody},
     extract::ValidJson,
-    routes::rides::ride_error,
+    routes::{rides::ride_error, trip},
     views::{self, DriverRide, OfferCard},
 };
 
@@ -64,16 +65,40 @@ pub struct DriverStatus {
     pub offer: Option<OfferCard>,
     /// The trip she is on, if any.
     pub ride: Option<DriverRide>,
+    /// Set while she gets no requests after a PIN lockout; she may stay online meanwhile.
+    pub hold: Option<HoldView>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct HoldView {
+    /// When requests start again. Absent while the safety desk reviews repeated lockouts.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub until: Option<OffsetDateTime>,
+    pub message: String,
+}
+
+impl HoldView {
+    pub fn new(hold: presence::Hold) -> HoldView {
+        let message = match hold.until {
+            Some(_) => "After a PIN lockout you get no new requests for a short while. FUber's safety team may call you.",
+            None => {
+                "You've had several PIN lockouts recently. FUber's safety team will contact you and review them before you get new requests."
+            }
+        };
+        HoldView { until: hold.until, message: message.into() }
+    }
 }
 
 pub(crate) async fn status_of(s: &AppState, user: &AuthUser) -> Result<DriverStatus, ApiError> {
     let online = presence::status(&s.db, user.user_id, user.session_id).await?;
+    let rules = Dispatch::load(&s.db).await?.lockout;
     Ok(DriverStatus {
         online: online.is_some(),
         online_since: online.as_ref().map(|o| o.online_since),
         tiers: online.map(|o| o.tiers).unwrap_or_default(),
         offer: views::pending_offer(&s.db, user.user_id).await?,
         ride: views::driver_current(&s.db, user.user_id).await?,
+        hold: presence::lockout_hold(&s.db, user.user_id, &rules).await?.map(HoldView::new),
     })
 }
 
@@ -130,23 +155,13 @@ pub async fn go_offline(State(s): State<AppState>, DriverUser(user): DriverUser)
     Ok(Json(status_of(&s, &user).await?))
 }
 
-/// Records a position and tells the rider where her assigned driver is.
+/// Records a position. During a trip it also moves her car on the rider's map, marks her
+/// arrived within 50 m of the pickup and samples the trip track (`trip::on_location`).
 pub(crate) async fn record_location(s: &AppState, user: &AuthUser, at: Position) -> Result<bool, ApiError> {
     if !presence::update_location(&s.db, user.user_id, user.session_id, at).await? {
         return Ok(false);
     }
-    // Only a rider waiting for this driver hears about her position.
-    sqlx::query(
-        "SELECT pg_notify('fuber_events', json_build_object('kind', 'location', 'ride_id', r.id, 'rider_id', r.rider_id,
-                 'driver_id', r.driver_id, 'lat', $2::float8, 'lon', $3::float8, 'heading', $4::int)::text)
-         FROM rides r WHERE r.driver_id = $1 AND r.state IN ('DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED')",
-    )
-    .bind(user.user_id)
-    .bind(at.lat)
-    .bind(at.lon)
-    .bind(at.heading.map(i32::from))
-    .execute(&s.db)
-    .await?;
+    trip::on_location(&s.db, user.user_id, LatLng { lat: at.lat, lon: at.lon }, at.heading, at.speed_kmh).await?;
     Ok(true)
 }
 

@@ -1,7 +1,9 @@
 <!--
 	The rider's ride after Request (App Flow §3, design brief §5.1 items 7–8): Finding your
 	driver… with the 3 km radius pulse, No drivers accepted → Try again, Scheduled, Driver en
-	route with the driver card, plate and PIN, and Cancelled. Updates arrive over the socket.
+	route with the driver card, plate and PIN, arrived (PIN card amber, free-wait time), PIN
+	confirmed, in trip, You've arrived (fare to pay), blocked after wrong PINs, and Cancelled.
+	Updates arrive over the socket.
 -->
 <script lang="ts">
 	import type { RiderRide } from '@fuber/api-client';
@@ -37,6 +39,39 @@
 			ride.state
 		)
 	);
+	const beforePin = $derived(
+		['DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED'].includes(ride.state)
+	);
+	const clock = (iso: string) =>
+		new Date(iso).toLocaleTimeString('en-NA', { hour: '2-digit', minute: '2-digit' });
+
+	function heading(driver: string): string {
+		if (ride.state === 'DRIVER_ARRIVED') return `${driver} has arrived`;
+		if (ride.state === 'PIN_VERIFIED') return 'You’re all set';
+		if (ride.state === 'IN_TRIP') return `On your way to ${ride.dropoff.address}`;
+		return `${driver} is on her way`;
+	}
+
+	function lead(etaS: number | null | undefined): string {
+		if (ride.state === 'DRIVER_ARRIVED') {
+			if (!ride.wait_started_at) return 'Meet her at the pickup.';
+			const ends = Date.parse(ride.wait_started_at) + 5 * 60_000;
+			return `She’s waiting for you. Free wait until ${clock(new Date(ends).toISOString())}.`;
+		}
+		if (ride.state === 'PIN_VERIFIED') return 'Your driver will start the trip.';
+		if (ride.state === 'IN_TRIP')
+			return `The trip takes about ${formatMinutes(ride.trip_duration_s)}.`;
+		return etaS != null ? `Arriving in about ${formatMinutes(etaS)}` : 'Arriving soon';
+	}
+
+	const cancelledLead = $derived(
+		ride.cancelled_by === 'rider'
+			? 'You cancelled this ride.'
+			: ride.cancelled_by === 'driver'
+				? 'Your driver waited 5 minutes at the pickup and then cancelled.'
+				: 'This ride was cancelled.'
+	);
+
 	const when = $derived(
 		ride.scheduled_for
 			? new Date(ride.scheduled_for).toLocaleString('en-NA', {
@@ -111,10 +146,7 @@
 	</Screen>
 {:else if assigned && ride.driver}
 	{@const d = ride.driver}
-	<Screen
-		title="{d.first_name} is on her way"
-		lead={d.eta_s != null ? `Arriving in about ${formatMinutes(d.eta_s)}` : 'Arriving soon'}
-	>
+	<Screen title={heading(d.first_name)} lead={lead(d.eta_s)}>
 		<div class="driver">
 			<div class="avatar" aria-hidden="true">{d.first_name.slice(0, 1)}</div>
 			<div class="who">
@@ -130,20 +162,45 @@
 			<span>{d.vehicle.colour} {d.vehicle.make} {d.vehicle.model}</span>
 			<Plate plate={d.vehicle.plate} />
 		</div>
-		<div class="pin" class:arrived={ride.state === 'DRIVER_ARRIVED'}>
-			<small>{ride.state === 'DRIVER_ARRIVED' ? 'Show your driver this PIN' : 'Your PIN'}</small>
-			<strong aria-label="PIN {ride.pin.split('').join(' ')}">{ride.pin}</strong>
-			<small>Only get in once she enters it. Check the plate first.</small>
-		</div>
+		{#if beforePin}
+			<div class="pin" class:arrived={ride.state === 'DRIVER_ARRIVED'}>
+				<small>{ride.state === 'DRIVER_ARRIVED' ? 'Show your driver this PIN' : 'Your PIN'}</small>
+				<strong aria-label="PIN {ride.pin.split('').join(' ')}">{ride.pin}</strong>
+				<small>Only get in once she enters it. Check the plate first.</small>
+			</div>
+		{:else}
+			<Notice tone="success" title="PIN confirmed">
+				<p>Have a safe trip. Share your trip with someone you trust.</p>
+			</Notice>
+		{/if}
 		{@render trip()}
 		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
-		{#snippet footer()}{@render cancelButton('Cancel ride')}{/snippet}
+		{#snippet footer()}
+			{#if beforePin}{@render cancelButton('Cancel ride')}{/if}
+		{/snippet}
+	</Screen>
+{:else if ride.state === 'COMPLETED' || ride.state === 'RATED'}
+	<Screen title="You’ve arrived" lead="Trip {ride.code} to {ride.dropoff.address}">
+		<p class="total">{formatNad(ride.fare.total)}</p>
+		<Notice tone="success">
+			<p>
+				{ride.payment_method === 'cash'
+					? 'Please pay your driver this amount in cash.'
+					: 'Paid by card. Your receipt is on its way.'}
+			</p>
+		</Notice>
+		{@render trip()}
+		{#snippet footer()}<Button onclick={ondone}>Done</Button>{/snippet}
+	</Screen>
+{:else if ride.state === 'BLOCKED'}
+	<Screen title="Trip stopped for your safety" lead="Your driver entered the wrong PIN too often.">
+		<Notice tone="attention" title="Don’t get in the car">
+			<p>FUber’s safety team has been alerted and will call you shortly.</p>
+		</Notice>
+		{#snippet footer()}<Button variant="secondary" onclick={ondone}>Back to home</Button>{/snippet}
 	</Screen>
 {:else if ride.state === 'CANCELLED'}
-	<Screen
-		title="Ride cancelled"
-		lead={ride.cancelled_by === 'rider' ? 'You cancelled this ride.' : 'This ride was cancelled.'}
-	>
+	<Screen title="Ride cancelled" lead={cancelledLead}>
 		<Notice tone="info"><p>No fee charged.</p></Notice>
 		{#snippet footer()}<Button onclick={ondone}>Back to home</Button>{/snippet}
 	</Screen>
@@ -259,6 +316,13 @@
 		justify-content: space-between;
 		gap: var(--space-3);
 		font-weight: 600;
+	}
+	.total {
+		margin: 0;
+		text-align: center;
+		font-size: var(--text-3xl);
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
 	}
 	.pin strong {
 		font-size: var(--text-3xl);
