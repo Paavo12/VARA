@@ -10,6 +10,7 @@
 	import { onMount } from 'svelte';
 	import { SAFETY_DESK_PHONE } from '../session';
 	import Options from './Options.svelte';
+	import History from './History.svelte';
 	import RideStatus from './RideStatus.svelte';
 	import Search from './Search.svelte';
 	import { DEV_LOCATION, inServiceArea, type Stop } from './types';
@@ -22,7 +23,7 @@
 	let { me, onsettings }: Props = $props();
 	const session = useSession();
 
-	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride';
+	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride' | 'history';
 	/** SOS is on screen from the moment a driver is assigned (PRD S-1). */
 	const WITH_DRIVER = ['DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'PIN_VERIFIED', 'IN_TRIP', 'BLOCKED'];
 	let stage = $state<Stage>('loading');
@@ -126,9 +127,12 @@
 		</p>
 		{#snippet footer()}
 			<Button onclick={whereTo}>Where to?</Button>
+			<Button variant="secondary" onclick={() => (stage = 'history')}>Your trips</Button>
 			<Button variant="ghost" onclick={onsettings}>Settings</Button>
 		{/snippet}
 	</Screen>
+{:else if stage === 'history'}
+	<History onback={() => (stage = 'home')} />
 {:else if stage === 'where'}
 	<Search
 		title="Where to?"

@@ -117,6 +117,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** card and cash rides reconcile to the cent between `rides`, `payments` and `driver_ledger`; refund flow works from ops API.
 
+**Status (2026-11-02):** first slice on branch `phase-4/payments-ratings` (from `phase-3/trip-safety`). Done: completed trips open a pending payment; the driver confirms cash (`POST /rides/{id}/cash-received`), which books FUber's service fee against her in `driver_ledger` (P-2, P-5); the earnings dashboard for today or the week with hours online and the balance (P-6); two-way ratings with reasons below 3 stars, running averages, the driver's skip and rider favourites, ending in `RATED` (R-1); trip history for riders and drivers that follows the same privacy rules as the live views (R-2); and the matching screens in both apps (cash received, rating, fare breakdown, earnings and trips, your trips). Integration tests in `crates/api/tests/after_trip.rs`. Still open: card payments, refunds and webhooks (P-3, P-4; blocked on the payment provider, PRD §10 decision 6), weekly settlement and payouts, receipts by email, the lost-item flow (R-3) and the notifications matrix with push and SMS fallback.
+
 ### Phase 5 — Ops console (9 weeks, in parallel from Phase 2)
 
 - Staff auth with argon2 + mandatory TOTP/WebAuthn; roles; audit log (O-7).
@@ -127,6 +129,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 - Reports (O-8).
 
 **Exit:** a safety agent handles a scripted SOS end-to-end within 60 s; every ops action appears in the audit log.
+
+**Status (2026-11-02):** a first review page (O-1) is in `apps/ops` on branch `ops/review-page`, ahead of the rest of this phase: staff sign-in (password + authenticator code), the queues of driver applications and rider ID checks, and review screens to approve or reject each document, the car, the ride types and the application, and to verify riders. The staff token is kept in memory only (a reload signs out) until the cookie + CSRF session below. Locally it runs at `http://127.0.0.1:5175` (`npm run dev -w @fuber/ops`); create staff with the `staff` binary.
 
 ### Phase 6 — Hardening (3 weeks)
 

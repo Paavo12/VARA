@@ -1,13 +1,14 @@
 <!--
 	The trip from the driver's side (App Flow §5, PRD T-2 – T-7): to the fuzzy pickup circle, the
 	exact pickup within 50 m with the PIN keypad and free-wait timer, destination unlocked after the
-	right PIN, in trip with slide-to-complete, and the end states. Every action goes to the API;
+	right PIN, in trip with slide-to-complete, then Cash received and rating the passenger (PRD P-2,
+	R-1), and the end states. Every action goes to the API;
 	the screen follows the ride the API returns (and the socket pushes).
 -->
 <script lang="ts">
 	import type { DriverRide } from '@fuber/api-client';
 	import { messageOf, useSession } from '@fuber/account';
-	import { Button, Notice, Screen, formatNad } from '@fuber/ui';
+	import { Button, Notice, Screen, Stars, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -43,6 +44,53 @@
 	let reason = $state<Reason | null>(null);
 	let slide = $state(0);
 	let now = $state(Date.now());
+	let stars = $state(0);
+	let lowReasons = $state<string[]>([]);
+
+	const LOW_REASONS = [
+		{ id: 'late', label: 'Kept me waiting' },
+		{ id: 'rude', label: 'Rude' },
+		{ id: 'damage', label: 'Damaged or dirtied the car' },
+		{ id: 'felt_unsafe', label: 'I didn’t feel safe' },
+		{ id: 'other', label: 'Something else' }
+	] as const;
+
+	async function cashReceived() {
+		error = null;
+		busy = true;
+		const { data, error: err } = await session.api
+			.POST('/v1/rides/{id}/cash-received', { params: { path: { id: ride.id } } })
+			.catch(() => ({ data: undefined, error: undefined }));
+		busy = false;
+		if (data) onchange({ ...ride, payment_status: data.payment_status });
+		else error = messageOf(err, 'We couldn’t record the cash. Check your connection.');
+	}
+
+	async function rate() {
+		error = null;
+		busy = true;
+		const reasons = (stars < 3 ? lowReasons : []) as (
+			'late' | 'rude' | 'damage' | 'felt_unsafe' | 'other'
+		)[];
+		const { data, error: err } = await session.api
+			.POST('/v1/rides/{id}/rating', {
+				params: { path: { id: ride.id } },
+				body: { stars, reasons, comment: null, favourite: false }
+			})
+			.catch(() => ({ data: undefined, error: undefined }));
+		busy = false;
+		if (data) ondone();
+		else error = messageOf(err, 'We couldn’t send your rating. Check your connection.');
+	}
+
+	async function skipRating() {
+		busy = true;
+		await session.api
+			.POST('/v1/rides/{id}/rating/skip', { params: { path: { id: ride.id } } })
+			.catch(() => undefined);
+		busy = false;
+		ondone();
+	}
 
 	onMount(() => {
 		const t = setInterval(() => (now = Date.now()), 1000);
@@ -256,14 +304,46 @@
 {:else if ride.state === 'COMPLETED' || ride.state === 'RATED'}
 	<Screen title="Trip complete" lead="Trip {ride.code}">
 		<p class="earning">{formatNad(ride.earning)}</p>
-		<Notice tone="success">
-			<p>
-				{ride.payment_method === 'cash'
-					? 'Collect the fare in cash. FUber’s service fee is added to your balance.'
-					: 'Paid by card. Your earnings arrive with the weekly payout.'}
-			</p>
-		</Notice>
-		{#snippet footer()}<Button size="driver" onclick={ondone}>Done</Button>{/snippet}
+		{#if ride.payment_method === 'cash' && ride.payment_status !== 'cash_confirmed'}
+			<Notice tone="attention" title="Collect the fare in cash">
+				<p>FUber’s service fee is added to your balance.</p>
+			</Notice>
+		{:else}
+			<Notice tone="success">
+				<p>
+					{ride.payment_method === 'cash'
+						? 'Cash received. Thank you.'
+						: 'Paid by card. Your earnings arrive with the weekly payout.'}
+				</p>
+			</Notice>
+		{/if}
+		{#if !ride.rated && !(ride.payment_method === 'cash' && ride.payment_status === 'pending')}
+			<Stars label="How was {ride.passenger.name}?" bind:value={stars} />
+			{#if stars > 0 && stars < 3}
+				<fieldset class="reasons">
+					<legend>What went wrong?</legend>
+					{#each LOW_REASONS as r (r.id)}
+						<label><input type="checkbox" value={r.id} bind:group={lowReasons} /> {r.label}</label>
+					{/each}
+				</fieldset>
+			{/if}
+		{/if}
+		{#if error}<Notice tone="attention"><p>{error}</p></Notice>{/if}
+		{#snippet footer()}
+			{#if ride.payment_method === 'cash' && ride.payment_status === 'pending'}
+				<Button size="driver" onclick={cashReceived} loading={busy}>Cash received</Button>
+			{:else if !ride.rated}
+				<Button
+					size="driver"
+					onclick={rate}
+					loading={busy}
+					disabled={stars === 0 || (stars < 3 && lowReasons.length === 0)}>Send rating</Button
+				>
+				<Button variant="ghost" onclick={skipRating} disabled={busy}>Back to requests</Button>
+			{:else}
+				<Button size="driver" onclick={ondone}>Back to requests</Button>
+			{/if}
+		{/snippet}
 	</Screen>
 {:else if ride.state === 'BLOCKED'}
 	<Screen title="Trip blocked" lead="Too many wrong PINs.">

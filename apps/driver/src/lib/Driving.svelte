@@ -16,6 +16,7 @@
 	import { messageOf, Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen, formatDistance, formatMinutes, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
+	import Earnings from './Earnings.svelte';
 	import { SAFETY_DESK_PHONE } from './session';
 	import Trip from './Trip.svelte';
 
@@ -47,6 +48,7 @@
 	let now = $state(Date.now());
 	let ride = $state<DriverRide | null>(null);
 	let busy = $state(false);
+	let showEarnings = $state(false);
 	let error = $state<string | null>(null);
 	let notice = $state<string | null>(null);
 	let position: { lat: number; lon: number; heading?: number; speed_kmh?: number } | null = null;
@@ -267,6 +269,8 @@
 			>
 		{/snippet}
 	</Screen>
+{:else if showEarnings}
+	<Earnings onback={() => (showEarnings = false)} />
 {:else if status?.online}
 	<Screen
 		title="You’re online"
@@ -285,6 +289,7 @@
 		<p class="hint">Ride types: {status.tiers.map((t) => NAMES[t] ?? t).join(', ')}</p>
 		{#if notice}<Notice tone="info"><p>{notice}</p></Notice>{/if}
 		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
+		<Button variant="ghost" onclick={() => (showEarnings = true)}>Earnings and trips</Button>
 		{#snippet footer()}
 			<Button size="driver" variant="secondary" onclick={goOffline} loading={busy}
 				>Go offline</Button
@@ -297,6 +302,7 @@
 			<p>Approved ride types: {tiers.map((t) => NAMES[t] ?? t).join(', ') || 'none yet'}.</p>
 		</Notice>
 		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
+		<Button variant="secondary" onclick={() => (showEarnings = true)}>Earnings and trips</Button>
 		<Button variant="secondary" onclick={ondocuments}>Documents</Button>
 		{#snippet footer()}
 			<Button size="driver" onclick={goOnline} loading={busy} disabled={!status}>Go online</Button>
