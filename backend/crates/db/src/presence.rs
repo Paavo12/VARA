@@ -4,7 +4,7 @@
 use sqlx::{PgConnection, PgExecutor};
 use uuid::Uuid;
 
-use crate::rides::DRIVER_ACTIVE;
+use crate::{rides::DRIVER_ACTIVE, settings::LockoutRules};
 
 /// Why a driver can't go online. Messages are shown in the driver app.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -184,13 +184,15 @@ pub struct Search<'a> {
     /// For the favourite-driver bonus.
     pub rider_id: Option<Uuid>,
     pub limit: i64,
+    pub lockout: LockoutRules,
 }
 
 /// Eligible drivers near the pickup, nearest first (PRD D-1): online from a live session,
 /// reporting recently, approved and allowed online, the right tier and wheelchair access, no
-/// active trip, no request on screen, within the radius in a straight line.
+/// active trip, no request on screen, not held after a PIN lockout, within the radius in a
+/// straight line.
 pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<Vec<Candidate>, sqlx::Error> {
-    let rows: Vec<(Uuid, f64, f64, f64, f64, i32, bool)> = sqlx::query_as(
+    let rows: Vec<(Uuid, f64, f64, f64, f64, i32, bool)> = sqlx::query_as(&format!(
         "WITH pickup AS (SELECT ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography AS g)
          SELECT p.driver_id, ST_Y(p.location::geometry), ST_X(p.location::geometry), ST_Distance(p.location, pickup.g),
                 dp.acceptance_rate::float8, dp.priority_points,
@@ -208,9 +210,11 @@ pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<V
            AND p.driver_id <> ALL($7)
            AND NOT EXISTS (SELECT 1 FROM rides r WHERE r.driver_id = p.driver_id AND r.state::text = ANY($9))
            AND NOT EXISTS (SELECT 1 FROM ride_offers o WHERE o.driver_id = p.driver_id AND o.response = 'pending')
+           AND NOT EXISTS ({held})
          ORDER BY ST_Distance(p.location, pickup.g)
          LIMIT $10",
-    )
+        held = held_sql("p.driver_id", "$11", "$12", "$13"),
+    ))
     .bind(q.lat)
     .bind(q.lon)
     .bind(q.tier)
@@ -221,6 +225,9 @@ pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<V
     .bind(q.rider_id)
     .bind(&DRIVER_ACTIVE[..])
     .bind(q.limit)
+    .bind(q.lockout.hold_s as f64)
+    .bind(q.lockout.repeat)
+    .bind(q.lockout.window_days as i32)
     .fetch_all(db)
     .await?;
     Ok(rows
@@ -235,4 +242,38 @@ pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<V
             favourite,
         })
         .collect())
+}
+
+/// A driver held from new requests after a PIN lockout.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Hold {
+    /// When requests start again; None while she waits for the safety desk (repeat lockouts).
+    pub until: Option<time::OffsetDateTime>,
+}
+
+/// The hold rule, shared by matching and the driver's status so both always agree: her latest
+/// lockout is still open (the safety desk closing it releases her early) and either it was
+/// less than `hold` ago, or it makes `repeat` lockouts within `days`.
+fn held_sql(driver: &str, hold: &str, repeat: &str, days: &str) -> String {
+    format!(
+        "SELECT l.until, l.review FROM (
+           SELECT i.created_at + make_interval(secs => {hold}) AS until, count(*) OVER () >= {repeat} AS review,
+                  i.status <> 'closed' AS open
+           FROM safety_incidents i JOIN rides r ON r.id = i.ride_id
+           WHERE r.driver_id = {driver} AND i.kind = 'pin_lockout' AND i.created_at > now() - make_interval(days => {days})
+           ORDER BY i.created_at DESC LIMIT 1
+         ) l WHERE l.open AND (l.review OR l.until > now())"
+    )
+}
+
+/// Whether, and until when, she is held after a PIN lockout.
+pub async fn lockout_hold<'e>(db: impl PgExecutor<'e>, driver_id: Uuid, rules: &LockoutRules) -> Result<Option<Hold>, sqlx::Error> {
+    let row: Option<(time::OffsetDateTime, bool)> = sqlx::query_as(&held_sql("$1", "$2", "$3", "$4"))
+        .bind(driver_id)
+        .bind(rules.hold_s as f64)
+        .bind(rules.repeat)
+        .bind(rules.window_days as i32)
+        .fetch_optional(db)
+        .await?;
+    Ok(row.map(|(until, review)| Hold { until: (!review).then_some(until) }))
 }
