@@ -50,7 +50,7 @@ type Row = (
 );
 
 #[utoipa::path(
-    get, path = "/v1/ops/incidents", tag = "ops", security(("staff" = [])),
+    get, path = "/v1/ops/incidents", operation_id = "incident_queue", tag = "ops", security(("staff" = [])),
     responses((status = 200, description = "Incidents not yet closed: SOS first, then newest first", body = Vec<IncidentItem>))
 )]
 pub async fn queue(State(s): State<AppState>, staff: Staff) -> Result<Json<Vec<IncidentItem>>, ApiError> {
