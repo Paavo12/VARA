@@ -34,7 +34,7 @@ use crate::{ops, routes};
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
         ops::drivers::queue, ops::drivers::detail, ops::drivers::set_tiers, ops::drivers::decide,
         ops::drivers::decide_document, ops::drivers::decide_vehicle,
-        ops::incidents::queue,
+        ops::incidents::queue, ops::incidents::close,
     ),
     components(schemas(routes::legal::LegalKind)),
     modifiers(&Security),

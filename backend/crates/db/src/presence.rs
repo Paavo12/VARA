@@ -4,7 +4,7 @@
 use sqlx::{PgConnection, PgExecutor};
 use uuid::Uuid;
 
-use crate::{rides::DRIVER_ACTIVE, settings::LockoutRules};
+use crate::rides::DRIVER_ACTIVE;
 
 /// Why a driver can't go online. Messages are shown in the driver app.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -184,7 +184,6 @@ pub struct Search<'a> {
     /// For the favourite-driver bonus.
     pub rider_id: Option<Uuid>,
     pub limit: i64,
-    pub lockout: LockoutRules,
 }
 
 /// Eligible drivers near the pickup, nearest first (PRD D-1): online from a live session,
@@ -213,7 +212,7 @@ pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<V
            AND NOT EXISTS ({held})
          ORDER BY ST_Distance(p.location, pickup.g)
          LIMIT $10",
-        held = held_sql("p.driver_id", "$11", "$12", "$13"),
+        held = held_sql("p.driver_id"),
     ))
     .bind(q.lat)
     .bind(q.lon)
@@ -225,9 +224,6 @@ pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<V
     .bind(q.rider_id)
     .bind(&DRIVER_ACTIVE[..])
     .bind(q.limit)
-    .bind(q.lockout.hold_s as f64)
-    .bind(q.lockout.repeat)
-    .bind(q.lockout.window_days as i32)
     .fetch_all(db)
     .await?;
     Ok(rows
@@ -244,36 +240,16 @@ pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<V
         .collect())
 }
 
-/// A driver held from new requests after a PIN lockout.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Hold {
-    /// When requests start again; None while she waits for the safety desk (repeat lockouts).
-    pub until: Option<time::OffsetDateTime>,
-}
-
-/// The hold rule, shared by matching and the driver's status so both always agree: her latest
-/// lockout is still open (the safety desk closing it releases her early) and either it was
-/// less than `hold` ago, or it makes `repeat` lockouts within `days`.
-fn held_sql(driver: &str, hold: &str, repeat: &str, days: &str) -> String {
+/// The hold rule, shared by matching and the driver's status so both always agree: any PIN
+/// lockout on her trips stays a hold, however old, until the safety desk closes it (PRD T-3).
+fn held_sql(driver: &str) -> String {
     format!(
-        "SELECT l.until, l.review FROM (
-           SELECT i.created_at + make_interval(secs => {hold}) AS until, count(*) OVER () >= {repeat} AS review,
-                  i.status <> 'closed' AS open
-           FROM safety_incidents i JOIN rides r ON r.id = i.ride_id
-           WHERE r.driver_id = {driver} AND i.kind = 'pin_lockout' AND i.created_at > now() - make_interval(days => {days})
-           ORDER BY i.created_at DESC LIMIT 1
-         ) l WHERE l.open AND (l.review OR l.until > now())"
+        "SELECT 1 FROM safety_incidents i JOIN rides r ON r.id = i.ride_id
+         WHERE r.driver_id = {driver} AND i.kind = 'pin_lockout' AND i.status <> 'closed'"
     )
 }
 
-/// Whether, and until when, she is held after a PIN lockout.
-pub async fn lockout_hold<'e>(db: impl PgExecutor<'e>, driver_id: Uuid, rules: &LockoutRules) -> Result<Option<Hold>, sqlx::Error> {
-    let row: Option<(time::OffsetDateTime, bool)> = sqlx::query_as(&held_sql("$1", "$2", "$3", "$4"))
-        .bind(driver_id)
-        .bind(rules.hold_s as f64)
-        .bind(rules.repeat)
-        .bind(rules.window_days as i32)
-        .fetch_optional(db)
-        .await?;
-    Ok(row.map(|(until, review)| Hold { until: (!review).then_some(until) }))
+/// Whether she is held from new requests after a PIN lockout.
+pub async fn lockout_hold<'e>(db: impl PgExecutor<'e>, driver_id: Uuid) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(&format!("SELECT EXISTS ({})", held_sql("$1"))).bind(driver_id).fetch_one(db).await
 }

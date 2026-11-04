@@ -247,7 +247,6 @@ async fn nearest_eta(s: &AppState, cfg: &Dispatch, pickup: LatLng, tier: Tier, d
             exclude: &[],
             rider_id: None,
             limit: 3,
-            lockout: cfg.lockout,
         },
     )
     .await?;

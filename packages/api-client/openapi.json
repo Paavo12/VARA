@@ -1496,6 +1496,75 @@
         ]
       }
     },
+    "/v1/ops/incidents/{id}/close": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "close",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseIncident"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Closed. For a PIN lockout the blocked trip is cancelled and the driver can get requests again"
+          },
+          "403": {
+            "description": "Not safety staff",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such incident, or already closed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No outcome given",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
     "/v1/ops/vehicles/{id}/decision": {
       "post": {
         "tags": [
@@ -3251,6 +3320,20 @@
         "format": "int64",
         "description": "An amount of Namibian dollars in cents. Money is never a float."
       },
+      "CloseIncident": {
+        "type": "object",
+        "description": "What the safety desk found, kept on the incident and in the audit log.",
+        "required": [
+          "outcome"
+        ],
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "example": "Rider's phone was off; spoke to both, no safety concern."
+          }
+        },
+        "additionalProperties": false
+      },
       "ConsentRequest": {
         "type": "object",
         "required": [
@@ -4087,14 +4170,6 @@
         "properties": {
           "message": {
             "type": "string"
-          },
-          "until": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time",
-            "description": "When requests start again. Absent while the safety desk reviews repeated lockouts."
           }
         }
       },
@@ -4110,6 +4185,17 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "driver": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Person",
+                "description": "The ride's driver: for a PIN lockout, who is held until this incident is closed."
+              }
+            ]
           },
           "id": {
             "type": "string",
