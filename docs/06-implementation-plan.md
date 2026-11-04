@@ -204,7 +204,21 @@ Operations
 21. [ ] On-call rota and paging; runbooks reviewed.
 22. [ ] App Store / Play listings approved, privacy labels accurate.
 
-## 7. First two weeks — concrete next steps
+## 7. Stakeholder decisions (2026-11-04)
+
+| Topic | Decision | State in the code |
+| --- | --- | --- |
+| 5 wrong PINs | Driver blocked from new requests until ops clears it | Built (`POST /ops/incidents/{id}/close`, ops Safety desk page) |
+| Name | Product renamed to **VARA** (Verified, Authenticated, Reliable, App) | Not started; needs the domain and app IDs |
+| Launch promotion | No 32 % promotion, no commission under 15 %. Launch on 15–18 % | Fees already 15 / 16.5 / 18 % (migration 0007); no promotion exists |
+| Map Experts | Flat 15 % for drivers working unmapped or newly developed zones who help verify wayfinding and geofencing | Not started; needs qualification thresholds and who grants it |
+| Background location | Tauri or native handling approved if it keeps drivers visible | Stay on Capacitor; native foreground service still to build and test on Samsung and Huawei |
+| Cards | DPO Pay or PayToday; PayPoint later. Closed pilot on cash only | Provider integration not started; final pick open |
+| Masked calls | Explore MTC / Paratus; in-app chat is primary meanwhile | Chat (T-8) not built yet |
+
+**Launch date:** set once Phase 3, cloud staging, real SMS and legal approvals are finished.
+
+## 8. First two weeks — concrete next steps
 
 1. Founders review and sign off these documents; close PRD §10 decisions 6–9 (vendors) and start 1–5 with counsel.
 2. Engage a Namibian law firm: women-only opinion, Terms/Privacy review, Driver Agreement, transport permits.

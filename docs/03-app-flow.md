@@ -260,7 +260,7 @@ Rider (or driver) taps **Share trip** → token created → native share sheet /
 
 Points are never shown in the apps; only ops sees them.
 
-**Hold after a PIN lockout** (decided 2026-11-03): the driver gets no new requests for **15 minutes**, then requests resume on their own, whether or not ops has reviewed the incident. She can stay online and sees why, with a countdown. Ops can release her early (closing the incident) or suspend her at any time. **3 lockouts within 7 days** hold her until ops closes the latest one. The three numbers are settings (`safety.lockout_hold_s`, `safety.lockout_repeat`, `safety.lockout_window_days`).
+**Hold after a PIN lockout** (decided 2026-11-04, replacing the 15-minute hold of 2026-11-03): the driver gets no new requests until the safety desk has reviewed the incident and closed it with a written outcome. Time alone never releases her. She can stay online and sees why. Closing cancels the blocked trip and is audit-logged; ops can also suspend her at any time.
 
 ## 8. Payment & rating
 
