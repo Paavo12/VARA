@@ -16,18 +16,6 @@ pub struct Dispatch {
     pub schedule_min_s: i64,
     pub schedule_max_s: i64,
     pub schedule_lead_s: i64,
-    pub lockout: LockoutRules,
-}
-
-/// How long a driver gets no requests after a PIN lockout (PRD T-3, App Flow §7). The hold
-/// ends by itself so a slow review never leaves her without work; only a pattern of lockouts
-/// waits for the safety desk.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct LockoutRules {
-    pub hold_s: i64,
-    /// This many lockouts within `window_days` (the latest included) hold her until reviewed.
-    pub repeat: i64,
-    pub window_days: i64,
 }
 
 impl Default for Dispatch {
@@ -44,18 +32,14 @@ impl Default for Dispatch {
             schedule_min_s: 1800,
             schedule_max_s: 604_800,
             schedule_lead_s: 900,
-            lockout: LockoutRules { hold_s: 900, repeat: 3, window_days: 7 },
         }
     }
 }
 
 impl Dispatch {
     pub async fn load<'e>(db: impl PgExecutor<'e>) -> Result<Dispatch, sqlx::Error> {
-        let rows: Vec<(String, serde_json::Value)> = sqlx::query_as(
-            "SELECT key, value FROM settings WHERE key LIKE 'dispatch.%' OR key LIKE 'booking.%' OR key LIKE 'safety.lockout_%'",
-        )
-        .fetch_all(db)
-        .await?;
+        let rows: Vec<(String, serde_json::Value)> =
+            sqlx::query_as("SELECT key, value FROM settings WHERE key LIKE 'dispatch.%' OR key LIKE 'booking.%'").fetch_all(db).await?;
         let mut d = Dispatch::default();
         for (key, value) in rows {
             let Some(n) = value.as_f64().filter(|n| n.is_finite() && *n >= 0.0) else {
@@ -74,9 +58,6 @@ impl Dispatch {
                 "booking.schedule_min_s" => d.schedule_min_s = n as i64,
                 "booking.schedule_max_s" => d.schedule_max_s = n as i64,
                 "booking.schedule_lead_s" => d.schedule_lead_s = n as i64,
-                "safety.lockout_hold_s" => d.lockout.hold_s = n as i64,
-                "safety.lockout_repeat" => d.lockout.repeat = n as i64,
-                "safety.lockout_window_days" => d.lockout.window_days = n as i64,
                 _ => {}
             }
         }

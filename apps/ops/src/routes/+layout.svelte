@@ -21,6 +21,7 @@
 <header>
 	<a class="brand" href={resolve('/')}>FUber Ops</a>
 	{#if staff.session}
+		{#if staff.canHandleIncidents}<a class="link" href={resolve('/incidents')}>Safety desk</a>{/if}
 		<span class="who">{staff.session.roles.join(', ').replaceAll('ops_', '')}</span>
 		<button type="button" class="link" onclick={signOut}>Sign out</button>
 	{/if}

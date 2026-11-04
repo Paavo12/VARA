@@ -1,7 +1,8 @@
 <!--
 	Driving (App Flow §4, PRD D-3 – D-5): go online and offline, the request card with its 15 s
 	countdown (earnings largest; no destination, only the pickup area), and the accepted trip.
-	After a PIN lockout she stays online but requests pause (App Flow §7), with a countdown.
+	After a PIN lockout she stays online but requests pause until the safety desk closes it
+	(App Flow §7); closing cancels the blocked trip, so that update refetches the status.
 	While online the position goes over the socket every 4 s. After every (re)connect the
 	status is refetched, so a reload or a dropped connection resumes where it was.
 -->
@@ -87,6 +88,7 @@
 			// Keep the finished trip on screen until she taps Done.
 			const next = m.data as DriverRide;
 			if (ride?.id === next.id || !ride) ride = next;
+			if (status?.hold && next.state === 'CANCELLED') void load();
 		} else if (m.type === 'ride.removed') {
 			ride = null;
 			notice = 'The passenger cancelled the trip. No fee for you.';
@@ -196,19 +198,6 @@
 	});
 
 	const left = $derived(Math.max(0, Math.ceil((deadline - now) / 1000)));
-	const holdLeft = $derived(
-		status?.hold?.until ? Math.max(0, Math.ceil((Date.parse(status.hold.until) - now) / 1000)) : 0
-	);
-	// When the pause runs out, ask the API once whether requests are back.
-	let reloadedFor = '';
-	$effect(() => {
-		const until = status?.hold?.until;
-		if (until && holdLeft === 0 && reloadedFor !== until) {
-			reloadedFor = until;
-			void load();
-		}
-	});
-	const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 	const progress = $derived(offer ? Math.max(0, (deadline - now) / 15_000) : 0);
 	const RING = 2 * Math.PI * 44;
 </script>
@@ -279,9 +268,6 @@
 		{#if status.hold}
 			<Notice tone="attention">
 				<p>{status.hold.message}</p>
-				{#if status.hold.until}
-					<p class="pause">Requests resume in <strong>{mmss(holdLeft)}</strong></p>
-				{/if}
 			</Notice>
 		{:else}
 			<div class="radar" aria-hidden="true"><span class="ring-pulse"></span></div>
@@ -394,10 +380,6 @@
 		.bar {
 			transition: none;
 		}
-	}
-	.pause {
-		margin-top: var(--space-2);
-		font-variant-numeric: tabular-nums;
 	}
 	.hint {
 		margin: 0;
