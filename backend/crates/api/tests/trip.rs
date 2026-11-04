@@ -46,7 +46,6 @@ impl T {
                 exclude: &[],
                 rider_id: None,
                 limit: 10,
-                lockout: fuber_db::settings::Dispatch::default().lockout,
             },
         )
         .await
@@ -192,7 +191,7 @@ async fn five_wrong_pins_block_the_trip_and_alert_the_safety_desk() {
 }
 
 #[tokio::test]
-async fn after_a_lockout_she_gets_no_requests_for_15_minutes_unless_it_keeps_happening() {
+async fn after_a_lockout_she_gets_no_requests_until_the_safety_desk_closes_it() {
     let t = setup!(relaxed());
     let trip = t.accepted().await;
     let points = t.points("driver_profiles", &trip.driver).await;
@@ -201,56 +200,47 @@ async fn after_a_lockout_she_gets_no_requests_for_15_minutes_unless_it_keeps_hap
     let db = &t.state.db;
     let incident: uuid::Uuid =
         sqlx::query_scalar("SELECT id FROM safety_incidents WHERE ride_id = $1::uuid").bind(&trip.id).fetch_one(db).await.unwrap();
-    let ago = |mins: i32| {
-        sqlx::query("UPDATE safety_incidents SET created_at = now() - make_interval(mins => $2) WHERE id = $1")
-            .bind(incident)
-            .bind(mins)
-            .execute(db)
-    };
 
-    // Held, and the app can show until when; still online.
+    // Held, and the app says why; still online.
     let status = t.driver_status(&trip.driver).await;
     assert!(status["online"].as_bool().unwrap());
-    assert!(status["hold"]["until"].is_string(), "{status}");
+    assert!(status["hold"]["message"].is_string(), "{status}");
     assert!(!t.matchable(&trip.driver).await);
 
-    // The hold ends by itself, reviewed or not.
-    ago(16).await.unwrap();
-    assert!(t.driver_status(&trip.driver).await["hold"].is_null());
-    assert!(t.matchable(&trip.driver).await);
-
-    // The safety desk closing the incident releases her early.
-    ago(1).await.unwrap();
-    assert!(!t.matchable(&trip.driver).await);
-    sqlx::query("UPDATE safety_incidents SET status = 'closed' WHERE id = $1").bind(incident).execute(db).await.unwrap();
-    assert!(t.matchable(&trip.driver).await);
-
-    // Three lockouts within 7 days: held until the latest is reviewed, however long ago.
-    sqlx::query("UPDATE safety_incidents SET status = 'open' WHERE id = $1").bind(incident).execute(db).await.unwrap();
-    ago(60).await.unwrap();
-    sqlx::query(
-        "INSERT INTO safety_incidents (ride_id, kind, status, created_at)
-         SELECT $1::uuid, 'pin_lockout', 'closed', now() - make_interval(days => d) FROM unnest(ARRAY[2, 6]) d",
-    )
-    .bind(&trip.id)
-    .execute(db)
-    .await
-    .unwrap();
-    let status = t.driver_status(&trip.driver).await;
-    assert!(status["hold"].is_object() && status["hold"]["until"].is_null(), "{status}");
-    assert!(!t.matchable(&trip.driver).await);
-    sqlx::query("UPDATE safety_incidents SET status = 'closed' WHERE id = $1").bind(incident).execute(db).await.unwrap();
-    assert!(t.matchable(&trip.driver).await);
-
-    // A lockout older than the window no longer counts towards the pattern.
-    sqlx::query("UPDATE safety_incidents SET created_at = now() - interval '8 days' WHERE ride_id = $1::uuid AND id <> $2")
-        .bind(&trip.id)
+    // Time alone never releases her.
+    sqlx::query("UPDATE safety_incidents SET created_at = now() - interval '90 days' WHERE id = $1")
         .bind(incident)
         .execute(db)
         .await
         .unwrap();
-    sqlx::query("UPDATE safety_incidents SET status = 'open' WHERE id = $1").bind(incident).execute(db).await.unwrap();
-    assert!(t.matchable(&trip.driver).await, "one lockout an hour ago, the others outside the window");
+    assert!(t.driver_status(&trip.driver).await["hold"].is_object());
+    assert!(!t.matchable(&trip.driver).await);
+
+    // The safety desk sees who is held. Only safety staff may close, and it needs an outcome.
+    let desk = t.staff("ops_safety").await;
+    let (_, queue) = t.call(Method::GET, "/v1/ops/incidents", Some(&desk), None).await;
+    let item = queue.as_array().unwrap().iter().find(|i| i["id"] == incident.to_string()).unwrap();
+    assert_eq!(item["driver"]["user_id"], trip.driver.user_id.to_string());
+    let close = format!("/v1/ops/incidents/{incident}/close");
+    let outcome = json!({ "outcome": "Spoke to both; the rider's PIN was mistyped." });
+    let reviewer = t.staff("ops_reviewer").await;
+    assert_eq!(t.call(Method::POST, &close, Some(&reviewer), Some(outcome.clone())).await.0, StatusCode::FORBIDDEN);
+    assert_eq!(t.call(Method::POST, &close, None, Some(outcome.clone())).await.0, StatusCode::UNAUTHORIZED);
+    assert_eq!(t.call(Method::POST, &close, Some(&desk), Some(json!({}))).await.0, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(!t.matchable(&trip.driver).await, "refused closes change nothing");
+
+    // Closing releases her, ends the blocked trip and is audited.
+    assert_eq!(t.call(Method::POST, &close, Some(&desk), Some(outcome.clone())).await.0, StatusCode::NO_CONTENT);
+    assert!(t.driver_status(&trip.driver).await["hold"].is_null());
+    assert!(t.matchable(&trip.driver).await);
+    assert_eq!(t.ride_state(&trip.id).await, "CANCELLED");
+    let audited: i64 = sqlx::query_scalar("SELECT count(*) FROM audit_log WHERE action = 'incident.close' AND target_id = $1")
+        .bind(incident.to_string())
+        .fetch_one(db)
+        .await
+        .unwrap();
+    assert_eq!(audited, 1);
+    assert_eq!(t.call(Method::POST, &close, Some(&desk), Some(outcome)).await.0, StatusCode::NOT_FOUND, "already closed");
 }
 
 #[tokio::test]

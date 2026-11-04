@@ -109,7 +109,7 @@ Priority: **M** = must for launch, **S** = should (launch if ready), **C** = cou
 | --- | --- | --- |
 | T-1 | Rider sees driver photo, first name, verified badge, rating, car, colour, plate, live position, *arriving in X min*, *trip takes Y min*, and a **4-digit PIN**. | M |
 | T-2 | Driver navigates to a **fuzzy pickup circle**. The exact pickup address unlocks within 50 m of the pin. | M |
-| T-3 | At pickup the driver enters the rider's PIN. Wrong PIN → rejection; 5 wrong attempts → trip blocked, safety desk alerted, and the driver gets no requests for 15 min (until reviewed after 3 lockouts in 7 days; App Flow §7). Correct PIN → **destination unlocks** for the driver. | M |
+| T-3 | At pickup the driver enters the rider's PIN. Wrong PIN → rejection; 5 wrong attempts → trip blocked, safety desk alerted, and the driver gets no requests until the safety desk has reviewed and closed the incident (App Flow §7). Correct PIN → **destination unlocks** for the driver. | M |
 | T-4 | Driver starts the trip; both apps follow the live route. Turn-by-turn on the driver app (in-app, or hand-off to Google Maps/Waze — §10). | M |
 | T-5 | Wait timer: driver may start a 5-minute free wait at pickup; afterwards she may cancel as rider no-show (counts as a rider cancellation for priority points). | M |
 | T-6 | Driver completes the trip with a slide gesture at or near the destination. | M |
@@ -215,8 +215,8 @@ Surge: High 1.4×, Peak 1.8×, set per zone by ops (automatic surge is phase 2).
 | 3 | Minimum age for guest passengers (16 accompanied? 18?). | Founders + Legal | Riders with accounts are 18+. |
 | 4 | Driver status: independent contractor vs. employee; tax/VAT on service fee. | Legal + Finance | Affects Driver Agreement. |
 | 5 | Transport permits required for drivers/vehicles (Transportation Board, NaTIS). | Legal | May add required documents to A-4. |
-| 6 | Payment provider (card acquiring in NAD). | Finance | Candidates to evaluate: local acquiring banks' gateways, DPO Pay, PayToday, Paygate. |
+| 6 | Payment provider (card acquiring in NAD). | Finance | Decided 2026-11-04: **DPO Pay or PayToday** for cards (final pick between the two still open), PayPoint later as an option for unbanked users. The 4-week closed pilot runs on **cash only**; cards are enabled after it. |
 | 7 | Identity-verification vendor vs. manual review only for v1. | Product | Must support Namibian ID; manual review is the fallback. |
 | 8 | Navigation: in-app turn-by-turn vs. hand-off to Google Maps/Waze. | Product + Eng | Hand-off is cheaper but can leak the destination before PIN → in-app recommended until PIN is verified. |
-| 9 | Masked-calling provider (VoIP in-app vs. number proxy). | Eng | Must work on Namibian networks (MTC, Paratus). |
+| 9 | Masked-calling provider (VoIP in-app vs. number proxy). | Eng | Direction 2026-11-04: explore direct SIP trunking / number masking with MTC or Paratus. Until then in-app chat is the primary channel on staging and both phone numbers stay hidden. |
 | 10 | Safety desk staffing 24/7 for pilot. | Ops | S-1 target depends on it. |

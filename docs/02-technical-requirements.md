@@ -82,6 +82,8 @@ flowchart LR
 
 **Why Capacitor (not Tauri mobile, not a PWA):** the driver app needs reliable background geolocation, push notifications, secure key storage (Keychain/Keystore) and store distribution. Capacitor's plugins for these are mature; Tauri 2 mobile was evaluated and is a reasonable future option because it is Rust-native, but its plugin ecosystem for background location is thinner. A PWA cannot track location in the background on iOS.
 
+**Reviewed 2026-11-04:** the business approved moving to Tauri *or* native background handling if that is what keeps drivers visible on Samsung and Huawei battery savers. The apps stay on Capacitor, with a native Android foreground service for location. Battery-saver survival depends on that service, not on the app framework. Still to prove on real Samsung and Huawei phones.
+
 Shared packages:
 
 - `packages/ui` — Svelte component library + design tokens (from the [design brief](04-ui-ux-design-brief.md)).

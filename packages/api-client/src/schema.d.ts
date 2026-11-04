@@ -517,6 +517,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/incidents/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["close"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/vehicles/{id}/decision": {
         parameters: {
             query?: never;
@@ -1041,6 +1057,11 @@ export interface components {
          * @description An amount of Namibian dollars in cents. Money is never a float.
          */
         Cents: number;
+        /** @description What the safety desk found, kept on the incident and in the audit log. */
+        CloseIncident: {
+            /** @example Rider's phone was off; spoke to both, no safety concern. */
+            outcome: string;
+        };
         ConsentRequest: {
             /** @description IDs from `pending_consents` on `GET /me`; each must be the latest version of its kind. */
             document_ids: string[];
@@ -1288,15 +1309,11 @@ export interface components {
         };
         HoldView: {
             message: string;
-            /**
-             * Format: date-time
-             * @description When requests start again. Absent while the safety desk reviews repeated lockouts.
-             */
-            until?: string | null;
         };
         IncidentItem: {
             /** Format: date-time */
             created_at: string;
+            driver?: null | components["schemas"]["Person"];
             /** Format: uuid */
             id: string;
             /** @description `sos`, `pin_lockout`, `ridecheck_deviation`, `ridecheck_stop` or `report`. */
@@ -3023,6 +3040,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IncidentItem"][];
+                };
+            };
+        };
+    };
+    close: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseIncident"];
+            };
+        };
+        responses: {
+            /** @description Closed. For a PIN lockout the blocked trip is cancelled and the driver can get requests again */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not safety staff */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such incident, or already closed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No outcome given */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
