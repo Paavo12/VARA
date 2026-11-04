@@ -1468,6 +1468,34 @@
         ]
       }
     },
+    "/v1/ops/incidents": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "incident_queue",
+        "responses": {
+          "200": {
+            "description": "Incidents not yet closed: SOS first, then newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IncidentItem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
     "/v1/ops/vehicles/{id}/decision": {
       "post": {
         "tags": [
@@ -2773,6 +2801,51 @@
         ]
       }
     },
+    "/v1/safety/sos": {
+      "post": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "sos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SosRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The safety desk has the incident and her contacts are being texted (a repeat within 2 minutes returns the same incident)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SosAlert"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`ride_id` is not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/uploads": {
       "post": {
         "tags": [
@@ -4025,6 +4098,72 @@
           }
         }
       },
+      "IncidentItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`sos`, `pin_lockout`, `ridecheck_deviation`, `ridecheck_stop` or `report`."
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "lon": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "raised_by": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Person",
+                "description": "Who pressed SOS; absent for incidents the system raised."
+              }
+            ]
+          },
+          "ride_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "e.g. `FU-4123`."
+          },
+          "ride_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "description": "`open`, `claimed` or `escalated`."
+          }
+        }
+      },
       "LatLng": {
         "type": "object",
         "description": "A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is\nreplaced by the `service_areas` polygon once the database is wired in.",
@@ -4435,6 +4574,28 @@
         },
         "additionalProperties": false
       },
+      "Person": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "phone"
+        ],
+        "properties": {
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "PinEntry": {
         "type": "object",
         "required": [
@@ -4508,6 +4669,23 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "Point": {
+        "type": "object",
+        "required": [
+          "lat",
+          "lon"
+        ],
+        "properties": {
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lon": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -5205,6 +5383,66 @@
           }
         ]
       },
+      "SosAlert": {
+        "type": "object",
+        "required": [
+          "incident_id",
+          "contacts_alerted",
+          "police_phone",
+          "message"
+        ],
+        "properties": {
+          "contacts_alerted": {
+            "type": "integer",
+            "description": "Emergency contacts being texted (0 if she has none).",
+            "minimum": 0
+          },
+          "incident_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "message": {
+            "type": "string"
+          },
+          "police_phone": {
+            "type": "string",
+            "description": "Offered as a one-tap call: Namibian Police.",
+            "example": "10111"
+          },
+          "ride_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "SosRequest": {
+        "type": "object",
+        "description": "Deliberately lenient: an SOS is never refused over its details, so unknown fields are\nignored and the location may be anywhere (she may have been driven out of Windhoek).",
+        "properties": {
+          "location": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Point",
+                "description": "Where the phone is. When unknown or invalid, a driver's last reported position is used."
+              }
+            ]
+          },
+          "ride_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Her ride; when absent, her current one (if any)."
+          }
+        }
+      },
       "StaffSession": {
         "type": "object",
         "required": [
@@ -5642,8 +5880,12 @@
       "description": "Trip history for riders and drivers"
     },
     {
+      "name": "safety",
+      "description": "SOS from either app"
+    },
+    {
       "name": "ops",
-      "description": "Staff: verification and driver review"
+      "description": "Staff: verification and driver review, the safety desk's incident queue"
     }
   ]
 }

@@ -23,6 +23,7 @@ mod routes {
     pub mod places;
     pub mod ratings;
     pub mod rides;
+    pub mod safety;
     pub mod storage;
     pub mod trip;
     pub mod uploads;
@@ -167,6 +168,8 @@ pub fn router(state: AppState) -> Router {
         .route("/me/favourite-drivers/{driver_id}", delete(routes::ratings::remove_favourite))
         .route("/driver/trips", get(routes::history::driver_trips))
         .route("/driver/earnings", get(routes::earnings::earnings))
+        // Safety (either app; never rate-limited, see rate_limit::enforce)
+        .route("/safety/sos", post(routes::safety::sos))
         // Real-time updates
         .route("/ws", get(live::upgrade))
         // Ops (staff)

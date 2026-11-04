@@ -501,6 +501,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["incident_queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/vehicles/{id}/decision": {
         parameters: {
             query?: never;
@@ -864,6 +880,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["wait"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/safety/sos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sos"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1262,6 +1294,25 @@ export interface components {
              */
             until?: string | null;
         };
+        IncidentItem: {
+            /** Format: date-time */
+            created_at: string;
+            /** Format: uuid */
+            id: string;
+            /** @description `sos`, `pin_lockout`, `ridecheck_deviation`, `ridecheck_stop` or `report`. */
+            kind: string;
+            /** Format: double */
+            lat?: number | null;
+            /** Format: double */
+            lon?: number | null;
+            raised_by?: null | components["schemas"]["Person"];
+            /** @description e.g. `FU-4123`. */
+            ride_code?: string | null;
+            /** Format: uuid */
+            ride_id?: string | null;
+            /** @description `open`, `claimed` or `escalated`. */
+            status: string;
+        };
         /**
          * @description A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is
          *     replaced by the `service_areas` polygon once the database is wired in.
@@ -1423,6 +1474,12 @@ export interface components {
             /** @example 483872 */
             branch_code: string;
         };
+        Person: {
+            display_name?: string | null;
+            phone: string;
+            /** Format: uuid */
+            user_id: string;
+        };
         PinEntry: {
             /**
              * @description The 4 digits the passenger shows or says.
@@ -1451,6 +1508,12 @@ export interface components {
             /** Format: double */
             lon: number;
             name: string;
+        };
+        Point: {
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
         };
         PreviousAttempt: {
             /** Format: date-time */
@@ -1679,6 +1742,32 @@ export interface components {
             new_user: boolean;
             /** Format: uuid */
             user_id: string;
+        };
+        SosAlert: {
+            /** @description Emergency contacts being texted (0 if she has none). */
+            contacts_alerted: number;
+            /** Format: uuid */
+            incident_id: string;
+            message: string;
+            /**
+             * @description Offered as a one-tap call: Namibian Police.
+             * @example 10111
+             */
+            police_phone: string;
+            /** Format: uuid */
+            ride_id?: string | null;
+        };
+        /**
+         * @description Deliberately lenient: an SOS is never refused over its details, so unknown fields are
+         *     ignored and the location may be anywhere (she may have been driven out of Windhoek).
+         */
+        SosRequest: {
+            location?: null | components["schemas"]["Point"];
+            /**
+             * Format: uuid
+             * @description Her ride; when absent, her current one (if any).
+             */
+            ride_id?: string | null;
         };
         StaffSession: {
             /** Format: date-time */
@@ -2918,6 +3007,26 @@ export interface operations {
             };
         };
     };
+    incident_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incidents not yet closed: SOS first, then newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentItem"][];
+                };
+            };
+        };
+    };
     decide_vehicle: {
         parameters: {
             query?: never;
@@ -3832,6 +3941,39 @@ export interface operations {
             };
             /** @description `invalid_state`: only at the pickup, before the PIN */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    sos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SosRequest"];
+            };
+        };
+        responses: {
+            /** @description The safety desk has the incident and her contacts are being texted (a repeat within 2 minutes returns the same incident) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SosAlert"];
+                };
+            };
+            /** @description `ride_id` is not her ride */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

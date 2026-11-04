@@ -13,10 +13,11 @@
 		type LiveMessage,
 		type OfferCard
 	} from '@fuber/api-client';
-	import { messageOf, useSession } from '@fuber/account';
+	import { messageOf, Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen, formatDistance, formatMinutes, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
 	import Earnings from './Earnings.svelte';
+	import { SAFETY_DESK_PHONE } from './session';
 	import Trip from './Trip.svelte';
 
 	interface Props {
@@ -211,6 +212,11 @@
 	const progress = $derived(offer ? Math.max(0, (deadline - now) / 15_000) : 0);
 	const RING = 2 * Math.PI * 44;
 </script>
+
+<!-- SOS on every screen while she is online or on a trip (PRD S-1). -->
+{#if ride || status?.online}
+	<Sos rideId={ride?.id ?? null} safetyDeskPhone={SAFETY_DESK_PHONE} />
+{/if}
 
 {#if ride}
 	<Trip
