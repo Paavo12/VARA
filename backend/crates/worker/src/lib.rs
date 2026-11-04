@@ -3,13 +3,18 @@
 //!
 //! - `upload.process`: virus scan, type check and re-encode an upload (TRD §7.2).
 //! - `account.erase`: erase a deleted account after its 30-day grace period (PRD A-8).
+//! - `safety.sos_sms`: resend SOS texts the API could not send (PRD S-1).
 //! - Daily document check: expire documents and send 30/7/1-day warnings (PRD A-5).
 //! - Hourly cleanup: OTP challenges, old sessions, abandoned uploads (retention, schema §12).
 //! - Every second: matching (see [`dispatch`]).
 
 pub mod dispatch;
 
-use fuber_common::{crypto::Sealer, telemetry::mask_phone, validate::PhoneE164};
+use fuber_common::{
+    crypto::{Hasher, Sealer},
+    telemetry::mask_phone,
+    validate::PhoneE164,
+};
 use fuber_db::{
     drivers::refresh_can_go_online,
     jobs::{self, Job},
@@ -28,8 +33,12 @@ use uuid::Uuid;
 
 pub struct Ctx {
     pub db: PgPool,
-    /// Opens the 🔒 columns this worker needs (guest phone numbers).
+    /// Opens the 🔒 columns this worker needs (guest and emergency-contact phone numbers).
     pub sealer: Sealer,
+    /// Hashes trip-link tokens.
+    pub hasher: Hasher,
+    /// Base of the live trip links in SOS texts (`Config::trip_link_base`).
+    pub trip_link_base: String,
     pub store: ObjectStore,
     pub scanner: VirusScanner,
     pub sms: SmsGateway,
@@ -74,6 +83,14 @@ async fn run(ctx: &Ctx, job: &Job) -> Result<(), JobError> {
         jobs::kind::PROCESS_UPLOAD => process_upload(ctx, id("upload_id")?).await,
         jobs::kind::ERASE_ACCOUNT => erase_account(ctx, id("user_id")?).await,
         jobs::kind::GUEST_SMS => guest_sms(ctx, id("ride_id")?).await,
+        jobs::kind::SOS_SMS => {
+            let positions: Vec<i16> = job
+                .payload
+                .get("positions")
+                .and_then(|p| serde_json::from_value(p.clone()).ok())
+                .ok_or_else(|| JobError::Other("payload has no positions".into()))?;
+            sos_sms(ctx, id("incident_id")?, &positions).await
+        }
         other => Err(JobError::Other(format!("unknown job kind {other}"))),
     }
 }
@@ -275,6 +292,31 @@ pub async fn guest_sms(ctx: &Ctx, ride_id: Uuid) -> Result<(), JobError> {
         "FUber {code}: Hi {guest}, {booker} booked you a ride. {driver} is coming in a {colour} {car}, plate {plate}.          Your PIN is {pin}: say it to her at pickup, and only get in if the plate matches."
     );
     notify(ctx, Some(phone), &body).await;
+    Ok(())
+}
+
+/// Resends the SOS texts that failed, each with a fresh trip link. Texts that fail again are
+/// retried as a job of their own, so the ones that went through are never sent twice.
+pub async fn sos_sms(ctx: &Ctx, incident_id: Uuid, positions: &[i16]) -> Result<(), JobError> {
+    let mut tx = ctx.db.begin().await?;
+    let texts = fuber_db::safety::sos_texts(&mut tx, &ctx.sealer, &ctx.hasher, &ctx.trip_link_base, incident_id, Some(positions))
+        .await
+        .map_err(|e| JobError::Other(e.to_string()))?;
+    tx.commit().await?;
+    let mut failed = vec![];
+    for t in texts {
+        if let Err(e) = ctx.sms.send(&t.to, &t.body).await {
+            tracing::warn!(error = %e, %incident_id, position = t.position, "SOS text failed again");
+            failed.push(t.position);
+        }
+    }
+    if failed.len() == positions.len() {
+        return Err(JobError::Other("no SOS text could be sent".into()));
+    }
+    if !failed.is_empty() {
+        let payload = serde_json::json!({ "incident_id": incident_id, "positions": failed });
+        jobs::enqueue(&ctx.db, jobs::kind::SOS_SMS, payload, None, None).await?;
+    }
     Ok(())
 }
 

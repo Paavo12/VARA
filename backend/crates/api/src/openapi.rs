@@ -29,10 +29,12 @@ use crate::{ops, routes};
         routes::earnings::cash_received, routes::earnings::earnings,
         routes::ratings::rate, routes::ratings::skip, routes::ratings::favourites, routes::ratings::remove_favourite,
         routes::history::rider_trips, routes::history::driver_trips,
+        routes::safety::sos,
         ops::auth::login, ops::auth::logout,
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
         ops::drivers::queue, ops::drivers::detail, ops::drivers::set_tiers, ops::drivers::decide,
         ops::drivers::decide_document, ops::drivers::decide_vehicle,
+        ops::incidents::queue,
     ),
     components(schemas(routes::legal::LegalKind)),
     modifiers(&Security),
@@ -49,7 +51,8 @@ use crate::{ops, routes};
         (name = "earnings", description = "Cash confirmation and the driver's earnings (driver app)"),
         (name = "ratings", description = "Ratings and favourite drivers"),
         (name = "history", description = "Trip history for riders and drivers"),
-        (name = "ops", description = "Staff: verification and driver review"),
+        (name = "safety", description = "SOS from either app"),
+        (name = "ops", description = "Staff: verification and driver review, the safety desk's incident queue"),
     )
 )]
 pub struct ApiDoc;

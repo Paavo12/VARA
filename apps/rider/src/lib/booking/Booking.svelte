@@ -5,9 +5,10 @@
 -->
 <script lang="ts">
 	import { connectLive, type LiveMessage, type Me, type RiderRide } from '@fuber/api-client';
-	import { useSession } from '@fuber/account';
+	import { Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
+	import { SAFETY_DESK_PHONE } from '../session';
 	import Options from './Options.svelte';
 	import History from './History.svelte';
 	import RideStatus from './RideStatus.svelte';
@@ -23,6 +24,8 @@
 	const session = useSession();
 
 	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride' | 'history';
+	/** SOS is on screen from the moment a driver is assigned (PRD S-1). */
+	const WITH_DRIVER = ['DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'PIN_VERIFIED', 'IN_TRIP', 'BLOCKED'];
 	let stage = $state<Stage>('loading');
 	let ride = $state<RiderRide | null>(null);
 	let current = $state<Stop | null>(null);
@@ -166,6 +169,9 @@
 	{/key}
 {:else if stage === 'ride' && ride}
 	<RideStatus {ride} onchange={(r) => (ride = r)} ondone={done} />
+	{#if WITH_DRIVER.includes(ride.state)}
+		<Sos rideId={ride.id} safetyDeskPhone={SAFETY_DESK_PHONE} />
+	{/if}
 {/if}
 
 <style>

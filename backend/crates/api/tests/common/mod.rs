@@ -135,6 +135,8 @@ impl T {
         let ctx = Ctx {
             db: db.clone(),
             sealer: Sealer::new(&cfg.data_key),
+            hasher: Hasher::new(&cfg.hash_secret),
+            trip_link_base: cfg.trip_link_base.clone(),
             store,
             scanner: VirusScanner::Disabled,
             sms: SmsGateway::Fake(FakeSms::new(false)),

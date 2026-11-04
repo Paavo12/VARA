@@ -42,6 +42,8 @@ async fn main() -> ExitCode {
     let ctx = Ctx {
         db,
         sealer: Sealer::new(&config.data_key),
+        hasher: Hasher::new(&config.hash_secret),
+        trip_link_base: config.trip_link_base.clone(),
         store: ObjectStore::from_config(&config, Hasher::new(&config.hash_secret)),
         scanner: match &config.virus_scan {
             VirusScan::ClamAv(addr) => VirusScanner::ClamAv(addr.clone()),

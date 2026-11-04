@@ -42,6 +42,8 @@ pub struct Config {
     pub storage: StorageConfig,
     pub virus_scan: VirusScan,
     pub routing: RoutingConfig,
+    /// Base of the live trip links texted to emergency contacts, e.g. `https://fuber.app/t`.
+    pub trip_link_base: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -220,6 +222,12 @@ impl Config {
             }
         };
 
+        let trip_link_base = get("TRIP_LINK_BASE").unwrap_or_else(|| "https://fuber.app/t".into()).trim_end_matches('/').to_owned();
+        let local_http = env == Some(Environment::Local) && trip_link_base.starts_with("http://");
+        if !(trip_link_base.starts_with("https://") || local_http) {
+            errors.push(format!("TRIP_LINK_BASE must be an https:// URL (got {trip_link_base:?})"));
+        }
+
         if env == Some(Environment::Production) {
             if sms_provider == SmsProvider::Fake {
                 errors.push("SMS_PROVIDER=fake is not allowed in production".into());
@@ -255,6 +263,7 @@ impl Config {
             storage,
             virus_scan,
             routing,
+            trip_link_base,
         })
     }
 }
