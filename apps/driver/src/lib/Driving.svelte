@@ -157,9 +157,21 @@
 		error = null;
 		busy = true;
 		if (accept) {
-			const { data, error: err } = await session.api
+			const {
+				data,
+				error: err,
+				response
+			} = await session.api
 				.POST('/v1/offers/{id}/accept', { params: { path: { id } } })
-				.catch(() => ({ data: undefined, error: undefined }));
+				.catch(() => ({ data: undefined, error: undefined, response: undefined }));
+			if (response?.status === 503) {
+				// Too busy to answer, but the accept may have landed: ask where things stand.
+				notice = messageOf(err);
+				await load();
+				if (ride) notice = null;
+				busy = false;
+				return;
+			}
 			if (data) ride = data;
 			else notice = messageOf(err, 'This request is no longer available.');
 		} else {
