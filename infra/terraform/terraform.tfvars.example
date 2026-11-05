@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. No secrets belong here.
+project_id = "your-project-id"
+
+# Defaults suit staging; uncomment to change.
+# region            = "africa-south1"
+# zone              = "africa-south1-a"
+# environment       = "staging"
+# github_repository = "Paavo12/FUber"
+# cors_origins      = ["capacitor://localhost", "https://localhost"]
+
+# Set after the osrm-image workflow has pushed the first image (README step 9):
+# osrm_image = "africa-south1-docker.pkg.dev/your-project-id/fuber/osrm:latest"
