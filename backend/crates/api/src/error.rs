@@ -55,6 +55,15 @@ impl ApiError {
         e
     }
 
+    /// Every database connection stayed in use for the whole wait: overload, not a fault, so
+    /// the client is told to try again.
+    pub fn busy() -> Self {
+        tracing::warn!("no database connection free in time");
+        let mut e = Self::unavailable("busy", "We're very busy right now. Please try again.");
+        e.retry_after = Some(Duration::from_secs(1));
+        e
+    }
+
     /// Logs the real cause server-side and returns a generic 500 to the client.
     pub fn internal(cause: impl std::fmt::Display) -> Self {
         tracing::error!(error = %cause, "internal error");
@@ -62,10 +71,14 @@ impl ApiError {
     }
 }
 
-/// Database errors are never shown to the client: `?` on a query logs it and answers 500.
+/// Database errors are never shown to the client: `?` on a query logs it and answers 500, or
+/// 503 when the pool had no connection free in time.
 impl From<sqlx::Error> for ApiError {
     fn from(e: sqlx::Error) -> Self {
-        ApiError::internal(e)
+        match e {
+            sqlx::Error::PoolTimedOut => ApiError::busy(),
+            e => ApiError::internal(e),
+        }
     }
 }
 
@@ -98,4 +111,17 @@ pub struct ErrorDetail {
 
 pub async fn fallback() -> ApiError {
     ApiError::not_found()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_full_connection_pool_is_a_503_to_retry_and_other_database_errors_stay_500() {
+        let busy = ApiError::from(sqlx::Error::PoolTimedOut).into_response();
+        assert_eq!(busy.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(busy.headers()[header::RETRY_AFTER], "1");
+        assert_eq!(ApiError::from(sqlx::Error::RowNotFound).status, StatusCode::INTERNAL_SERVER_ERROR);
+    }
 }
