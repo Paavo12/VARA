@@ -293,10 +293,18 @@ pub struct Limit {
     pub trusted_proxy_hops: usize,
 }
 
+/// The one route no limit may refuse.
+pub const SOS_PATH: &str = "/v1/safety/sos";
+
 pub async fn enforce(State(l): State<Limit>, req: Request, next: Next) -> Response {
     let ip = client_ip(&req, l.trusted_proxy_hops);
     match l.limiter.hit(l.group, &ip.to_string(), l.rule).await {
         Decision::Allow => next.run(req).await,
+        // Safety must never be throttled (TRD §5): an SOS over the limit is logged, not refused.
+        Decision::Deny { .. } if req.uri().path() == SOS_PATH => {
+            tracing::warn!(group = l.group, "rate limit exceeded by an SOS; let through");
+            next.run(req).await
+        }
         Decision::Deny { retry_after } => {
             // The IP is not logged: the group is enough to spot abuse patterns in metrics.
             tracing::warn!(group = l.group, "rate limit exceeded");

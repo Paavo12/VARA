@@ -5,10 +5,12 @@
 -->
 <script lang="ts">
 	import { connectLive, type LiveMessage, type Me, type RiderRide } from '@fuber/api-client';
-	import { useSession } from '@fuber/account';
+	import { Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
+	import { SAFETY_DESK_PHONE } from '../session';
 	import Options from './Options.svelte';
+	import History from './History.svelte';
 	import RideStatus from './RideStatus.svelte';
 	import Search from './Search.svelte';
 	import { DEV_LOCATION, inServiceArea, type Stop } from './types';
@@ -21,14 +23,16 @@
 	let { me, onsettings }: Props = $props();
 	const session = useSession();
 
-	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride';
+	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride' | 'history';
+	/** SOS is on screen from the moment a driver is assigned (PRD S-1). */
+	const WITH_DRIVER = ['DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'PIN_VERIFIED', 'IN_TRIP', 'BLOCKED'];
 	let stage = $state<Stage>('loading');
 	let ride = $state<RiderRide | null>(null);
 	let current = $state<Stop | null>(null);
 	let pickup = $state<Stop | null>(null);
 	let dropoff = $state<Stop | null>(null);
 
-	const FINISHED = ['COMPLETED', 'CANCELLED'];
+	const FINISHED = ['COMPLETED', 'RATED', 'CANCELLED', 'BLOCKED'];
 
 	async function loadActive() {
 		const { data, response } = await session.api
@@ -123,9 +127,12 @@
 		</p>
 		{#snippet footer()}
 			<Button onclick={whereTo}>Where to?</Button>
+			<Button variant="secondary" onclick={() => (stage = 'history')}>Your trips</Button>
 			<Button variant="ghost" onclick={onsettings}>Settings</Button>
 		{/snippet}
 	</Screen>
+{:else if stage === 'history'}
+	<History onback={() => (stage = 'home')} />
 {:else if stage === 'where'}
 	<Search
 		title="Where to?"
@@ -162,6 +169,9 @@
 	{/key}
 {:else if stage === 'ride' && ride}
 	<RideStatus {ride} onchange={(r) => (ride = r)} ondone={done} />
+	{#if WITH_DRIVER.includes(ride.state)}
+		<Sos rideId={ride.id} safetyDeskPhone={SAFETY_DESK_PHONE} />
+	{/if}
 {/if}
 
 <style>

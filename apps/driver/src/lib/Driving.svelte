@@ -1,6 +1,8 @@
 <!--
 	Driving (App Flow §4, PRD D-3 – D-5): go online and offline, the request card with its 15 s
 	countdown (earnings largest; no destination, only the pickup area), and the accepted trip.
+	After a PIN lockout she stays online but requests pause until the safety desk closes it
+	(App Flow §7); closing cancels the blocked trip, so that update refetches the status.
 	While online the position goes over the socket every 4 s. After every (re)connect the
 	status is refetched, so a reload or a dropped connection resumes where it was.
 -->
@@ -12,9 +14,12 @@
 		type LiveMessage,
 		type OfferCard
 	} from '@fuber/api-client';
-	import { messageOf, useSession } from '@fuber/account';
+	import { messageOf, Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen, formatDistance, formatMinutes, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
+	import Earnings from './Earnings.svelte';
+	import { SAFETY_DESK_PHONE } from './session';
+	import Trip from './Trip.svelte';
 
 	interface Props {
 		name: string;
@@ -44,6 +49,7 @@
 	let now = $state(Date.now());
 	let ride = $state<DriverRide | null>(null);
 	let busy = $state(false);
+	let showEarnings = $state(false);
 	let error = $state<string | null>(null);
 	let notice = $state<string | null>(null);
 	let position: { lat: number; lon: number; heading?: number; speed_kmh?: number } | null = null;
@@ -51,7 +57,9 @@
 
 	function show(s: DriverStatus) {
 		status = s;
-		ride = s.ride ?? null;
+		// A trip that just ended stays on screen (summary) until she taps Done.
+		const ended = ride && ['COMPLETED', 'RATED', 'CANCELLED', 'BLOCKED'].includes(ride.state);
+		ride = s.ride ?? (ended ? ride : null);
 		setOffer(s.offer ?? null);
 	}
 
@@ -77,7 +85,10 @@
 				if (d.response === 'withdrawn') notice = 'The passenger cancelled the request.';
 			}
 		} else if (m.type === 'ride.updated') {
-			ride = m.data as DriverRide;
+			// Keep the finished trip on screen until she taps Done.
+			const next = m.data as DriverRide;
+			if (ride?.id === next.id || !ride) ride = next;
+			if (status?.hold && next.state === 'CANCELLED') void load();
 		} else if (m.type === 'ride.removed') {
 			ride = null;
 			notice = 'The passenger cancelled the trip. No fee for you.';
@@ -146,9 +157,21 @@
 		error = null;
 		busy = true;
 		if (accept) {
-			const { data, error: err } = await session.api
+			const {
+				data,
+				error: err,
+				response
+			} = await session.api
 				.POST('/v1/offers/{id}/accept', { params: { path: { id } } })
-				.catch(() => ({ data: undefined, error: undefined }));
+				.catch(() => ({ data: undefined, error: undefined, response: undefined }));
+			if (response?.status === 503) {
+				// Too busy to answer, but the accept may have landed: ask where things stand.
+				notice = messageOf(err);
+				await load();
+				if (ride) notice = null;
+				busy = false;
+				return;
+			}
 			if (data) ride = data;
 			else notice = messageOf(err, 'This request is no longer available.');
 		} else {
@@ -191,29 +214,24 @@
 	const RING = 2 * Math.PI * 44;
 </script>
 
+<!-- SOS on every screen while she is online or on a trip (PRD S-1). -->
+{#if ride || status?.online}
+	<Sos rideId={ride?.id ?? null} safetyDeskPhone={SAFETY_DESK_PHONE} />
+{/if}
+
 {#if ride}
-	<Screen
-		title={ride.state === 'DRIVER_ARRIVED' ? 'You’ve arrived' : 'Head to the pickup'}
-		lead="Trip {ride.code} · {NAMES[ride.tier] ?? ride.tier}"
-	>
-		<div class="card">
-			<p class="earning">{formatNad(ride.earning)}</p>
-			<p><small>Passenger</small><strong>{ride.passenger.name}</strong></p>
-			{#if ride.passenger.booked_by}<p><small>{ride.passenger.booked_by}</small></p>{/if}
-			<p>
-				<small>Pickup</small>{ride.pickup?.address ?? ride.pickup_area.label}
-				{#if !ride.pickup}<small>The exact spot shows when you arrive.</small>{/if}
-			</p>
-			<p>
-				<small>Passengers</small>{ride.passengers}{ride.wheelchair ? ' · wheelchair' : ''} ·
-				{ride.payment_method === 'cash' ? 'Cash' : 'Card'}
-			</p>
-		</div>
-		<Notice tone="info">
-			<p>Ask for her 4-digit PIN before she gets in. The destination shows once it’s entered.</p>
-		</Notice>
-		{#if notice}<Notice tone="attention"><p>{notice}</p></Notice>{/if}
-	</Screen>
+	<Trip
+		{ride}
+		onchange={(r) => (ride = r)}
+		onreleased={() => {
+			ride = null;
+			notice = 'You cancelled. The request went to another driver.';
+		}}
+		ondone={() => {
+			ride = null;
+			void load();
+		}}
+	/>
 {:else if offer}
 	<Screen title="New request" lead="{NAMES[offer.tier] ?? offer.tier} · {offer.pickup_area.label}">
 		<div class="offer" role="alert">
@@ -252,12 +270,24 @@
 			>
 		{/snippet}
 	</Screen>
+{:else if showEarnings}
+	<Earnings onback={() => (showEarnings = false)} />
 {:else if status?.online}
-	<Screen title="You’re online" lead="Looking for passengers near you…">
-		<div class="radar" aria-hidden="true"><span class="ring-pulse"></span></div>
+	<Screen
+		title="You’re online"
+		lead={status.hold ? 'New requests are paused.' : 'Looking for passengers near you…'}
+	>
+		{#if status.hold}
+			<Notice tone="attention">
+				<p>{status.hold.message}</p>
+			</Notice>
+		{:else}
+			<div class="radar" aria-hidden="true"><span class="ring-pulse"></span></div>
+		{/if}
 		<p class="hint">Ride types: {status.tiers.map((t) => NAMES[t] ?? t).join(', ')}</p>
 		{#if notice}<Notice tone="info"><p>{notice}</p></Notice>{/if}
 		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
+		<Button variant="ghost" onclick={() => (showEarnings = true)}>Earnings and trips</Button>
 		{#snippet footer()}
 			<Button size="driver" variant="secondary" onclick={goOffline} loading={busy}
 				>Go offline</Button
@@ -270,6 +300,7 @@
 			<p>Approved ride types: {tiers.map((t) => NAMES[t] ?? t).join(', ') || 'none yet'}.</p>
 		</Notice>
 		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
+		<Button variant="secondary" onclick={() => (showEarnings = true)}>Earnings and trips</Button>
 		<Button variant="secondary" onclick={ondocuments}>Documents</Button>
 		{#snippet footer()}
 			<Button size="driver" onclick={goOnline} loading={busy} disabled={!status}>Go online</Button>
