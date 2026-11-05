@@ -1099,6 +1099,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "`busy`: try again. The accept may already have landed, so check `/v1/driver/status`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [

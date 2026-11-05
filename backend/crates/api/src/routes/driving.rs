@@ -179,6 +179,7 @@ pub async fn location(
         (status = 200, description = "The ride is hers: drive to the pickup area", body = DriverRide),
         (status = 404, description = "Not her offer", body = ErrorBody),
         (status = 409, description = "`offer_gone`: expired, withdrawn, or the rider cancelled", body = ErrorBody),
+        (status = 503, description = "`busy`: try again. The accept may already have landed, so check `/v1/driver/status`", body = ErrorBody),
     )
 )]
 pub async fn accept(State(s): State<AppState>, DriverUser(user): DriverUser, Path(id): Path<Uuid>) -> Result<Json<DriverRide>, ApiError> {
