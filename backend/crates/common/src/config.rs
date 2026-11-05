@@ -22,6 +22,9 @@ pub struct Config {
     pub bind_addr: SocketAddr,
     pub database_url: SecretString,
     pub redis_url: SecretString,
+    /// PEM CA certificate for `rediss://` when the server's CA is not publicly trusted
+    /// (Memorystore). Public, not a secret.
+    pub redis_ca_cert: Option<String>,
     /// Exact origins allowed by CORS (web apps and Capacitor shells).
     pub cors_origins: Vec<String>,
     /// Number of reverse proxies in front of the API that append to `X-Forwarded-For`.
@@ -149,6 +152,15 @@ impl Config {
                 errors.push("REDIS_URL must use TLS (rediss://) outside APP_ENV=local".into());
             }
         }
+        let redis_ca_cert = get("REDIS_CA_CERT").filter(|v| !v.trim().is_empty());
+        if let Some(pem) = &redis_ca_cert {
+            if !pem.contains("-----BEGIN CERTIFICATE-----") {
+                errors.push("REDIS_CA_CERT must be a PEM certificate".into());
+            }
+            if !redis_url.starts_with("rediss://") {
+                errors.push("REDIS_CA_CERT needs a TLS REDIS_URL (rediss://)".into());
+            }
+        }
 
         let jwt_kid = get("JWT_KID").unwrap_or_else(|| "k1".into());
         let jwt_previous = match (get("JWT_PREVIOUS_KID"), get("JWT_PREVIOUS_SECRET")) {
@@ -251,6 +263,7 @@ impl Config {
             bind_addr,
             database_url: database_url.into(),
             redis_url: redis_url.into(),
+            redis_ca_cert,
             cors_origins,
             trusted_proxy_hops,
             rate_limits_json: get("RATE_LIMITS"),
@@ -361,6 +374,16 @@ mod tests {
         assert!(e.to_string().contains("OSRM_URL"), "{e}");
         let local = load(&[("APP_ENV", "local"), ("DATABASE_URL", "x"), ("REDIS_URL", "y")]).unwrap();
         assert_eq!(local.routing, RoutingConfig::Estimate);
+    }
+
+    #[test]
+    fn redis_ca_cert_needs_pem_and_tls() {
+        let base = [("APP_ENV", "local"), ("DATABASE_URL", "x")];
+        let pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n";
+        let c = load(&[&base[..], &[("REDIS_URL", "rediss://10.0.0.3:6378"), ("REDIS_CA_CERT", pem)]].concat()).unwrap();
+        assert_eq!(c.redis_ca_cert.as_deref(), Some(pem));
+        let e = load(&[&base[..], &[("REDIS_URL", "redis://r"), ("REDIS_CA_CERT", "not a cert")]].concat()).unwrap_err();
+        assert_eq!(e.0.len(), 2, "{e}");
     }
 
     #[test]

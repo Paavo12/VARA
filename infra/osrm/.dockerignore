@@ -1,0 +1,2 @@
+# Data from build.sh is for local docker-compose only; the image downloads its own.
+data/

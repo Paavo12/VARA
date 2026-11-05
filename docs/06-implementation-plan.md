@@ -56,7 +56,7 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 ### Phase 0 — Foundations (3 weeks)
 
 - Monorepo per TRD §3; Cargo workspace (`api`, `worker`, `domain`, `db`, `geo`, `integrations`, `common`); npm workspaces for Svelte apps and packages.
-- Local dev: `docker-compose` with PostGIS, Redis, OSRM (Namibia extract) in `infra/docker-compose.yml`; S3-compatible storage is chosen in Phase 1 (MinIO no longer publishes Docker images); seed data matching the demo (four drivers, one rider, Windhoek places).
+- Local dev: `docker-compose` with PostGIS, Redis, OSRM (Namibia extract) in `infra/docker-compose.yml`; local uploads stay on disk; the cloud uses Cloud Storage; seed data matching the demo (four drivers, one rider, Windhoek places).
 - CI: fmt, clippy (`-D warnings`), tests, `svelte-check`, ESLint, `cargo audit`/`deny`, `npm audit`, **gitleaks**, container scan, OpenAPI diff.
 - Environments: staging on Terraform; secret manager wired; deploy on merge.
 - **Security baseline (built first, not last):**
@@ -70,6 +70,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** a "hello" endpoint deployed to staging behind rate limiting; both mobile shells install on a real Android and iPhone; security baseline checklist items 1–8 (§6) pass.
 
+**Status (2026-10-29):** staging on Google Cloud written on branch `phase-0/staging`, not yet applied. Distroless, non-root images for the API, worker and a new `migrate` binary (`backend/Dockerfile`); an OSRM image with the Namibia data (`infra/osrm/Dockerfile`, rebuilt monthly by `osrm-image.yml`). Terraform in `infra/terraform/` for `africa-south1`: VPC with private services access and Cloud NAT; Cloud SQL PostgreSQL 16 (private IP, TLS); Memorystore Redis 7 (TLS + AUTH; the API now trusts Memorystore's CA through `REDIS_CA_CERT`); a CMEK-encrypted documents bucket; Artifact Registry; Secret Manager secrets without values; separate service accounts for API, worker, migrations and the internal VM; Cloud Run API service, worker pool and migration job; ClamAV and OSRM on one internal VM; Workload Identity Federation for GitHub. CI's new `deploy-staging` job builds, migrates and deploys on every push to `main` once the repository variables are set. Still open: running the setup in `infra/terraform/README.md`, uploads on staging (need the Cloud Storage backend, Phase 1 vendors), a load balancer with Cloud Armor before production, and monitoring and alerts.
+
 ### Phase 1 — Identity & onboarding (3 weeks)
 
 - OTP sign-in (A-1) with SMS provider + fake; sessions, refresh rotation, secure storage on device (TRD §7.4).
@@ -80,7 +82,7 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** a new rider and a new driver can onboard on real phones; verification decided via API; wrong-user access tests pass for every endpoint.
 
-**Status (2026-10-27):** built on branch `phase-1/identity`. API, worker and both app flows are done; integration tests cover rider and driver onboarding through ops approval, uploads through the worker, deletion and erasure, and wrong-user/unauthenticated/validation checks for every Phase 1 endpoint. Still open: real-phone run, real SMS and S3-compatible storage (blocked on vendor and cloud decisions, PRD §10), the Driver Agreement text, and CAPTCHA on OTP requests.
+**Status (2026-10-27):** built on branch `phase-1/identity`. API, worker and both app flows are done; integration tests cover rider and driver onboarding through ops approval, uploads through the worker, deletion and erasure, and wrong-user/unauthenticated/validation checks for every Phase 1 endpoint. Still open: real-phone run, real SMS (blocked on the vendor decision, PRD §10), the Cloud Storage backend, the Driver Agreement text, and CAPTCHA on OTP requests.
 
 ### Phase 2 — Booking & dispatch (4 weeks)
 
@@ -94,7 +96,7 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** two people on two phones complete request → offer → accept; race test (20 drivers accepting the same ride) yields exactly one winner; load test 500 simulated drivers passes TRD §6.
 
-**Status (2026-10-28):** built on branch `phase-2/booking-dispatch`. Places search, OSRM routing (straight-line estimate locally), signed locked quotes with surge, ride creation with every option, driver presence, the matching worker with sequential 15 s offers, WebSocket live updates with reconnect, and the rider booking and driver offer screens are done. Presence and fan-out use Postgres instead of Redis (TRD §1). Integration tests cover search, quotes, matching order, privacy in every state, expiry and retry, cancellations, scheduling, guest SMS and the live socket. Still open: rerunning the 20-driver race test after the `SKIP LOCKED` fix, the 500-driver load test (`cargo test -p fuber-api --test dispatch -- --ignored`), and the two-phone run. Locally, sign-in skips the SMS code: the API returns it only when `APP_ENV=local`.
+**Status (2026-10-28):** built on branch `phase-2/booking-dispatch`. Places search, OSRM routing (straight-line estimate locally), signed locked quotes with surge, ride creation with every option, driver presence, the matching worker with sequential 15 s offers, WebSocket live updates with reconnect, and the rider booking and driver offer screens are done. Presence and fan-out use Postgres instead of Redis (TRD §1). Integration tests cover search, quotes, matching order, privacy in every state, expiry and retry, cancellations, scheduling, guest SMS and the live socket. Merged to `main` on 2026-10-29: the 20-driver race test and the 500-driver load test (`cargo test -p fuber-api --test dispatch -- --ignored`) pass; the load test's own setup was fixed so its drivers actually go online (50 of 50 rides offered, matching tick 1.45 s in a debug build). Still open: the two-phone run on real devices. Locally, sign-in skips the SMS code: the API returns it only when `APP_ENV=local`.
 
 ### Phase 3 — Trip & safety (3 weeks)
 
