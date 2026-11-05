@@ -188,9 +188,10 @@ pub struct Search<'a> {
 
 /// Eligible drivers near the pickup, nearest first (PRD D-1): online from a live session,
 /// reporting recently, approved and allowed online, the right tier and wheelchair access, no
-/// active trip, no request on screen, within the radius in a straight line.
+/// active trip, no request on screen, not held after a PIN lockout, within the radius in a
+/// straight line.
 pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<Vec<Candidate>, sqlx::Error> {
-    let rows: Vec<(Uuid, f64, f64, f64, f64, i32, bool)> = sqlx::query_as(
+    let rows: Vec<(Uuid, f64, f64, f64, f64, i32, bool)> = sqlx::query_as(&format!(
         "WITH pickup AS (SELECT ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography AS g)
          SELECT p.driver_id, ST_Y(p.location::geometry), ST_X(p.location::geometry), ST_Distance(p.location, pickup.g),
                 dp.acceptance_rate::float8, dp.priority_points,
@@ -208,9 +209,11 @@ pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<V
            AND p.driver_id <> ALL($7)
            AND NOT EXISTS (SELECT 1 FROM rides r WHERE r.driver_id = p.driver_id AND r.state::text = ANY($9))
            AND NOT EXISTS (SELECT 1 FROM ride_offers o WHERE o.driver_id = p.driver_id AND o.response = 'pending')
+           AND NOT EXISTS ({held})
          ORDER BY ST_Distance(p.location, pickup.g)
          LIMIT $10",
-    )
+        held = held_sql("p.driver_id"),
+    ))
     .bind(q.lat)
     .bind(q.lon)
     .bind(q.tier)
@@ -235,4 +238,18 @@ pub async fn candidates<'e>(db: impl PgExecutor<'e>, q: &Search<'_>) -> Result<V
             favourite,
         })
         .collect())
+}
+
+/// The hold rule, shared by matching and the driver's status so both always agree: any PIN
+/// lockout on her trips stays a hold, however old, until the safety desk closes it (PRD T-3).
+fn held_sql(driver: &str) -> String {
+    format!(
+        "SELECT 1 FROM safety_incidents i JOIN rides r ON r.id = i.ride_id
+         WHERE r.driver_id = {driver} AND i.kind = 'pin_lockout' AND i.status <> 'closed'"
+    )
+}
+
+/// Whether she is held from new requests after a PIN lockout.
+pub async fn lockout_hold<'e>(db: impl PgExecutor<'e>, driver_id: Uuid) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar(&format!("SELECT EXISTS ({})", held_sql("$1"))).bind(driver_id).fetch_one(db).await
 }

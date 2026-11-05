@@ -7,6 +7,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+fuber-common = { version = "0.1.0", path = "../common" }
 fuber-domain = { version = "0.1.0", path = "../domain" }
 secrecy = "0.10.3"
 serde_json = "1.0.154"

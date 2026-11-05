@@ -7,6 +7,7 @@
 
 pub mod auth;
 pub mod drivers;
+pub mod incidents;
 pub mod verifications;
 
 use axum::{
@@ -28,6 +29,8 @@ pub fn router(_: &AppState) -> Router<AppState> {
         .route("/verifications", get(verifications::queue))
         .route("/verifications/{id}", get(verifications::detail))
         .route("/verifications/{id}/decision", post(verifications::decide))
+        .route("/incidents", get(incidents::queue))
+        .route("/incidents/{id}/close", post(incidents::close))
         .route("/drivers", get(drivers::queue))
         .route("/drivers/{id}", get(drivers::detail))
         .route("/drivers/{id}/tiers", put(drivers::set_tiers))
@@ -48,6 +51,15 @@ impl Staff {
     /// Verification and driver reviews: reviewers and admins.
     pub fn require_reviewer(&self) -> Result<(), ApiError> {
         if self.roles.iter().any(|r| r == "ops_reviewer" || r == "ops_admin") {
+            Ok(())
+        } else {
+            Err(ApiError::forbidden("forbidden", "Your role can't do this."))
+        }
+    }
+
+    /// The safety desk: safety agents and admins.
+    pub fn require_safety(&self) -> Result<(), ApiError> {
+        if self.roles.iter().any(|r| r == "ops_safety" || r == "ops_admin") {
             Ok(())
         } else {
             Err(ApiError::forbidden("forbidden", "Your role can't do this."))

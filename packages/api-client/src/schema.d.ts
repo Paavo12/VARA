@@ -132,6 +132,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/driver/earnings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["earnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/driver/location": {
         parameters: {
             query?: never;
@@ -188,6 +204,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["driver_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/trips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["driver_trips"];
         put?: never;
         post?: never;
         delete?: never;
@@ -272,6 +304,38 @@ export interface paths {
         put: operations["replace_contacts"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/favourite-drivers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["favourites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/favourite-drivers/{driver_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_favourite"];
         options?: never;
         head?: never;
         patch?: never;
@@ -437,6 +501,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["incident_queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/incidents/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["close"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/vehicles/{id}/decision": {
         parameters: {
             query?: never;
@@ -557,7 +653,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["rider_trips"];
         put?: never;
         post: operations["create_ride"];
         delete?: never;
@@ -614,6 +710,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/rides/{id}/arrive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["arrive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/rides/{id}/cancel": {
         parameters: {
             query?: never;
@@ -630,6 +742,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/rides/{id}/cash-received": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cash_received"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/driver-cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["driver_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/no-show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["no_show"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["pin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/rating/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["skip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/rides/{id}/retry": {
         parameters: {
             query?: never;
@@ -640,6 +864,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/wait": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["wait"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/safety/sos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["sos"];
         delete?: never;
         options?: never;
         head?: never;
@@ -770,11 +1042,26 @@ export interface components {
             rating_count: number;
             vehicle: components["schemas"]["RideVehicle"];
         };
+        CashConfirmed: {
+            /** @description Her balance after this trip: negative means she owes FUber. */
+            balance: components["schemas"]["Cents"];
+            /** @description `cash_confirmed`. */
+            payment_status: string;
+            /** Format: uuid */
+            ride_id: string;
+            /** @description FUber's service fee on this trip, added to what she owes. */
+            service_fee: components["schemas"]["Cents"];
+        };
         /**
          * Format: int64
          * @description An amount of Namibian dollars in cents. Money is never a float.
          */
         Cents: number;
+        /** @description What the safety desk found, kept on the incident and in the audit log. */
+        CloseIncident: {
+            /** @example Rider's phone was off; spoke to both, no safety concern. */
+            outcome: string;
+        };
         ConsentRequest: {
             /** @description IDs from `pending_consents` on `GET /me`; each must be the latest version of its kind. */
             document_ids: string[];
@@ -808,6 +1095,11 @@ export interface components {
         };
         /** @enum {string} */
         DocumentKind: "identity" | "selfie" | "licence" | "insurance" | "police_clearance" | "transport_permit";
+        DriverCancel: {
+            reason: components["schemas"]["DriverCancelReason"];
+        };
+        /** @enum {string} */
+        DriverCancelReason: "rider_asked_me" | "cant_reach_pickup" | "feel_unsafe" | "vehicle_problem" | "other";
         DriverDocument: {
             /** Format: date */
             expires_on?: string | null;
@@ -845,24 +1137,48 @@ export interface components {
             vehicle?: null | components["schemas"]["ReviewVehicle"];
         };
         DriverRide: {
+            /** Format: date-time */
+            arrived_at?: string | null;
             code: string;
             dropoff?: null | components["schemas"]["Stop"];
             /** @description What she earns for this trip, in cents. */
             earning: components["schemas"]["Cents"];
             /** Format: uuid */
             id: string;
+            /**
+             * Format: date-time
+             * @description From then she may cancel as a rider no-show (`POST /rides/{id}/no-show`).
+             */
+            no_show_from?: string | null;
             passenger: components["schemas"]["Passenger"];
             /** Format: int32 */
             passengers: number;
             payment_method: string;
+            /** @description Once the trip is complete: `pending` until she confirms the cash, then `cash_confirmed`. */
+            payment_status?: string | null;
             pickup?: null | components["schemas"]["Stop"];
             pickup_area: components["schemas"]["Area"];
+            /**
+             * Format: int32
+             * @description Wrong PINs she may still enter before the trip is blocked.
+             */
+            pin_attempts_left: number;
+            /** @description She has rated the passenger or skipped rating (PRD R-1). */
+            rated: boolean;
+            /** Format: date-time */
+            started_at?: string | null;
             /** @example DRIVER_EN_ROUTE */
             state: string;
             tier: components["schemas"]["Tier"];
+            /**
+             * Format: date-time
+             * @description When she started the free wait at the pickup.
+             */
+            wait_started_at?: string | null;
             wheelchair: boolean;
         };
         DriverStatus: {
+            hold?: null | components["schemas"]["HoldView"];
             offer?: null | components["schemas"]["OfferCard"];
             online: boolean;
             /** Format: date-time */
@@ -870,6 +1186,60 @@ export interface components {
             ride?: null | components["schemas"]["DriverRide"];
             /** @description Ride types she receives requests for. */
             tiers: string[];
+        };
+        DriverTrip: {
+            code: string;
+            /** Format: date-time */
+            completed_at?: string | null;
+            /** @description Only if the PIN was verified. */
+            dropoff_address?: string | null;
+            earning: components["schemas"]["Cents"];
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            my_rating?: number | null;
+            payment_method: string;
+            payment_status?: string | null;
+            /** @description Only if she reached the pickup. */
+            pickup_address?: string | null;
+            /** Format: date-time */
+            requested_at: string;
+            /** @example RATED */
+            state: string;
+        };
+        Earnings: {
+            /** @description All-time balance: positive means FUber pays her at settlement, negative means she owes FUber. */
+            balance: components["schemas"]["Cents"];
+            /** @description Cash she collected from passengers. */
+            cash_collected: components["schemas"]["Cents"];
+            /** @description What she earned: fares minus FUber's service fee. */
+            earnings: components["schemas"]["Cents"];
+            /**
+             * Format: int64
+             * @description Time online in the period.
+             */
+            online_s: number;
+            /** @description `today` or `week`. */
+            period: string;
+            /** @description Completed trips in the period, newest first. */
+            recent: components["schemas"]["EarningsTrip"][];
+            /** @description FUber's service fee on these trips. */
+            service_fees: components["schemas"]["Cents"];
+            /** Format: date-time */
+            since: string;
+            /** Format: int64 */
+            trips: number;
+        };
+        EarningsTrip: {
+            code: string;
+            /** Format: date-time */
+            completed_at: string;
+            earning: components["schemas"]["Cents"];
+            payment_method: string;
+            /** @description `pending` until she confirms the cash. */
+            payment_status?: string | null;
+            /** Format: uuid */
+            ride_id: string;
         };
         EmergencyContact: {
             name: string;
@@ -919,6 +1289,15 @@ export interface components {
             /** @description What the rider pays: base + distance + time + minimum_adjustment + surge. */
             total: components["schemas"]["Cents"];
         };
+        FavouriteDriver: {
+            /** Format: date-time */
+            added_at: string;
+            /** Format: uuid */
+            driver_id: string;
+            first_name: string;
+            /** Format: double */
+            rating?: number | null;
+        };
         Guest: {
             /** @example Ndapandula Shikongo */
             name: string;
@@ -927,6 +1306,29 @@ export interface components {
              * @example +264811234567
              */
             phone: string;
+        };
+        HoldView: {
+            message: string;
+        };
+        IncidentItem: {
+            /** Format: date-time */
+            created_at: string;
+            driver?: null | components["schemas"]["Person"];
+            /** Format: uuid */
+            id: string;
+            /** @description `sos`, `pin_lockout`, `ridecheck_deviation`, `ridecheck_stop` or `report`. */
+            kind: string;
+            /** Format: double */
+            lat?: number | null;
+            /** Format: double */
+            lon?: number | null;
+            raised_by?: null | components["schemas"]["Person"];
+            /** @description e.g. `FU-4123`. */
+            ride_code?: string | null;
+            /** Format: uuid */
+            ride_id?: string | null;
+            /** @description `open`, `claimed` or `escalated`. */
+            status: string;
         };
         /**
          * @description A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is
@@ -1089,6 +1491,19 @@ export interface components {
             /** @example 483872 */
             branch_code: string;
         };
+        Person: {
+            display_name?: string | null;
+            phone: string;
+            /** Format: uuid */
+            user_id: string;
+        };
+        PinEntry: {
+            /**
+             * @description The 4 digits the passenger shows or says.
+             * @example 0427
+             */
+            pin: string;
+        };
         PinName: {
             /** @description What to show for the pin, e.g. "Sam Nujoma Drive" or "Near Maerua Mall". */
             address: string;
@@ -1110,6 +1525,12 @@ export interface components {
             /** Format: double */
             lon: number;
             name: string;
+        };
+        Point: {
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
         };
         PreviousAttempt: {
             /** Format: date-time */
@@ -1169,6 +1590,27 @@ export interface components {
             /** @example Post Street Mall */
             pickup_address: string;
         };
+        Rated: {
+            /** Format: uuid */
+            ride_id: string;
+            /** @description `COMPLETED`, or `RATED` once both sides are done. */
+            state: string;
+        };
+        /**
+         * @description Why a trip got fewer than 3 stars. The rider rates the driver, the driver rates the rider;
+         *     some reasons apply to one side only.
+         * @enum {string}
+         */
+        RatingReason: "unsafe_driving" | "car_condition" | "route" | "damage" | "late" | "rude" | "felt_unsafe" | "other";
+        RatingRequest: {
+            comment?: string | null;
+            /** @description Rider only: add this driver to her favourites. */
+            favourite?: boolean;
+            /** @description Required below 3 stars. */
+            reasons?: components["schemas"]["RatingReason"][];
+            /** Format: int64 */
+            stars: number;
+        };
         RefreshRequest: {
             refresh_token: string;
         };
@@ -1225,10 +1667,17 @@ export interface components {
             year: number;
         };
         RiderRide: {
+            /**
+             * Format: date-time
+             * @description The driver reached the pickup.
+             */
+            arrived_at?: string | null;
             /** @description `rider`, `driver`, `system` or `staff` for cancelled rides. */
             cancelled_by?: string | null;
             /** @description Short reference such as `FU-4102`. */
             code: string;
+            /** Format: date-time */
+            completed_at?: string | null;
             driver?: null | components["schemas"]["AssignedDriver"];
             dropoff: components["schemas"]["Stop"];
             /** @description The locked price (PRD P-1), in cents. */
@@ -1241,9 +1690,13 @@ export interface components {
             passengers: number;
             /** @description `cash` or `card`. */
             payment_method: string;
+            /** @description Once the trip is complete: `pending`, then `cash_confirmed` (or a card status). */
+            payment_status?: string | null;
             pickup: components["schemas"]["Stop"];
             /** @description Say it to the driver at pickup. Never sent to the driver. */
             pin: string;
+            /** @description She has rated this trip (PRD R-1). */
+            rated: boolean;
             /** Format: date-time */
             requested_at: string;
             /** Format: date-time */
@@ -1253,10 +1706,43 @@ export interface components {
              * @description When the current search started (searching rides).
              */
             search_started_at?: string | null;
+            /** Format: date-time */
+            started_at?: string | null;
             /** @example SEARCHING */
             state: string;
             tier: components["schemas"]["Tier"];
+            /**
+             * Format: int32
+             * @description Trip time once she is in the car ("trip takes Y min", PRD T-1).
+             */
+            trip_duration_s: number;
+            /**
+             * Format: date-time
+             * @description The driver's 5-minute free wait started (after it she may cancel as a no-show).
+             */
+            wait_started_at?: string | null;
             wheelchair: boolean;
+        };
+        RiderTrip: {
+            code: string;
+            /** Format: date-time */
+            completed_at?: string | null;
+            driver_first_name?: string | null;
+            dropoff_address: string;
+            fare: components["schemas"]["Cents"];
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: int32
+             * @description The stars she gave, if she rated.
+             */
+            my_rating?: number | null;
+            payment_method: string;
+            pickup_address: string;
+            /** Format: date-time */
+            requested_at: string;
+            /** @example RATED */
+            state: string;
         };
         SaveApplication: {
             payout_account?: null | components["schemas"]["PayoutAccount"];
@@ -1273,6 +1759,32 @@ export interface components {
             new_user: boolean;
             /** Format: uuid */
             user_id: string;
+        };
+        SosAlert: {
+            /** @description Emergency contacts being texted (0 if she has none). */
+            contacts_alerted: number;
+            /** Format: uuid */
+            incident_id: string;
+            message: string;
+            /**
+             * @description Offered as a one-tap call: Namibian Police.
+             * @example 10111
+             */
+            police_phone: string;
+            /** Format: uuid */
+            ride_id?: string | null;
+        };
+        /**
+         * @description Deliberately lenient: an SOS is never refused over its details, so unknown fields are
+         *     ignored and the location may be anywhere (she may have been driven out of Windhoek).
+         */
+        SosRequest: {
+            location?: null | components["schemas"]["Point"];
+            /**
+             * Format: uuid
+             * @description Her ride; when absent, her current one (if any).
+             */
+            ride_id?: string | null;
         };
         StaffSession: {
             /** Format: date-time */
@@ -1739,6 +2251,29 @@ export interface operations {
             };
         };
     };
+    earnings: {
+        parameters: {
+            query?: {
+                /** @description `today` (default) or `week` (since Monday), Windhoek time. */
+                period?: "today" | "week";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Earnings dashboard (PRD P-6) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Earnings"];
+                };
+            };
+        };
+    };
     location: {
         parameters: {
             query?: never;
@@ -1857,6 +2392,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DriverStatus"];
+                };
+            };
+        };
+    };
+    driver_trips: {
+        parameters: {
+            query?: {
+                /** @description Trips requested before this time (the last item's `requested_at`); omit for the newest. */
+                before?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Her trips, newest first, 20 at a time */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverTrip"][];
                 };
             };
         };
@@ -2097,6 +2655,46 @@ export interface operations {
             };
         };
     };
+    favourites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Her favourite drivers; matching prefers them */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavouriteDriver"][];
+                };
+            };
+        };
+    };
+    remove_favourite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                driver_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when she wasn't a favourite) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     submit_verification: {
         parameters: {
             query?: never;
@@ -2170,6 +2768,15 @@ export interface operations {
             };
             /** @description `offer_gone`: expired, withdrawn, or the rider cancelled */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `busy`: try again. The accept may already have landed, so check `/v1/driver/status` */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2426,6 +3033,77 @@ export interface operations {
             };
         };
     };
+    incident_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incidents not yet closed: SOS first, then newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentItem"][];
+                };
+            };
+        };
+    };
+    close: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseIncident"];
+            };
+        };
+        responses: {
+            /** @description Closed. For a PIN lockout the blocked trip is cancelled and the driver can get requests again */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not safety staff */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such incident, or already closed */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No outcome given */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     decide_vehicle: {
         parameters: {
             query?: never;
@@ -2640,6 +3318,29 @@ export interface operations {
             };
         };
     };
+    rider_trips: {
+        parameters: {
+            query?: {
+                /** @description Trips requested before this time (the last item's `requested_at`); omit for the newest. */
+                before?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Her trips, newest first, 20 at a time */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiderTrip"][];
+                };
+            };
+        };
+    };
     create_ride: {
         parameters: {
             query?: never;
@@ -2820,6 +3521,46 @@ export interface operations {
             };
         };
     };
+    arrive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Arrived: the exact pickup is unlocked; ask for the PIN */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverRide"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `not_at_pickup` (more than 50 m away, or no recent position) or `invalid_state` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     cancel: {
         parameters: {
             query?: never;
@@ -2849,6 +3590,314 @@ export interface operations {
                 };
             };
             /** @description `invalid_state`: the trip has started */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    cash_received: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cash recorded (tapping again changes nothing) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashConfirmed"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `not_cash` or `not_completed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed. Cash: collect the locked fare */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverRide"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `invalid_state`: the trip hasn't started */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    driver_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverCancel"];
+            };
+        };
+        responses: {
+            /** @description Released: the request goes back to the pool without her. Free, but it costs priority (PRD T-7) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `invalid_state`: not after the PIN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    no_show: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled as a rider no-show: free, and it counts against the rider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverRide"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `wait_not_over` (start the wait, then 5 minutes) or `invalid_state` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    pin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinEntry"];
+            };
+        };
+        responses: {
+            /** @description Correct: the destination is unlocked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverRide"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `pin_locked`: that was the 5th wrong PIN; the trip is blocked and the safety desk alerted. Or `invalid_state` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `wrong_pin` (the message says how many attempts are left) or not 4 digits */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    rate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatingRequest"];
+            };
+        };
+        responses: {
+            /** @description Rated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Rated"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `already_rated` or `not_completed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No reason below 3 stars, a reason for the other side, or `favourite` from the driver app */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    skip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Skipped (the driver's "Back to requests") */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Rated"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `not_completed` */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2889,6 +3938,119 @@ export interface operations {
             };
             /** @description `invalid_state`: only after *No drivers accepted* */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description In trip: drive to the destination */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverRide"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `invalid_state`: the PIN must be verified first */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    wait: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The 5-minute free wait is running (starting it again changes nothing) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverRide"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `invalid_state`: only at the pickup, before the PIN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    sos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SosRequest"];
+            };
+        };
+        responses: {
+            /** @description The safety desk has the incident and her contacts are being texted (a repeat within 2 minutes returns the same incident) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SosAlert"];
+                };
+            };
+            /** @description `ride_id` is not her ride */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -774,6 +774,7 @@ dependencies = [
 name = "fuber-db"
 version = "0.1.0"
 dependencies = [
+ "fuber-common",
  "fuber-domain",
  "secrecy",
  "serde_json",

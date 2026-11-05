@@ -9,6 +9,7 @@ pub mod drivers;
 pub mod jobs;
 pub mod presence;
 pub mod rides;
+pub mod safety;
 pub mod settings;
 
 pub use sqlx;

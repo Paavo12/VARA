@@ -108,6 +108,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** full ride on staging with real devices; SOS reaches the (API-level) incident queue and emergency-contact SMS in < 5 s; RideCheck fires in a scripted drive.
 
+**Status (2026-11-02):** in progress on branch `phase-3/trip-safety`. Done (backend, T-2 – T-7): arrival within 50 m (marked by location updates or `POST /rides/{id}/arrive`), PIN entry with 5-attempt lockout to `BLOCKED` plus a `pin_lockout` incident, the 5-minute free wait and rider no-show, start, complete (+2 priority each), driver cancel with a reason back to the pool without her, the rider following the car until drop-off, and the trip GPS track (10 s samples). Integration tests in `crates/api/tests/trip.rs` cover the full trip, lockout, no-show, driver cancel and wrong-user access on every trip endpoint. Cancelling always costs priority points, also for a rider before assignment (decided 2026-11-02; App Flow §7 said no cost). After a PIN lockout the driver gets no requests for 15 minutes (until ops reviews, after 3 lockouts in 7 days) and loses no points (decided 2026-11-03, App Flow §7). Still open: the driver and rider trip screens, chat and masked calling (T-8), SOS, Share trip, RideCheck (S-1 – S-3) and Report an issue (S-5).
+
 ### Phase 4 — Payments, ratings, earnings (3 weeks)
 
 - Payment provider integration: tokenised card, pre-auth, capture, void, refund, signed webhooks (P-2 – P-4).
@@ -116,6 +118,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 - Notifications matrix (App Flow §10) with SMS fallback.
 
 **Exit:** card and cash rides reconcile to the cent between `rides`, `payments` and `driver_ledger`; refund flow works from ops API.
+
+**Status (2026-11-02):** first slice on branch `phase-4/payments-ratings` (from `phase-3/trip-safety`). Done: completed trips open a pending payment; the driver confirms cash (`POST /rides/{id}/cash-received`), which books FUber's service fee against her in `driver_ledger` (P-2, P-5); the earnings dashboard for today or the week with hours online and the balance (P-6); two-way ratings with reasons below 3 stars, running averages, the driver's skip and rider favourites, ending in `RATED` (R-1); trip history for riders and drivers that follows the same privacy rules as the live views (R-2); and the matching screens in both apps (cash received, rating, fare breakdown, earnings and trips, your trips). Integration tests in `crates/api/tests/after_trip.rs`. Still open: card payments, refunds and webhooks (P-3, P-4; blocked on the payment provider, PRD §10 decision 6), weekly settlement and payouts, receipts by email, the lost-item flow (R-3) and the notifications matrix with push and SMS fallback.
 
 ### Phase 5 — Ops console (9 weeks, in parallel from Phase 2)
 
@@ -127,6 +131,8 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 - Reports (O-8).
 
 **Exit:** a safety agent handles a scripted SOS end-to-end within 60 s; every ops action appears in the audit log.
+
+**Status (2026-11-02):** a first review page (O-1) is in `apps/ops` on branch `ops/review-page`, ahead of the rest of this phase: staff sign-in (password + authenticator code), the queues of driver applications and rider ID checks, and review screens to approve or reject each document, the car, the ride types and the application, and to verify riders. The staff token is kept in memory only (a reload signs out) until the cookie + CSRF session below. Locally it runs at `http://127.0.0.1:5175` (`npm run dev -w @fuber/ops`); create staff with the `staff` binary.
 
 ### Phase 6 — Hardening (3 weeks)
 
@@ -200,7 +206,21 @@ Operations
 21. [ ] On-call rota and paging; runbooks reviewed.
 22. [ ] App Store / Play listings approved, privacy labels accurate.
 
-## 7. First two weeks — concrete next steps
+## 7. Stakeholder decisions (2026-11-04)
+
+| Topic | Decision | State in the code |
+| --- | --- | --- |
+| 5 wrong PINs | Driver blocked from new requests until ops clears it | Built (`POST /ops/incidents/{id}/close`, ops Safety desk page) |
+| Name | Product renamed to **VARA** (Verified, Authenticated, Reliable, App) | Not started; needs the domain and app IDs |
+| Launch promotion | No 32 % promotion, no commission under 15 %. Launch on 15–18 % | Fees already 15 / 16.5 / 18 % (migration 0007); no promotion exists |
+| Map Experts | Flat 15 % for drivers working unmapped or newly developed zones who help verify wayfinding and geofencing | Not started; needs qualification thresholds and who grants it |
+| Background location | Tauri or native handling approved if it keeps drivers visible | Stay on Capacitor; native foreground service still to build and test on Samsung and Huawei |
+| Cards | DPO Pay or PayToday; PayPoint later. Closed pilot on cash only | Provider integration not started; final pick open |
+| Masked calls | Explore MTC / Paratus; in-app chat is primary meanwhile | Chat (T-8) not built yet |
+
+**Launch date:** set once Phase 3, cloud staging, real SMS and legal approvals are finished.
+
+## 8. First two weeks — concrete next steps
 
 1. Founders review and sign off these documents; close PRD §10 decisions 6–9 (vendors) and start 1–5 with counsel.
 2. Engage a Namibian law firm: women-only opinion, Terms/Privacy review, Driver Agreement, transport permits.

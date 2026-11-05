@@ -12,6 +12,9 @@ pub mod kind {
     pub const ERASE_ACCOUNT: &str = "account.erase";
     /// `{"ride_id": uuid}`: text a guest passenger her driver, car, plate and PIN (PRD B-5).
     pub const GUEST_SMS: &str = "ride.guest_sms";
+    /// `{"incident_id": uuid, "positions": [1, 3]}`: resend SOS texts to the emergency contacts
+    /// at these positions after the API's own attempt failed (PRD S-1).
+    pub const SOS_SMS: &str = "safety.sos_sms";
 }
 
 /// How long a claimed job is hidden from other workers before it is retried.

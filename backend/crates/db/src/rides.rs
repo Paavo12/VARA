@@ -114,6 +114,34 @@ pub async fn penalise(conn: &mut PgConnection, user_id: Uuid, role: Party, ride_
     Ok(lost)
 }
 
+/// Adds the completed-trip priority points (PRD D-5) and records the entry.
+pub async fn reward(conn: &mut PgConnection, user_id: Uuid, role: Party, ride_id: Uuid) -> Result<(), sqlx::Error> {
+    let table = if role == Party::Driver { "driver_profiles" } else { "rider_profiles" };
+    let (points, cancels): (i32, i32) =
+        sqlx::query_as(&format!("SELECT priority_points, cancel_count FROM {table} WHERE user_id = $1 FOR UPDATE"))
+            .bind(user_id)
+            .fetch_one(&mut *conn)
+            .await?;
+    let mut p = Priority { points, cancels };
+    p.reward_trip();
+    sqlx::query(&format!("UPDATE {table} SET priority_points = $2 WHERE user_id = $1"))
+        .bind(user_id)
+        .bind(p.points)
+        .execute(&mut *conn)
+        .await?;
+    sqlx::query(
+        "INSERT INTO priority_ledger (user_id, role, ride_id, delta, reason, balance) VALUES ($1, $2, $3, $4, 'trip_completed', $5)",
+    )
+    .bind(user_id)
+    .bind(party_str(role))
+    .bind(ride_id)
+    .bind(p.points - points)
+    .bind(p.points)
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
 /// Rolling acceptance rate used by matching: each answer moves it 5 % towards 1 (accepted) or
 /// 0 (declined or let expire).
 pub async fn record_answer<'e>(db: impl PgExecutor<'e>, driver_id: Uuid, accepted: bool) -> Result<(), sqlx::Error> {

@@ -282,6 +282,26 @@ impl<const MAX: usize> Line<MAX> {
 }
 string_newtype!(Line<const MAX: usize>);
 
+/// The 4-digit trip PIN the driver types at pickup (PRD T-3).
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct Pin4(String);
+
+impl Pin4 {
+    pub fn parse(raw: &str) -> Result<Self, Invalid> {
+        let s = raw.trim();
+        if s.len() == 4 && s.bytes().all(|b| b.is_ascii_digit()) { Ok(Pin4(s.to_owned())) } else { Err(Invalid("the PIN is 4 digits")) }
+    }
+}
+string_newtype!(Pin4);
+
+/// Never printed: a PIN in a log line would defeat the attempt limit.
+impl fmt::Debug for Pin4 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("Pin4(****)")
+    }
+}
+
 /// An email address: one `@`, a dotted domain, ASCII only, at most 254 characters. Stored
 /// lower-cased. Deliberately strict: an address only receives receipts, so rejecting exotic
 /// forms costs little.
@@ -465,6 +485,15 @@ mod tests {
             assert!(NationalId::parse(bad).is_err(), "{bad:?}");
         }
         assert!(!format!("{:?}", NationalId::parse("94031200123").unwrap()).contains("9403"));
+    }
+
+    #[test]
+    fn pins_are_four_digits_and_never_logged() {
+        assert_eq!(Pin4::parse(" 0427 ").unwrap().as_str(), "0427");
+        for bad in ["427", "04270", "04a7", "", "٠٤٢٧"] {
+            assert!(Pin4::parse(bad).is_err(), "{bad:?}");
+        }
+        assert_eq!(format!("{:?}", Pin4::parse("0427").unwrap()), "Pin4(****)");
     }
 
     #[test]
