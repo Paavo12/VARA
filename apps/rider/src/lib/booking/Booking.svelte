@@ -25,7 +25,14 @@
 
 	type Stage = 'loading' | 'home' | 'where' | 'pickup' | 'options' | 'ride' | 'history';
 	/** SOS is on screen from the moment a driver is assigned (PRD S-1). */
-	const WITH_DRIVER = ['DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'PIN_VERIFIED', 'IN_TRIP', 'BLOCKED'];
+	const WITH_DRIVER = [
+		'DRIVER_ASSIGNED',
+		'DRIVER_EN_ROUTE',
+		'DRIVER_ARRIVED',
+		'PIN_VERIFIED',
+		'IN_TRIP',
+		'BLOCKED'
+	];
 	let stage = $state<Stage>('loading');
 	let ride = $state<RiderRide | null>(null);
 	let current = $state<Stop | null>(null);
