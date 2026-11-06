@@ -110,7 +110,7 @@ pub async fn request_otp(
         .execute(&s.db)
         .await?;
 
-    let body = format!("{code} is your FUber code. It expires in 5 minutes. FUber will never ask you for this code.");
+    let body = format!("{code} is your VARA code. It expires in 5 minutes. VARA will never ask you for this code.");
     if let Err(e) = s.sms.send(&req.phone, &body).await {
         tracing::error!(error = %e, to = %mask_phone(req.phone.as_str()), "OTP SMS failed");
         return Err(ApiError::unavailable("sms_unavailable", "We couldn't send the code. Please try again in a minute."));
@@ -224,11 +224,11 @@ pub async fn verify_otp(
         .fetch_one(&mut *tx)
         .await?;
     match status.as_str() {
-        "suspended" => return Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact FUber support.")),
+        "suspended" => return Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact VARA support.")),
         "deleted" => {
             return Err(ApiError::forbidden(
                 "account_deleted",
-                "This account is being deleted. Contact FUber support within 30 days of deleting it if you want it back.",
+                "This account is being deleted. Contact VARA support within 30 days of deleting it if you want it back.",
             ));
         }
         _ => {}
@@ -326,7 +326,7 @@ pub async fn refresh(
         return Err(ApiError::unauthorized());
     }
     if status == "suspended" {
-        return Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact FUber support."));
+        return Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact VARA support."));
     }
     sqlx::query("UPDATE sessions SET revoked_at = now(), revoked_reason = 'rotated' WHERE id = $1").bind(sid).execute(&mut *tx).await?;
     let app = if app == "driver" { App::Driver } else { App::Rider };

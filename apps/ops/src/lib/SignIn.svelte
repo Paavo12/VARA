@@ -23,14 +23,14 @@
 			totp = '';
 			signedIn(data);
 		} else {
-			error = messageOf(err, 'We can’t reach the FUber API. Is it running?');
+			error = messageOf(err, 'We can’t reach the VARA API. Is it running?');
 		}
 	}
 </script>
 
 <form class="card" onsubmit={submit}>
 	<h1>Staff sign-in</h1>
-	<p class="lead">For FUber reviewers and the safety desk. Every action is recorded.</p>
+	<p class="lead">For VARA reviewers and the safety desk. Every action is recorded.</p>
 	<TextField label="Work email" type="email" autocomplete="username" bind:value={email} required />
 	<TextField
 		label="Password"

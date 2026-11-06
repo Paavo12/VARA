@@ -1,4 +1,4 @@
-# FUber — App Flow
+# VARA — App Flow
 
 | | |
 | --- | --- |
@@ -230,7 +230,7 @@ sequenceDiagram
   App->>App: 3-second countdown (Cancel)
   App->>API: POST /safety/sos {ride_id, location}
   API->>Desk: incident.created (sound + flash)
-  API->>SMS: Emergency contacts: "<name> pressed SOS. Live: fuber.app/t/…"
+  API->>SMS: Emergency contacts: "<name> pressed SOS. Live: vara.example/t/…"
   API-->>App: Alert sent + Call 10111 button + "Safety team will call you"
   Desk->>U: Call via masked line within 60 s
   Desk->>Desk: Escalate to police / close with notes
@@ -245,7 +245,7 @@ Trigger (server-side): > 150 m off planned route, or stopped > 2 min outside tra
 
 ### 6.3 Share trip
 
-Rider (or driver) taps **Share trip** → token created → native share sheet / *Send to my emergency contacts*. The web page `fuber.app/t/<token>` shows live map, first name, car, plate, destination area, ETA, and *Call 10111*. Expires 30 min after the trip ends.
+Rider (or driver) taps **Share trip** → token created → native share sheet / *Send to my emergency contacts*. The web page `vara.example/t/<token>` shows live map, first name, car, plate, destination area, ETA, and *Call 10111*. Expires 30 min after the trip ends.
 
 ## 7. Cancellation & no-show
 

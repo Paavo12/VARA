@@ -1,4 +1,4 @@
-//! FUber HTTP API.
+//! VARA HTTP API.
 
 pub mod audit;
 pub mod auth;

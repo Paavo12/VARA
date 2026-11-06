@@ -1,13 +1,13 @@
 <svelte:head>
-	<title>FUber — rides by women, for women</title>
+	<title>VARA — rides by women, for women</title>
 	<meta
 		name="description"
-		content="FUber is a women-only ride-hailing service in Windhoek: verified riders, verified drivers, safety you can see."
+		content="VARA is a women-only ride-hailing service in Windhoek: verified riders, verified drivers, safety you can see."
 	/>
 </svelte:head>
 
 <main>
-	<h1>FUber</h1>
+	<h1>VARA</h1>
 	<p class="tagline">Rides by women, for women. Windhoek, coming soon.</p>
 	<p class="note">
 		Website shell (Phase 0): legal pages, trip-share links and driver applications are added in

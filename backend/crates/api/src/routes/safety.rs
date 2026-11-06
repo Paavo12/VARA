@@ -98,7 +98,7 @@ pub async fn sos(State(s): State<AppState>, user: AuthUser, ValidJson(req): Vali
             sqlx::query_scalar("SELECT count(*) FROM emergency_contacts WHERE user_id = $1").bind(user.user_id).fetch_one(&mut *tx).await?;
         tx.commit().await?;
         tracing::warn!(security_event = "sos_repeat", incident_id = %id, user_id = %user.user_id, "SOS pressed again");
-        return Ok(Json(alert(id, ride_id, contacts as usize, "Your alert is already with FUber's safety team. They will call you.")));
+        return Ok(Json(alert(id, ride_id, contacts as usize, "Your alert is already with VARA's safety team. They will call you.")));
     }
 
     let id: Uuid = sqlx::query_scalar(
@@ -126,9 +126,9 @@ pub async fn sos(State(s): State<AppState>, user: AuthUser, ValidJson(req): Vali
     let state = s.clone();
     tokio::spawn(async move { send(&state, id, texts).await });
     let message = match n {
-        0 => "FUber's safety team has your alert and will call you. Add emergency contacts so we can text them next time.".to_owned(),
-        1 => "FUber's safety team has your alert and will call you. We're texting your emergency contact.".to_owned(),
-        n => format!("FUber's safety team has your alert and will call you. We're texting your {n} emergency contacts."),
+        0 => "VARA's safety team has your alert and will call you. Add emergency contacts so we can text them next time.".to_owned(),
+        1 => "VARA's safety team has your alert and will call you. We're texting your emergency contact.".to_owned(),
+        n => format!("VARA's safety team has your alert and will call you. We're texting your {n} emergency contacts."),
     };
     Ok(Json(alert(id, ride_id, n, &message)))
 }

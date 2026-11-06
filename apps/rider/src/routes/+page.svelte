@@ -74,13 +74,13 @@
 </script>
 
 <svelte:head>
-	<title>FUber</title>
+	<title>VARA</title>
 </svelte:head>
 
 {#if view === 'loading'}
-	<div class="splash" aria-label="Loading"><span>FUber</span></div>
+	<div class="splash" aria-label="Loading"><span>VARA</span></div>
 {:else if view === 'offline'}
-	<Screen title="No connection" lead="We couldn’t reach FUber. Check your internet connection.">
+	<Screen title="No connection" lead="We couldn’t reach VARA. Check your internet connection.">
 		{#snippet footer()}<Button onclick={refresh}>Try again</Button>{/snippet}
 	</Screen>
 {:else if view === 'signin'}

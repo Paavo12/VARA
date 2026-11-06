@@ -39,7 +39,7 @@ afterEach(() => {
 describe('wsUrl', () => {
 	it('maps the API base URL to the socket URL', () => {
 		expect(wsUrl('http://127.0.0.1:8080')).toBe('ws://127.0.0.1:8080/v1/ws');
-		expect(wsUrl('https://api.fuber.app/')).toBe('wss://api.fuber.app/v1/ws');
+		expect(wsUrl('https://api.vara.example/')).toBe('wss://api.vara.example/v1/ws');
 	});
 });
 

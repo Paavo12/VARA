@@ -1,7 +1,7 @@
 {
 	"name": "fuber",
 	"private": true,
-	"description": "FUber monorepo: Svelte apps and shared packages. The Rust backend lives in backend/.",
+	"description": "VARA monorepo: Svelte apps and shared packages. The Rust backend lives in backend/.",
 	"workspaces": [
 		"apps/*",
 		"packages/*"

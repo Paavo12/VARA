@@ -182,7 +182,7 @@ pub async fn pin(
             tracing::warn!(security_event = "pin_lockout", ride_id = %id, driver_id = %user.user_id, "trip blocked after 5 wrong PINs");
             Err(ApiError::conflict(
                 "pin_locked",
-                "Too many wrong PINs. This trip is blocked and FUber's safety team has been alerted. Don't start the trip; they will call you. You'll get no new requests until they have reviewed it.",
+                "Too many wrong PINs. This trip is blocked and VARA's safety team has been alerted. Don't start the trip; they will call you. You'll get no new requests until they have reviewed it.",
             ))
         }
     }

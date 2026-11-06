@@ -37,7 +37,7 @@
 			You’ll be signed out on all your devices straight away. We erase your name, number, photos, ID
 			details and emergency contacts after 30 days. Records the law requires us to keep, such as
 			trip receipts, are kept without your personal details. To change your mind within 30 days,
-			contact FUber support.
+			contact VARA support.
 		</p>
 	</Notice>
 	<TextField label="Type DELETE to confirm" autocomplete="off" bind:value={confirm} />

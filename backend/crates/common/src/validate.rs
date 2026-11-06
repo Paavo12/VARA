@@ -185,7 +185,7 @@ impl LatLng {
             return Err(Invalid("coordinates must be numbers"));
         }
         if !(SERVICE_AREA_LAT.0..=SERVICE_AREA_LAT.1).contains(&lat) || !(SERVICE_AREA_LON.0..=SERVICE_AREA_LON.1).contains(&lon) {
-            return Err(Invalid("location is outside the FUber service area"));
+            return Err(Invalid("location is outside the VARA service area"));
         }
         Ok(LatLng { lat, lon })
     }
@@ -398,7 +398,7 @@ pub fn adult_birth_date(raw: &str, today: time::Date) -> Result<time::Date, Inva
             .unwrap_or_else(|_| today.replace_day(28).expect("day 28 exists").replace_year(today.year() - n).expect("valid"))
     };
     if date > years_before(18) {
-        return Err(Invalid("you must be 18 or older to use FUber"));
+        return Err(Invalid("you must be 18 or older to use VARA"));
     }
     if date < years_before(100) {
         return Err(Invalid("date of birth is not valid"));

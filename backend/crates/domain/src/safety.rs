@@ -14,7 +14,7 @@ pub fn sos_text(name: &str, link: Option<&str>, at: Option<(f64, f64)>) -> Strin
         (None, None) => String::new(),
     };
     format!(
-        "FUber SOS: {name} pressed the emergency button.{follow} Our safety team is responding. If you think she is in danger, call the police on {POLICE_PHONE}."
+        "VARA SOS: {name} pressed the emergency button.{follow} Our safety team is responding. If you think she is in danger, call the police on {POLICE_PHONE}."
     )
 }
 
@@ -24,14 +24,14 @@ mod tests {
 
     #[test]
     fn the_text_links_the_trip_or_else_gives_her_position() {
-        let t = sos_text("Ndeshi", Some("https://fuber.app/t/abc"), Some((-22.57, 17.08)));
-        assert!(t.contains("Ndeshi pressed") && t.contains("https://fuber.app/t/abc") && !t.contains("openstreetmap"));
+        let t = sos_text("Ndeshi", Some("https://vara.example/t/abc"), Some((-22.57, 17.08)));
+        assert!(t.contains("Ndeshi pressed") && t.contains("https://vara.example/t/abc") && !t.contains("openstreetmap"));
         let t = sos_text("Ndeshi", None, Some((-22.570001, 17.083799)));
         assert!(t.contains("mlat=-22.57000&mlon=17.08380"), "{t}");
         let t = sos_text("Ndeshi", None, None);
         assert!(t.contains("10111") && !t.contains("http"));
         // Fits one long SMS with a full-length link (the gateway caps bodies at 320).
-        let link = format!("https://fuber.app/t/{}", "x".repeat(43));
+        let link = format!("https://vara.example/t/{}", "x".repeat(43));
         assert!(sos_text(&"N".repeat(80), Some(&link), None).chars().count() <= 320);
     }
 }

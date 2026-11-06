@@ -111,7 +111,7 @@
 	const pending = $derived(review?.application_status === 'pending');
 </script>
 
-<svelte:head><title>{review?.full_name ?? 'Driver'} · FUber Ops</title></svelte:head>
+<svelte:head><title>{review?.full_name ?? 'Driver'} · VARA Ops</title></svelte:head>
 
 <p><a href={resolve('/')}>← Review queue</a></p>
 

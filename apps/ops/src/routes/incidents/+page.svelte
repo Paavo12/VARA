@@ -57,7 +57,7 @@
 	});
 </script>
 
-<svelte:head><title>Safety desk · FUber Ops</title></svelte:head>
+<svelte:head><title>Safety desk · VARA Ops</title></svelte:head>
 
 {#if !staff.canHandleIncidents}
 	<Notice tone="attention" title="No safety access">

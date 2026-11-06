@@ -2,10 +2,10 @@
 
 resource "google_service_account" "runtime" {
   for_each = {
-    api      = "FUber API (Cloud Run service)"
-    worker   = "FUber worker (Cloud Run worker pool)"
-    migrate  = "FUber migrations (Cloud Run job)"
-    internal = "FUber internal services VM (ClamAV, OSRM)"
+    api      = "VARA API (Cloud Run service)"
+    worker   = "VARA worker (Cloud Run worker pool)"
+    migrate  = "VARA migrations (Cloud Run job)"
+    internal = "VARA internal services VM (ClamAV, OSRM)"
   }
   account_id   = "${local.name}-${each.key}"
   display_name = each.value
@@ -74,7 +74,7 @@ resource "google_iam_workload_identity_pool" "github" {
 resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "fuber"
-  display_name                       = "FUber repository"
+  display_name                       = "VARA repository"
 
   attribute_mapping = {
     "google.subject"       = "assertion.sub"

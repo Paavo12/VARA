@@ -41,7 +41,7 @@ async fn cash_is_confirmed_once_and_books_the_service_fee_against_the_driver() {
     assert_eq!(status, StatusCode::OK, "{v}");
     assert_eq!(v["payment_status"], "cash_confirmed");
     assert_eq!(v["service_fee"], fee);
-    assert_eq!(v["balance"], -fee, "she owes FUber the service fee");
+    assert_eq!(v["balance"], -fee, "she owes VARA the service fee");
     // A second tap changes nothing.
     let (_, again) = t.trip_action(&trip, "cash-received", json!({})).await;
     assert_eq!(again["balance"], -fee);

@@ -85,13 +85,13 @@
 </script>
 
 <svelte:head>
-	<title>FUber Driver</title>
+	<title>VARA Driver</title>
 </svelte:head>
 
 {#if view === 'loading'}
-	<div class="splash" aria-label="Loading"><span>FUber Driver</span></div>
+	<div class="splash" aria-label="Loading"><span>VARA Driver</span></div>
 {:else if view === 'offline'}
-	<Screen title="No connection" lead="We couldn’t reach FUber. Check your internet connection.">
+	<Screen title="No connection" lead="We couldn’t reach VARA. Check your internet connection.">
 		{#snippet footer()}<Button size="driver" onclick={() => refresh()}>Try again</Button>{/snippet}
 	</Screen>
 {:else if view === 'signin'}
@@ -139,7 +139,7 @@
 				onsettings={() => (view = 'settings')}
 			/>
 		{:else}
-			<Screen title="You’re approved, {me.display_name}" lead="Welcome to FUber.">
+			<Screen title="You’re approved, {me.display_name}" lead="Welcome to VARA.">
 				<Notice tone="attention" title="You can’t go online right now">
 					<p>A document has expired or needs review. Check your documents.</p>
 				</Notice>

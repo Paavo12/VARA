@@ -118,7 +118,7 @@ pub async fn create(
     ValidJson(req): ValidJson<CreateUpload>,
 ) -> Result<(StatusCode, Json<UploadTarget>), ApiError> {
     if req.purpose.driver_only() && user.app != App::Driver {
-        return Err(ApiError::forbidden("wrong_app", "Driver documents are uploaded from the FUber driver app."));
+        return Err(ApiError::forbidden("wrong_app", "Driver documents are uploaded from the VARA driver app."));
     }
     if !req.purpose.allows(req.content_type) {
         return Err(ApiError::invalid("this photo must be a JPEG or PNG image"));

@@ -1,4 +1,4 @@
-# FUber — Implementation Plan
+# VARA — Implementation Plan
 
 | | |
 | --- | --- |
@@ -29,7 +29,7 @@ With fewer people, stretch the timeline rather than cutting Phase 5 (hardening).
 ```mermaid
 gantt
   dateFormat YYYY-MM-DD
-  title FUber v1 (indicative, kick-off 2026-11-02)
+  title VARA v1 (indicative, kick-off 2026-11-02)
   section Definition & legal
   Sign-off docs, close open decisions :a0, 2026-11-02, 2w
   Legal opinion, permits, vendors     :a1, 2026-11-02, 12w
@@ -119,7 +119,7 @@ Each phase ends with a demo on staging and its exit criteria checked. Stories re
 
 **Exit:** card and cash rides reconcile to the cent between `rides`, `payments` and `driver_ledger`; refund flow works from ops API.
 
-**Status (2026-11-02):** first slice on branch `phase-4/payments-ratings` (from `phase-3/trip-safety`). Done: completed trips open a pending payment; the driver confirms cash (`POST /rides/{id}/cash-received`), which books FUber's service fee against her in `driver_ledger` (P-2, P-5); the earnings dashboard for today or the week with hours online and the balance (P-6); two-way ratings with reasons below 3 stars, running averages, the driver's skip and rider favourites, ending in `RATED` (R-1); trip history for riders and drivers that follows the same privacy rules as the live views (R-2); and the matching screens in both apps (cash received, rating, fare breakdown, earnings and trips, your trips). Integration tests in `crates/api/tests/after_trip.rs`. Still open: card payments, refunds and webhooks (P-3, P-4; blocked on the payment provider, PRD §10 decision 6), weekly settlement and payouts, receipts by email, the lost-item flow (R-3) and the notifications matrix with push and SMS fallback.
+**Status (2026-11-02):** first slice on branch `phase-4/payments-ratings` (from `phase-3/trip-safety`). Done: completed trips open a pending payment; the driver confirms cash (`POST /rides/{id}/cash-received`), which books VARA's service fee against her in `driver_ledger` (P-2, P-5); the earnings dashboard for today or the week with hours online and the balance (P-6); two-way ratings with reasons below 3 stars, running averages, the driver's skip and rider favourites, ending in `RATED` (R-1); trip history for riders and drivers that follows the same privacy rules as the live views (R-2); and the matching screens in both apps (cash received, rating, fare breakdown, earnings and trips, your trips). Integration tests in `crates/api/tests/after_trip.rs`. Still open: card payments, refunds and webhooks (P-3, P-4; blocked on the payment provider, PRD §10 decision 6), weekly settlement and payouts, receipts by email, the lost-item flow (R-3) and the notifications matrix with push and SMS fallback.
 
 ### Phase 5 — Ops console (9 weeks, in parallel from Phase 2)
 
@@ -211,7 +211,7 @@ Operations
 | Topic | Decision | State in the code |
 | --- | --- | --- |
 | 5 wrong PINs | Driver blocked from new requests until ops clears it | Built (`POST /ops/incidents/{id}/close`, ops Safety desk page) |
-| Name | Product renamed to **VARA** (Verified, Authenticated, Reliable, App) | Not started; needs the domain and app IDs |
+| Name | Product renamed to **VARA** (Verified, Authenticated, Reliable, App) | Name and placeholder domain `vara.example` changed. Still open: the real domain, the app IDs (`app.fuber.*`) and internal code names |
 | Launch promotion | No 32 % promotion, no commission under 15 %. Launch on 15–18 % | Fees already 15 / 16.5 / 18 % (migration 0007); no promotion exists |
 | Map Experts | Flat 15 % for drivers working unmapped or newly developed zones who help verify wayfinding and geofencing | Not started; needs qualification thresholds and who grants it |
 | Background location | Tauri or native handling approved if it keeps drivers visible | Stay on Capacitor; native foreground service still to build and test on Samsung and Huawei |
