@@ -1,4 +1,4 @@
-# FUber — women-only ride-hailing demo (Windhoek, Namibia)
+# VARA — women-only ride-hailing demo (Windhoek, Namibia)
 
 A working prototype with two portals, a **Rider app** and a **Driver app**, running on one simulated dispatch engine. It's built for a live presentation, so the city, GPS, matching, payments and verification are all simulated, while every state change is visible.
 
@@ -43,12 +43,16 @@ Use a different port with `PORT=4000 npm start`.
 2. **Book.** On the rider phone, tap *Where to?* and search for a landmark, suburb or any Windhoek street (for example *nelson mandela*, *Klein Windhoek* or *mall*; upper/lower case and accents don't matter), or tap a quick-place chip such as *Post Street Mall*. You get Classic / Comfort / Soft Life with an exact, locked price and live ETAs, a wheelchair-accessible filter, *For me / Someone else*, **1–4 passengers** (all women, never shared with strangers), Now/Schedule and a payment method. Tap **Request**.
 3. **Matching.** *Finding your driver…* shows the pulsing **3 km dispatch radius**. After about 2–3 s the best-matched online driver gets the request card on her phone with a **15-second countdown**. Tap **Accept**. If she declines or doesn't answer in time, it goes to the next online driver, and when nobody is left the rider sees *No drivers accepted → Try again*.
 4. **Driver en route.** The rider sees the driver's photo, verified badge, rating, car, plate, both ETAs (*Driver arriving in X min* / *Trip will take Y min*) and the **4-digit PIN**. The driver sees turn-by-turn directions to a **fuzzy pickup circle**. The exact address and destination stay locked.
-5. **Arrival → PIN.** Within 50 m of the pin, the driver phone **unlocks the exact pickup address** and shows a PIN keypad. The rider's PIN card turns amber. Type a wrong PIN first to show the rejection, then the real PIN (it's on the rider phone and in the panel).
+5. **Arrival → PIN.** Within 50 m of the pin, the driver phone **unlocks the exact pickup address** and shows a PIN keypad. The rider's PIN card turns amber. Type a wrong PIN first to show the rejection and the tries left, then the real PIN (it's on the rider phone and in the panel).
 6. **PIN verified → destination revealed → In trip.** The driver phone shows *Destination unlocked*. Tap **Start trip** on the driver phone, and both phones follow the live route.
 7. **RideCheck.** In the presentation panel, press **Route deviation** (or **Unexpected stop**). The rider gets *Are you okay?* with *Yes, I'm fine* / *Call for help*.
 8. **Complete.** Press **Jump to destination** (panel or driver phone), then **slide to complete trip** on the driver phone.
-9. **Pay & rate.** The rider sees the fare breakdown (base + distance + time + surge), picks card/cash/wallet, rates the driver and can **add her to Favourite Drivers**. The driver rates the rider and sees her earnings. Once both have rated (or the driver taps *Back to requests* without rating), the ride state becomes `RATED`.
-10. **Reset demo** (top right; click twice to confirm) clears everything for the next run.
+9. **Pay & rate.** The rider sees the fare breakdown (base + distance + time + surge), pays cash (cards come after the pilot), rates the driver and can **add her to Favourite Drivers**. The driver rates the rider and sees her earnings. Once both have rated (or the driver taps *Back to requests* without rating), the ride state becomes `RATED`.
+10. **PIN block (optional, about 1 minute).** Book another ride. With the driver at the pickup, press **5 wrong PINs** in the panel: both phones stop the trip, and the driver gets no requests after that. Press **Close incident** under *Safety desk* in the panel to release her.
+11. **What's real today.** Scroll to *Real product status* at the bottom of the panel. It separates what is built from what this demo only previews.
+12. **Reset demo** (top right; click twice to confirm) clears everything for the next run.
+
+**On a hosted link:** everyone who opens the link shares one live demo, so anyone with it can see and change the same ride. Press **Reset demo** just before presenting, and share the link only with the presenter until it's over.
 
 ---
 
@@ -56,10 +60,11 @@ Use a different port with `PORT=4000 npm start`.
 
 | Feature | How to trigger it |
 | --- | --- |
-| **SOS** | The red **SOS** pill is in the top-right of every screen on both phones. Pressing it opens a 3-second *Sending SOS…* countdown (cancellable), then *Alert sent to emergency contacts + FUber Safety Team* with live location and trip details. |
-| **Share My Trip** | Rider phone during a ride → **Share trip**. You get a link (`fuber.app/t/XXXXXX`) with live location, driver, plate, destination and ETA, plus *Copy* and *Send to my emergency contacts*. The driver phone has **Share my route**. |
+| **SOS** | The red **SOS** pill is in the top-right of every screen on both phones. Pressing it opens a 3-second *Sending SOS…* countdown (cancellable), then an alert to her emergency contacts and the VARA safety desk with live location and trip details. |
+| **Share My Trip** | Rider phone during a ride → **Share trip**. You get a link (`vara.example/t/XXXXXX`) with live location, driver, plate, destination and ETA, plus *Copy* and *Send to my emergency contacts*. The driver phone has **Share my route**. |
 | **PIN step & destination reveal** | Wait for the driver to arrive, or press **Driver arrives now** in the panel. The panel's *Exact pickup → driver* and *Destination → driver* tiles flip from `hidden` to `revealed` at each step. |
-| **Masked calls / messages** | **Call** on either phone opens a secure-line call screen (numbers hidden). **Message** opens in-app chat with quick replies. Messages appear on the other phone as toasts. |
+| **PIN block** | With the driver at the pickup, type 5 wrong PINs or press **5 wrong PINs** in the panel. Both phones show the blocked trip. The driver can stay online but gets no requests, and her phone says why. In the panel's **Safety desk** section, press **Close incident** to release her. No fare, and no priority points lost. |
+| **Messages / calls** | **Message** opens in-app chat with quick replies. Messages appear on the other phone as toasts. **Call** explains that private calling is planned and offers chat instead. |
 | **RideCheck** | Panel → **Route deviation** (fires once the car is more than 150 m off the planned route) or **Unexpected stop** (fires after 2 simulated minutes stopped). |
 | **Surge pricing** | Top bar → Demand **High** (1.4×) or **Peak** (1.8×). The fare cards show the multiplier, the driver map shows a stronger demand heat map, and the price is locked at request time. |
 | **Cancelling (no fees)** | Cancelling is always free for the rider and the driver. Instead, each cancellation quietly costs **priority points** (see section 6). The panel shows the points; the phones never do. |
@@ -82,9 +87,11 @@ Toggle **Presentation mode** in the top bar. The panel is kept simple:
 - **Ride progress:** the steps of a ride, from `REQUESTED` to `RATED`. Finished steps are ticked and the current one is highlighted.
 - **Ride details:** ride type, the rider's PIN, the driver, when she arrives, the trip length and who the passenger is.
 - **Priority points:** the rider's and each driver's points and cancellations. Only the panel shows these; the phones never do.
-- **Demo shortcuts:** driver arrives now, jump to destination, route deviation, unexpected stop, approve verifications.
+- **Safety desk:** open incidents, with a button to close each one.
+- **Demo shortcuts:** driver arrives now, jump to destination, route deviation, unexpected stop, 5 wrong PINs, approve verifications.
 - **Settings:** demo speed (10–60× simulated time).
 - **What just happened:** the last 12 events.
+- **Real product status:** what is built, what is only previewed here and what comes later. Point to it when someone asks what exists today.
 
 ---
 
@@ -92,11 +99,11 @@ Toggle **Presentation mode** in the top bar. The panel is kept simple:
 
 | Option | Base | Per km | Per min | Minimum | Service fee |
 | --- | --- | --- | --- | --- | --- |
-| Classic | N$15 | N$8 | N$1.20 | N$35 | 2% |
-| Comfort | N$20 | N$10 | N$1.50 | N$45 | 2.5% |
-| Soft Life | N$28 | N$13 | N$2.00 | N$60 | 3% |
+| Classic | N$15 | N$8 | N$1.20 | N$35 | 15% |
+| Comfort | N$20 | N$10 | N$1.50 | N$45 | 16.5% |
+| Soft Life | N$28 | N$13 | N$2.00 | N$60 | 18% |
 
-The price is locked when the rider requests: she pays exactly the quote, and the driver earns the quote minus the service fee, shown on her request card before she accepts. A detour, traffic or a skipped demo trip never changes it. The number of passengers (1–4) doesn't change the price either. There is no booking fee yet; how a ride fee will work is still to be decided. There are no cancellation or no-show fees either: cancellations cost priority points instead. The surge multiplier applies at High (1.4×) and Peak (1.8×) demand. FUber's service fee comes out of the driver's share, so drivers keep 97–98% of the fare. Rates are set in `OPTIONS` and `CFG` at the top of `public/js/engine.js`.
+The price is locked when the rider requests: she pays exactly the quote, and the driver earns the quote minus the service fee, shown on her request card before she accepts. A detour, traffic or a skipped demo trip never changes it. The number of passengers (1–4) doesn't change the price either. There is no booking fee yet; how a ride fee will work is still to be decided. There are no cancellation or no-show fees either: cancellations cost priority points instead. The surge multiplier applies at High (1.4×) and Peak (1.8×) demand. VARA's service fee comes out of the driver's share, so drivers keep 97–98% of the fare. Rates are set in `OPTIONS` and `CFG` at the top of `public/js/engine.js`.
 
 ---
 
@@ -118,7 +125,7 @@ The price is locked when the rider requests: she pays exactly the quote, and the
 
 ## 7. Android app (wrapper)
 
-`android/` holds a small native Android app with two launcher icons, **FUber Rider** and **FUber Driver**. Each opens its portal full-screen with no browser bar.
+`android/` holds a small native Android app with two launcher icons, **VARA Rider** and **VARA Driver**. Each opens its portal full-screen with no browser bar.
 
 - **Server first.** On launch it looks for the demo server at `localhost:3100` (via `adb reverse`), then `10.0.2.2:3100` (the emulator's alias for your PC), then the Wi-Fi address in `android/gradle.properties` (`heraLanUrl`, for a real phone).
 - **Offline fallback.** If none answers, it runs the copy of the web app bundled inside the APK, standalone.
@@ -144,7 +151,7 @@ After editing the web app, rebuild the APK so the bundled offline copy matches. 
 demo/
 ├── server.js            Zero-dependency HTTP server + SSE broadcast + authoritative simulation
 ├── package.json
-├── android/             Android wrapper app (FUber Rider / FUber Driver) + build-apk.sh
+├── android/             Android wrapper app (VARA Rider / VARA Driver) + build-apk.sh
 ├── tools/build-roads.js Builds public/js/roads.js from OpenStreetMap data (tools/data/)
 └── public/
     ├── index.html

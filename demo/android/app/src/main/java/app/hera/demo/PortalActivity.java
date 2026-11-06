@@ -21,7 +21,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 /**
- * Full-screen WebView host for one FUber portal.
+ * Full-screen WebView host for one VARA portal.
  *
  * On launch it looks for the demo server (adb-reversed localhost, the emulator's host alias,
  * then the PC's Wi-Fi address) so this phone stays in sync with every other screen. If none
