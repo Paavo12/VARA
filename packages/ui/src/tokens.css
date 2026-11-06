@@ -1,5 +1,5 @@
 /*
- * FUber design tokens (docs/04-ui-ux-design-brief.md §4).
+ * VARA design tokens (docs/04-ui-ux-design-brief.md §4).
  * Three layers: primitive (raw palette) → semantic (what a colour means) → component.
  * Apps use semantic and component tokens only, never primitives directly.
  *

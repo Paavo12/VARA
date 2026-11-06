@@ -1,4 +1,4 @@
-# FUber Privacy Policy
+# VARA Privacy Policy
 
 > **DRAFT — not yet in force.** Prepared from the product specification for review by Namibian legal counsel. Items in `[brackets]` must be completed. Counsel should confirm the applicable data-protection law at the time of launch (including whether a Namibian Data Protection Act has come into force) and adjust lawful bases, rights and cross-border transfer wording accordingly. This draft is written to a standard comparable to POPIA (South Africa) and the GDPR so that it remains sound if stricter rules apply.
 
@@ -6,13 +6,13 @@
 
 ## 1. Who we are
 
-FUber is operated by **[Company legal name]**, a company registered in Namibia under registration number **[number]**, with its registered office at **[address], Windhoek, Namibia** ("FUber", "we", "us").
+VARA is operated by **[Company legal name]**, a company registered in Namibia under registration number **[number]**, with its registered office at **[address], Windhoek, Namibia** ("VARA", "we", "us").
 
-We are responsible for the personal information described in this policy. For any privacy question or request, contact our privacy officer at **[privacy@fuber.app]** or **[postal address]**.
+We are responsible for the personal information described in this policy. For any privacy question or request, contact our privacy officer at **[privacy@vara.example]** or **[postal address]**.
 
 ## 2. What this policy covers
 
-This policy applies to the FUber Rider app, the FUber Driver app, the website **fuber.app** (including trip-share pages and the driver application), and our customer support and safety services. It covers riders, drivers, driver applicants, guest passengers booked by riders, emergency contacts named by users, and visitors to our website.
+This policy applies to the VARA Rider app, the VARA Driver app, the website **vara.example** (including trip-share pages and the driver application), and our customer support and safety services. It covers riders, drivers, driver applicants, guest passengers booked by riders, emergency contacts named by users, and visitors to our website.
 
 ## 3. What we collect
 
@@ -28,7 +28,7 @@ This policy applies to the FUber Rider app, the FUber Driver app, the website **
 | Payment | Payment method chosen; for cards, a token and the last 4 digits from our payment provider (we never receive your full card number or security code) | Bank account details for payouts |
 | Communications | Messages with your driver/rider through the app, reports, ratings, comments, support requests | Same |
 
-### 3.2 Information collected when you use FUber
+### 3.2 Information collected when you use VARA
 
 - **Location.**
   - *Riders:* your device location while you book a ride and during an active ride (only while the app is in use).
@@ -66,7 +66,7 @@ Identity documents, selfies used to verify your identity, police clearance certi
 | Send marketing (only if you opt in) | Contact details | Consent — you can withdraw at any time |
 | Comply with law and respond to lawful requests | As required | Legal obligation |
 
-**Automated decisions.** Matching uses an automated score (distance, estimated arrival time, likelihood of accepting, and internal reliability points). It decides which driver is offered a ride first; it does not decide whether you can use FUber. Account approvals, rejections and suspensions are made or reviewed by a person. You can ask us to explain or review any decision about you.
+**Automated decisions.** Matching uses an automated score (distance, estimated arrival time, likelihood of accepting, and internal reliability points). It decides which driver is offered a ride first; it does not decide whether you can use VARA. Account approvals, rejections and suspensions are made or reviewed by a person. You can ask us to explain or review any decision about you.
 
 ## 5. Who sees your information
 
@@ -75,7 +75,7 @@ Identity documents, selfies used to verify your identity, police clearance certi
 - **Guest passengers** receive the driver's first name, vehicle, plate and the PIN by SMS.
 - **Service providers** who process data on our behalf under written agreements: cloud hosting **[provider, region — e.g. South Africa]**, SMS and push-notification providers, payment provider **[name]**, identity-verification provider **[name, if used]**, masked-calling provider **[name]**, map and routing services, error monitoring, and customer support tools.
 - **Authorities**, when required by law, or when we believe in good faith that disclosure is needed to prevent harm to someone's life or safety (for example, sharing trip details with the Namibian Police during an SOS).
-- **A buyer or successor** if FUber is reorganised, merged or sold, under the same protections.
+- **A buyer or successor** if VARA is reorganised, merged or sold, under the same protections.
 
 We **do not sell** your personal information and we do not share it with advertisers.
 
@@ -91,7 +91,7 @@ Our servers are located in **[South Africa]** and some providers may process dat
 | Trip GPS tracks and in-app messages | 90 days, unless needed for a safety incident, dispute or legal claim |
 | Trip and payment records | [5] years, for tax and accounting |
 | Rider ID images and selfie | Until verification is decided, plus 30 days; we keep the decision |
-| Driver documents | While you drive with FUber, plus 1 year |
+| Driver documents | While you drive with VARA, plus 1 year |
 | Safety incident records | [5] years |
 | Account information after you delete your account | Deleted or anonymised within 30 days, except what we must keep by law or for an open safety matter |
 
@@ -111,13 +111,13 @@ Subject to applicable law, you can:
 - **Ask for a human review** of an automated or verification decision.
 - **Complain** to us, and to the competent authority **[name, once established]**.
 
-Location permission can be turned off in your phone's settings, but FUber cannot match or track rides without it. Drivers can stop location collection at any time by going offline.
+Location permission can be turned off in your phone's settings, but VARA cannot match or track rides without it. Drivers can stop location collection at any time by going offline.
 
-We respond to requests within **[30]** days and may need to verify your identity first. Contact **[privacy@fuber.app]**.
+We respond to requests within **[30]** days and may need to verify your identity first. Contact **[privacy@vara.example]**.
 
 ## 10. Children
 
-FUber accounts are for people aged **18 or older**. A rider may book a ride for a guest passenger aged **[16–17 — to be decided]**; the rider is responsible for the guest and confirms she has the guest's permission to share her name and number with us.
+VARA accounts are for people aged **18 or older**. A rider may book a ride for a guest passenger aged **[16–17 — to be decided]**; the rider is responsible for the guest and confirms she has the guest's permission to share her name and number with us.
 
 ## 11. Cookies
 
@@ -129,4 +129,4 @@ We will notify you in the app before material changes take effect, and ask you t
 
 ## 13. Contact
 
-**[Company legal name]** · Privacy Officer · **[address]**, Windhoek, Namibia · **[privacy@fuber.app]** · **[+264 phone]**
+**[Company legal name]** · Privacy Officer · **[address]**, Windhoek, Namibia · **[privacy@vara.example]** · **[+264 phone]**

@@ -57,7 +57,7 @@ impl T {
 }
 
 fn token_in(text: &str) -> &str {
-    let at = text.find("https://fuber.app/t/").expect("trip link") + "https://fuber.app/t/".len();
+    let at = text.find("https://vara.example/t/").expect("trip link") + "https://vara.example/t/".len();
     &text[at..at + 43]
 }
 
@@ -75,7 +75,7 @@ async fn sos_on_a_ride_reaches_the_desk_and_texts_her_contacts_within_5_seconds(
     let texts = t.texts_to(&[MAMA, SISTER], 2, Duration::from_secs(5)).await;
     assert_eq!(texts.len(), 2, "both contacts texted within 5 s");
     assert!(start.elapsed() < Duration::from_secs(5));
-    assert!(texts[0].starts_with("FUber SOS: Ndeshi pressed the emergency button."), "{}", texts[0]);
+    assert!(texts[0].starts_with("VARA SOS: Ndeshi pressed the emergency button."), "{}", texts[0]);
 
     // The link is a fresh 256-bit token for this ride; only its hash is stored.
     let token = token_in(&texts[0]);
@@ -125,7 +125,7 @@ async fn the_driver_can_raise_sos_on_her_trip_and_between_trips() {
     let (status, alert) = t.sos(&driver, json!({ "ride_id": ride_id })).await;
     assert_eq!(status, StatusCode::OK, "{alert}");
     let texts = t.texts_to(&[MAMA, SISTER], 2, Duration::from_secs(5)).await;
-    assert!(texts[0].starts_with("FUber SOS: Hilma pressed"), "{}", texts[0]);
+    assert!(texts[0].starts_with("VARA SOS: Hilma pressed"), "{}", texts[0]);
     let by: String = sqlx::query_scalar("SELECT created_by::text FROM trip_shares WHERE ride_id = $1::uuid")
         .bind(&ride_id)
         .fetch_one(&t.state.db)

@@ -242,7 +242,7 @@ pub async fn favourites(State(s): State<AppState>, RiderUser(user): RiderUser) -
         rows.into_iter()
             .map(|(driver_id, name, rating, added_at)| FavouriteDriver {
                 driver_id,
-                first_name: name.unwrap_or_else(|| "A FUber driver".into()),
+                first_name: name.unwrap_or_else(|| "A VARA driver".into()),
                 rating,
                 added_at,
             })

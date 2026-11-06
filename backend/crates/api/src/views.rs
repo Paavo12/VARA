@@ -321,7 +321,7 @@ async fn passenger(db: &PgPool, ride_id: Uuid) -> Result<Passenger, sqlx::Error>
     .bind(ride_id)
     .fetch_one(db)
     .await?;
-    let booker = booker.unwrap_or_else(|| "a FUber rider".into());
+    let booker = booker.unwrap_or_else(|| "a VARA rider".into());
     Ok(match guest {
         Some(name) => Passenger {
             name,

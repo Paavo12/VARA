@@ -45,6 +45,8 @@ use crate::{
 pub const CHANNEL: &str = "fuber_events";
 const AUTH_TIMEOUT: Duration = Duration::from_secs(10);
 const HEARTBEAT: Duration = Duration::from_secs(20);
+/// How long a closing socket keeps reading what the client already sent.
+const CLOSE_DRAIN: Duration = Duration::from_secs(2);
 /// Per connection: 2 messages a second, bursts of 10 (TRD §7.1). Beyond that the socket closes.
 const MSG_RATE: f64 = 2.0;
 const MSG_BURST: f64 = 10.0;
@@ -310,6 +312,9 @@ async fn serve(s: AppState, socket: WebSocket) {
     }
     s.hub.unregister(user.user_id, user.app, conn_id);
     let _ = sink.close().await;
+    // Closing with unread messages makes TCP reset the connection, which can destroy our last
+    // message (`rate_limited`) before the client reads it.
+    let _ = tokio::time::timeout(CLOSE_DRAIN, async { while let Some(Ok(_)) = stream.next().await {} }).await;
 }
 
 async fn handle(s: &AppState, user: &AuthUser, raw: &str) -> Option<Message> {

@@ -13,7 +13,7 @@ pub struct Rates {
     pub per_km: Cents,
     pub per_min: Cents,
     pub minimum: Cents,
-    /// FUber's service fee in basis points (1500 = 15 %), taken from the driver's share.
+    /// VARA's service fee in basis points (1500 = 15 %), taken from the driver's share.
     pub service_fee_bp: u32,
 }
 

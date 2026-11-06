@@ -1,4 +1,4 @@
-//! FUber background worker process: runs queued jobs, matching, the daily document check and
+//! VARA background worker process: runs queued jobs, matching, the daily document check and
 //! hourly clean-up (see the library for what each does). Several workers can run at once.
 
 use std::{process::ExitCode, time::Duration};
@@ -64,7 +64,7 @@ async fn main() -> ExitCode {
         },
     };
 
-    tracing::info!("FUber worker started");
+    tracing::info!("VARA worker started");
     let mut poll = tokio::time::interval(POLL);
     let mut dispatch = tokio::time::interval(DISPATCH);
     dispatch.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -98,6 +98,6 @@ async fn main() -> ExitCode {
             _ = tokio::signal::ctrl_c() => break,
         }
     }
-    tracing::info!("FUber worker stopped");
+    tracing::info!("VARA worker stopped");
     ExitCode::SUCCESS
 }

@@ -119,7 +119,7 @@
 					<span><strong>{t.name}</strong> · {t.note}</span>
 				</label>
 			{/each}
-			<p class="small">FUber checks your car and confirms which types you can drive.</p>
+			<p class="small">VARA checks your car and confirms which types you can drive.</p>
 		</fieldset>
 
 		<fieldset>

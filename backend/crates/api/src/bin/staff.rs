@@ -1,8 +1,8 @@
 //! Creates and disables ops staff accounts. There is no sign-up for staff by design.
 //!
 //! ```text
-//! FUBER_STAFF_PASSWORD='…' cargo run -p fuber-api --bin staff -- create reviewer@fuber.app "Ndapewa Amutenya" ops_reviewer
-//! cargo run -p fuber-api --bin staff -- disable reviewer@fuber.app
+//! FUBER_STAFF_PASSWORD='…' cargo run -p fuber-api --bin staff -- create reviewer@vara.example "Ndapewa Amutenya" ops_reviewer
+//! cargo run -p fuber-api --bin staff -- disable reviewer@vara.example
 //! ```
 //!
 //! `create` prints an `otpauth://` link once: open it (or its QR code) in an authenticator app.
@@ -60,10 +60,10 @@ async fn run(args: Vec<String>) -> Result<(), String> {
             .execute(&db)
             .await
             .map_err(|e| e.to_string())?;
-            let label = format!("FUber%20Ops:{}", email.as_str().replace('@', "%40"));
+            let label = format!("VARA%20Ops:{}", email.as_str().replace('@', "%40"));
             println!("Created {} ({}).", email.as_str(), roles.join(", "));
             println!("Add this to an authenticator app now; it is not shown again:");
-            println!("otpauth://totp/{label}?secret={}&issuer=FUber%20Ops&algorithm=SHA1&digits=6&period=30", totp::base32(&secret));
+            println!("otpauth://totp/{label}?secret={}&issuer=VARA%20Ops&algorithm=SHA1&digits=6&period=30", totp::base32(&secret));
             Ok(())
         }
         ["disable", email] => {
