@@ -40,7 +40,7 @@
 
 <Screen
 	title="Verify it’s you"
-	lead="FUber is for women only, so every rider is checked by our team. Your photos are only seen by FUber reviewers."
+	lead="VARA is for women only, so every rider is checked by our team. Your photos are only seen by VARA reviewers."
 	{step}
 >
 	{#if rejectReason}

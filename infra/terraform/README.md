@@ -1,6 +1,6 @@
 # Staging on Google Cloud
 
-Terraform for one FUber environment in **africa-south1 (Johannesburg)**. Running these steps
+Terraform for one VARA environment in **africa-south1 (Johannesburg)**. Running these steps
 creates paid resources. Nothing is created until you run `terraform apply` yourself.
 
 ## What gets created
@@ -45,7 +45,7 @@ export REGION=africa-south1
 ```bash
 gcloud auth login
 gcloud auth application-default login     # Terraform uses these credentials
-gcloud projects create "$PROJECT_ID" --name="FUber staging"
+gcloud projects create "$PROJECT_ID" --name="VARA staging"
 gcloud billing accounts list
 gcloud billing projects link "$PROJECT_ID" --billing-account=XXXXXX-XXXXXX-XXXXXX
 gcloud config set project "$PROJECT_ID"

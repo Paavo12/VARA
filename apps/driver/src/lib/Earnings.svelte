@@ -1,6 +1,6 @@
 <!--
 	Earnings and trips (PRD P-6, R-2): today or this week (trips, earnings, cash collected, hours
-	online), the balance with FUber (negative = service fees she owes from cash trips, settled
+	online), the balance with VARA (negative = service fees she owes from cash trips, settled
 	weekly), and her trip history, 20 at a time.
 -->
 <script lang="ts">
@@ -66,7 +66,7 @@
 		});
 </script>
 
-<Screen title="Earnings" lead="What you earned after FUber’s service fee.">
+<Screen title="Earnings" lead="What you earned after VARA’s service fee.">
 	<Segmented
 		label="Period"
 		options={[
@@ -96,12 +96,12 @@
 				<dd>{formatNad(earnings.service_fees)}</dd>
 			</div>
 		</dl>
-		<Notice tone={earnings.balance < 0 ? 'attention' : 'info'} title="Balance with FUber">
+		<Notice tone={earnings.balance < 0 ? 'attention' : 'info'} title="Balance with VARA">
 			<p>
 				{earnings.balance < 0
-					? `You owe FUber ${formatNad(-earnings.balance)} in service fees from cash trips. It’s settled weekly.`
+					? `You owe VARA ${formatNad(-earnings.balance)} in service fees from cash trips. It’s settled weekly.`
 					: earnings.balance > 0
-						? `FUber owes you ${formatNad(earnings.balance)}. It’s paid out weekly.`
+						? `VARA owes you ${formatNad(earnings.balance)}. It’s paid out weekly.`
 						: 'Nothing owed either way.'}
 			</p>
 		</Notice>

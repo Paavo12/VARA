@@ -51,7 +51,7 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    tracing::info!(%addr, "FUber API listening");
+    tracing::info!(%addr, "VARA API listening");
     let served =
         axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).with_graceful_shutdown(shutdown_signal()).await;
     match served {

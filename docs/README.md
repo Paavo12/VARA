@@ -1,6 +1,6 @@
-# FUber — product & engineering documents
+# VARA — product & engineering documents
 
-These documents take FUber from the working demo (`demo/`) to a production app built with **Rust** (backend) and **Svelte** (apps). The demo stays as the reference for behaviour: when a document says "as in the demo", the demo's behaviour is the requirement.
+These documents take VARA from the working demo (`demo/`) to a production app built with **Rust** (backend) and **Svelte** (apps). The demo stays as the reference for behaviour: when a document says "as in the demo", the demo's behaviour is the requirement.
 
 | # | Document | Answers |
 | --- | --- | --- |

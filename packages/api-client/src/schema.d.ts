@@ -1043,13 +1043,13 @@ export interface components {
             vehicle: components["schemas"]["RideVehicle"];
         };
         CashConfirmed: {
-            /** @description Her balance after this trip: negative means she owes FUber. */
+            /** @description Her balance after this trip: negative means she owes VARA. */
             balance: components["schemas"]["Cents"];
             /** @description `cash_confirmed`. */
             payment_status: string;
             /** Format: uuid */
             ride_id: string;
-            /** @description FUber's service fee on this trip, added to what she owes. */
+            /** @description VARA's service fee on this trip, added to what she owes. */
             service_fee: components["schemas"]["Cents"];
         };
         /**
@@ -1208,11 +1208,11 @@ export interface components {
             state: string;
         };
         Earnings: {
-            /** @description All-time balance: positive means FUber pays her at settlement, negative means she owes FUber. */
+            /** @description All-time balance: positive means VARA pays her at settlement, negative means she owes VARA. */
             balance: components["schemas"]["Cents"];
             /** @description Cash she collected from passengers. */
             cash_collected: components["schemas"]["Cents"];
-            /** @description What she earned: fares minus FUber's service fee. */
+            /** @description What she earned: fares minus VARA's service fee. */
             earnings: components["schemas"]["Cents"];
             /**
              * Format: int64
@@ -1223,7 +1223,7 @@ export interface components {
             period: string;
             /** @description Completed trips in the period, newest first. */
             recent: components["schemas"]["EarningsTrip"][];
-            /** @description FUber's service fee on these trips. */
+            /** @description VARA's service fee on these trips. */
             service_fees: components["schemas"]["Cents"];
             /** Format: date-time */
             since: string;

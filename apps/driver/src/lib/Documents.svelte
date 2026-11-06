@@ -103,7 +103,7 @@
 
 <Screen
 	title="Your documents"
-	lead="Photos or PDFs. Only FUber’s verification team sees them."
+	lead="Photos or PDFs. Only VARA’s verification team sees them."
 	{step}
 	{onback}
 >

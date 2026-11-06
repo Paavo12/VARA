@@ -33,7 +33,7 @@
 	});
 </script>
 
-<svelte:head><title>Review queue · FUber Ops</title></svelte:head>
+<svelte:head><title>Review queue · VARA Ops</title></svelte:head>
 
 {#if !staff.canReview}
 	<Notice tone="attention" title="No review access">

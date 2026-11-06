@@ -289,7 +289,7 @@
 {:else if ride.state === 'BLOCKED'}
 	<Screen title="Trip stopped for your safety" lead="Your driver entered the wrong PIN too often.">
 		<Notice tone="attention" title="Don’t get in the car">
-			<p>FUber’s safety team has been alerted and will call you shortly.</p>
+			<p>VARA’s safety team has been alerted and will call you shortly.</p>
 		</Notice>
 		{#snippet footer()}<Button variant="secondary" onclick={ondone}>Back to home</Button>{/snippet}
 	</Screen>

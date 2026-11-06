@@ -46,7 +46,7 @@
 	}
 </script>
 
-<svelte:head><title>{v?.full_name ?? 'Rider'} · FUber Ops</title></svelte:head>
+<svelte:head><title>{v?.full_name ?? 'Rider'} · VARA Ops</title></svelte:head>
 
 <p><a href={resolve('/')}>← Review queue</a></p>
 

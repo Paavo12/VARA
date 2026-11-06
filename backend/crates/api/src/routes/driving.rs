@@ -82,7 +82,7 @@ pub(crate) async fn status_of(s: &AppState, user: &AuthUser) -> Result<DriverSta
         offer: views::pending_offer(&s.db, user.user_id).await?,
         ride: views::driver_current(&s.db, user.user_id).await?,
         hold: presence::lockout_hold(&s.db, user.user_id).await?.then(|| HoldView {
-            message: "After a PIN lockout you get no new requests until FUber's safety team has reviewed it. They will contact you.".into(),
+            message: "After a PIN lockout you get no new requests until VARA's safety team has reviewed it. They will contact you.".into(),
         }),
     })
 }
@@ -114,7 +114,7 @@ pub async fn go_online(
     match presence::go_online(&mut tx, user.user_id, user.session_id, at).await? {
         Ok(_) => {}
         Err(NotEligible::Suspended) => {
-            return Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact FUber support."));
+            return Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact VARA support."));
         }
         Err(NotEligible::NotApproved) => {
             return Err(ApiError::forbidden(

@@ -306,7 +306,7 @@
 		<p class="earning">{formatNad(ride.earning)}</p>
 		{#if ride.payment_method === 'cash' && ride.payment_status !== 'cash_confirmed'}
 			<Notice tone="attention" title="Collect the fare in cash">
-				<p>FUber’s service fee is added to your balance.</p>
+				<p>VARA’s service fee is added to your balance.</p>
 			</Notice>
 		{:else}
 			<Notice tone="success">
@@ -348,7 +348,7 @@
 {:else if ride.state === 'BLOCKED'}
 	<Screen title="Trip blocked" lead="Too many wrong PINs.">
 		<Notice tone="attention" title="Don’t start the trip">
-			<p>FUber’s safety team has been alerted and will call you. Don’t let anyone in the car.</p>
+			<p>VARA’s safety team has been alerted and will call you. Don’t let anyone in the car.</p>
 		</Notice>
 		<p class="note">
 			New requests pause for a while. You can stay online; the app shows when they resume.

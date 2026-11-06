@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">FUber</string>
-    <string name="title_activity_main">FUber</string>
+    <string name="app_name">VARA</string>
+    <string name="title_activity_main">VARA</string>
     <string name="package_name">app.fuber.rider</string>
     <string name="custom_url_scheme">app.fuber.rider</string>
 </resources>

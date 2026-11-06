@@ -1,4 +1,4 @@
-# FUber — UI/UX Design Brief
+# VARA — UI/UX Design Brief
 
 | | |
 | --- | --- |
@@ -11,7 +11,7 @@
 
 ## 1. The job
 
-Design production-ready UI for **FUber Rider**, **FUber Driver** (iOS + Android, built in Svelte with Capacitor), the **Ops console** (desktop web) and the **website** (trip-share page, driver application landing, legal pages).
+Design production-ready UI for **VARA Rider**, **VARA Driver** (iOS + Android, built in Svelte with Capacitor), the **Ops console** (desktop web) and the **website** (trip-share page, driver application landing, legal pages).
 
 The demo already proves the flows and has a visual direction (plum + gold, Plus Jakarta Sans). Keep what works, make it production-grade: accessible, consistent, tested with real users, and documented as a component library.
 
@@ -37,7 +37,7 @@ The demo already proves the flows and has a visual direction (plum + gold, Plus 
 
 ### 4.1 Name and voice
 
-- **FUber** — always written with capital F and U.
+- **VARA** — always written in capitals.
 - Voice: confident, warm, plain English. Short sentences. Second person (*you*). Address the driver as *your driver* and by first name.
 - Examples (from the demo, keep the style): *Finding your driver…*, *Show your driver this PIN*, *Destination unlocked*, *Are you okay?*, *No fee charged*.
 - Avoid: jargon (*dispatch*, *surge* → *busy times*), blame (*You cancelled too many times*), fear (*danger*, *threat*).

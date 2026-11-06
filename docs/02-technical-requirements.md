@@ -1,4 +1,4 @@
-# FUber — Technical Requirements Document (TRD)
+# VARA — Technical Requirements Document (TRD)
 
 | | |
 | --- | --- |
@@ -169,7 +169,7 @@ States (from the demo, plus terminal states): `REQUESTED → SEARCHING → DRIVE
 
 ## 5. Real-time protocol
 
-- One WebSocket per signed-in app: `wss://api.fuber.app/v1/ws`, authenticated with the access token in the first message (not in the URL, so it is never logged).
+- One WebSocket per signed-in app: `wss://api.vara.example/v1/ws`, authenticated with the access token in the first message (not in the URL, so it is never logged).
 - Messages are JSON `{ "type": "...", "id": "...", "data": {...} }`, versioned with the API.
 - Server → client: `ride.updated`, `offer.created`, `offer.expired`, `driver.location`, `chat.message`, `safety.check`, `session.revoked`.
 - Client → server: `location.update` (driver), `ping`. All ride actions go over HTTPS (idempotent, with `Idempotency-Key` header) so they are rate-limited, validated and logged like any other request.
@@ -256,7 +256,7 @@ Rate-limit settings are config, not code, and are covered by integration tests.
 
 - TLS 1.2+ only, HSTS (preload) on all domains; certificate pinning considered for mobile (with backup pins).
 - Headers on web apps: CSP (`default-src 'self'`; script hashes; map-tile and API origins allow-listed), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy`, `frame-ancestors 'none'`.
-- CORS: allow-list of FUber origins only; Capacitor origins (`capacitor://localhost`, `https://localhost`) explicitly listed.
+- CORS: allow-list of VARA origins only; Capacitor origins (`capacitor://localhost`, `https://localhost`) explicitly listed.
 
 ### 7.6 Data protection
 
