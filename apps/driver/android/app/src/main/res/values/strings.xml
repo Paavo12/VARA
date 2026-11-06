@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">FUber Driver</string>
-    <string name="title_activity_main">FUber Driver</string>
+    <string name="app_name">VARA Driver</string>
+    <string name="title_activity_main">VARA Driver</string>
     <string name="package_name">app.fuber.driver</string>
     <string name="custom_url_scheme">app.fuber.driver</string>
 </resources>

@@ -166,7 +166,7 @@ pub async fn authenticate(s: &AppState, token: &str) -> Result<AuthUser, ApiErro
     let user = AuthUser { user_id: claims.sub, app: claims.role, session_id: claims.sid };
     match session_status(s, &user).await?.as_deref() {
         None | Some("deleted") => Err(ApiError::unauthorized()),
-        Some("suspended") => Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact FUber support.")),
+        Some("suspended") => Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact VARA support.")),
         Some(_) => Ok(user),
     }
 }
@@ -209,7 +209,7 @@ impl FromRequestParts<AppState> for RiderUser {
     async fn from_request_parts(parts: &mut Parts, s: &AppState) -> Result<Self, ApiError> {
         let u = AuthUser::from_request_parts(parts, s).await?;
         if u.app != App::Rider {
-            return Err(ApiError::forbidden("wrong_app", "This is only available in the FUber rider app."));
+            return Err(ApiError::forbidden("wrong_app", "This is only available in the VARA rider app."));
         }
         Ok(RiderUser(u))
     }
@@ -224,7 +224,7 @@ impl FromRequestParts<AppState> for DriverUser {
     async fn from_request_parts(parts: &mut Parts, s: &AppState) -> Result<Self, ApiError> {
         let u = AuthUser::from_request_parts(parts, s).await?;
         if u.app != App::Driver {
-            return Err(ApiError::forbidden("wrong_app", "This is only available in the FUber driver app."));
+            return Err(ApiError::forbidden("wrong_app", "This is only available in the VARA driver app."));
         }
         Ok(DriverUser(u))
     }

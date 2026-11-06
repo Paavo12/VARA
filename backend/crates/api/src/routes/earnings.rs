@@ -1,7 +1,7 @@
 //! Cash and earnings (PRD P-2, P-5, P-6).
 //!
-//! The driver ledger is positive when FUber owes the driver and negative when she owes FUber.
-//! On a cash trip she keeps the whole fare, so confirming the cash books FUber's service fee
+//! The driver ledger is positive when VARA owes the driver and negative when she owes VARA.
+//! On a cash trip she keeps the whole fare, so confirming the cash books VARA's service fee
 //! against her (`service_fee`, negative); card trips (with the payment provider) will book her
 //! earning instead. Weekly settlement nets the balance.
 
@@ -26,9 +26,9 @@ pub struct CashConfirmed {
     pub ride_id: Uuid,
     /// `cash_confirmed`.
     pub payment_status: String,
-    /// FUber's service fee on this trip, added to what she owes.
+    /// VARA's service fee on this trip, added to what she owes.
     pub service_fee: Cents,
-    /// Her balance after this trip: negative means she owes FUber.
+    /// Her balance after this trip: negative means she owes VARA.
     pub balance: Cents,
 }
 
@@ -120,15 +120,15 @@ pub struct Earnings {
     #[serde(with = "time::serde::rfc3339")]
     pub since: OffsetDateTime,
     pub trips: i64,
-    /// What she earned: fares minus FUber's service fee.
+    /// What she earned: fares minus VARA's service fee.
     pub earnings: Cents,
     /// Cash she collected from passengers.
     pub cash_collected: Cents,
-    /// FUber's service fee on these trips.
+    /// VARA's service fee on these trips.
     pub service_fees: Cents,
     /// Time online in the period.
     pub online_s: i64,
-    /// All-time balance: positive means FUber pays her at settlement, negative means she owes FUber.
+    /// All-time balance: positive means VARA pays her at settlement, negative means she owes VARA.
     pub balance: Cents,
     /// Completed trips in the period, newest first.
     pub recent: Vec<EarningsTrip>,

@@ -1,7 +1,7 @@
 <!--
 	SOS (PRD S-1, App Flow §6.1): a button on every screen during a ride, and in the driver app
 	while online. Tapping starts a 3-second countdown she can cancel; then the alert goes to
-	FUber's safety desk and her emergency contacts, and she is offered a one-tap call to the
+	VARA's safety desk and her emergency contacts, and she is offered a one-tap call to the
 	police. The API call is retried; if it still fails, she can text the safety desk from her
 	own phone with her position filled in.
 -->
@@ -80,7 +80,7 @@
 	const fallbackSms = $derived.by(() => {
 		if (!safetyDeskPhone) return null;
 		const where = position ? ` I'm at ${position.lat.toFixed(5)},${position.lon.toFixed(5)}.` : '';
-		const body = `FUber SOS: I need help.${where}${rideId ? ` Ride ${rideId}.` : ''}`;
+		const body = `VARA SOS: I need help.${where}${rideId ? ` Ride ${rideId}.` : ''}`;
 		return `sms:${safetyDeskPhone}?body=${encodeURIComponent(body)}`;
 	});
 
@@ -94,7 +94,7 @@
 		{#if step === 'counting'}
 			<h2 id="sos-title">Sending SOS in</h2>
 			<p class="count" aria-live="assertive">{left}</p>
-			<p>FUber’s safety team and your emergency contacts will be alerted.</p>
+			<p>VARA’s safety team and your emergency contacts will be alerted.</p>
 			<Button size="driver" variant="secondary" onclick={cancel}>Cancel</Button>
 		{:else if step === 'sending'}
 			<h2 id="sos-title">Sending your alert…</h2>
@@ -105,7 +105,7 @@
 			<a class="call" href="tel:{police}">Call police {police}</a>
 			<Button variant="ghost" onclick={() => (step = 'idle')}>Close</Button>
 		{:else}
-			<h2 id="sos-title">We couldn’t reach FUber</h2>
+			<h2 id="sos-title">We couldn’t reach VARA</h2>
 			<p>Call the police, or text the safety desk from your phone.</p>
 			<a class="call" href="tel:{POLICE}">Call police {POLICE}</a>
 			{#if fallbackSms}<a class="text" href={fallbackSms}>Text the safety desk</a>{/if}

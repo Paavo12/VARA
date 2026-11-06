@@ -90,7 +90,7 @@
 </script>
 
 {#if !challenge || !phone}
-	<Screen title="Welcome to FUber" lead={tagline}>
+	<Screen title="Welcome to VARA" lead={tagline}>
 		<form id="phone-form" onsubmit={sendCode} novalidate>
 			<TextField
 				label="Mobile number"
@@ -103,7 +103,7 @@
 				hint="Namibian numbers only."
 			/>
 		</form>
-		<p class="small">FUber is for women only. Every rider and driver is verified.</p>
+		<p class="small">VARA is for women only. Every rider and driver is verified.</p>
 		{#snippet footer()}
 			<Button type="submit" form="phone-form" loading={busy}>Continue</Button>
 		{/snippet}
@@ -132,7 +132,7 @@
 		{:else}
 			<Button variant="ghost" onclick={() => sendCode()} disabled={busy}>Send a new code</Button>
 		{/if}
-		<Notice tone="info"><p>FUber will never call you to ask for this code.</p></Notice>
+		<Notice tone="info"><p>VARA will never call you to ask for this code.</p></Notice>
 		{#snippet footer()}
 			<Button type="submit" form="code-form" loading={busy}>Continue</Button>
 		{/snippet}

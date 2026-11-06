@@ -140,7 +140,7 @@ pub async fn update(State(s): State<AppState>, user: AuthUser, ValidJson(req): V
         if identity_locked(&verification, driver.as_deref()) {
             return Err(ApiError::conflict(
                 "identity_locked",
-                "Your name and date of birth are verified. Contact FUber support to change them.",
+                "Your name and date of birth are verified. Contact VARA support to change them.",
             ));
         }
     }
@@ -349,7 +349,7 @@ pub async fn submit_verification(
             .map_err(|e| match &e {
                 sqlx::Error::Database(d) if d.is_unique_violation() => {
                     tracing::warn!(security_event = "duplicate_national_id", user_id = %user.user_id, "ID number already linked to another account");
-                    ApiError::conflict("duplicate_identity", "This ID number is already linked to another FUber account. Please contact support.")
+                    ApiError::conflict("duplicate_identity", "This ID number is already linked to another VARA account. Please contact support.")
                 }
                 _ => ApiError::internal(e),
             })?;

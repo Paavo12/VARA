@@ -211,7 +211,7 @@ async fn forwarded_for_is_ignored_unless_proxies_are_trusted() {
 
 #[tokio::test]
 async fn cors_allows_only_listed_origins() {
-    let app = app_with(RateLimits::default(), config(&[("CORS_ORIGINS", "https://ops.fuber.app, capacitor://localhost")]));
+    let app = app_with(RateLimits::default(), config(&[("CORS_ORIGINS", "https://ops.vara.example, capacitor://localhost")]));
     let preflight = |origin: &str| {
         Request::builder()
             .method(Method::OPTIONS)

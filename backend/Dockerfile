@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Images for the FUber API, worker and migration job (TRD §2.3). Build from backend/:
+# Images for the VARA API, worker and migration job (TRD §2.3). Build from backend/:
 #
 #   docker build --target api     -t fuber-api .
 #   docker build --target worker  -t fuber-worker .

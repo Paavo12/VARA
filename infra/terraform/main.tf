@@ -1,4 +1,4 @@
-# FUber on Google Cloud: one environment per project (TRD §2.3). See README.md for the
+# VARA on Google Cloud: one environment per project (TRD §2.3). See README.md for the
 # first-time setup and docs/02-technical-requirements.md for why each piece exists.
 
 data "google_project" "this" {}

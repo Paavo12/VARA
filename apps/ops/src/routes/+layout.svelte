@@ -19,7 +19,7 @@
 </svelte:head>
 
 <header>
-	<a class="brand" href={resolve('/')}>FUber Ops</a>
+	<a class="brand" href={resolve('/')}>VARA Ops</a>
 	{#if staff.session}
 		{#if staff.canHandleIncidents}<a class="link" href={resolve('/incidents')}>Safety desk</a>{/if}
 		<span class="who">{staff.session.roles.join(', ').replaceAll('ops_', '')}</span>

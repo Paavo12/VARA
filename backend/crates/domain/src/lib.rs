@@ -1,4 +1,4 @@
-//! FUber business rules with no I/O: pricing, the ride state machine, matching scores and
+//! VARA business rules with no I/O: pricing, the ride state machine, matching scores and
 //! priority points. Ported from the demo engine (`demo/public/js/engine.js`), which is the
 //! behavioural reference; tests here pin the same numbers.
 

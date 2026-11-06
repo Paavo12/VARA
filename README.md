@@ -1,6 +1,6 @@
-# FUber
+# VARA
 
-FUber is a women-only ride-hailing app for Windhoek, Namibia: every rider and every driver is a verified woman.
+VARA is a women-only ride-hailing app for Windhoek, Namibia: every rider and every driver is a verified woman.
 
 ## What's in this repo
 

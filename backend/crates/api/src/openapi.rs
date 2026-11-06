@@ -11,7 +11,7 @@ use crate::{ops, routes};
 
 #[derive(OpenApi)]
 #[openapi(
-    info(title = "FUber API", version = "0.3.0", description = "Women-only ride-hailing for Windhoek. Amounts are integer cents of NAD."),
+    info(title = "VARA API", version = "0.3.0", description = "Women-only ride-hailing for Windhoek. Amounts are integer cents of NAD."),
     paths(
         routes::health::live, routes::health::ready, routes::fares::estimate,
         routes::auth::request_otp, routes::auth::verify_otp, routes::auth::refresh, routes::auth::logout,

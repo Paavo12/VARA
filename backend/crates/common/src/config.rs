@@ -45,7 +45,7 @@ pub struct Config {
     pub storage: StorageConfig,
     pub virus_scan: VirusScan,
     pub routing: RoutingConfig,
-    /// Base of the live trip links texted to emergency contacts, e.g. `https://fuber.app/t`.
+    /// Base of the live trip links texted to emergency contacts, e.g. `https://vara.example/t`.
     pub trip_link_base: String,
 }
 
@@ -234,7 +234,7 @@ impl Config {
             }
         };
 
-        let trip_link_base = get("TRIP_LINK_BASE").unwrap_or_else(|| "https://fuber.app/t".into()).trim_end_matches('/').to_owned();
+        let trip_link_base = get("TRIP_LINK_BASE").unwrap_or_else(|| "https://vara.example/t".into()).trim_end_matches('/').to_owned();
         let local_http = env == Some(Environment::Local) && trip_link_base.starts_with("http://");
         if !(trip_link_base.starts_with("https://") || local_http) {
             errors.push(format!("TRIP_LINK_BASE must be an https:// URL (got {trip_link_base:?})"));

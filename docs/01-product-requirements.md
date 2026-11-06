@@ -1,4 +1,4 @@
-# FUber — Product Requirements Document (PRD)
+# VARA — Product Requirements Document (PRD)
 
 | | |
 | --- | --- |
@@ -11,15 +11,15 @@
 
 ## 1. Summary
 
-FUber is a **women-only ride-hailing service for Windhoek, Namibia**. Every rider and every driver is a verified woman. The product's promise is **safety you can see**: verified identities on both sides, a PIN before the trip starts, the destination hidden until the right rider is in the car, live trip sharing, RideCheck and a one-tap SOS that reaches a human safety team.
+VARA is a **women-only ride-hailing service for Windhoek, Namibia**. Every rider and every driver is a verified woman. The product's promise is **safety you can see**: verified identities on both sides, a PIN before the trip starts, the destination hidden until the right rider is in the car, live trip sharing, RideCheck and a one-tap SOS that reaches a human safety team.
 
 v1 ships three products:
 
-1. **FUber Rider** — iOS and Android app.
-2. **FUber Driver** — iOS and Android app.
-3. **FUber Ops** — web console for verification, safety, support and pricing.
+1. **VARA Rider** — iOS and Android app.
+2. **VARA Driver** — iOS and Android app.
+3. **VARA Ops** — web console for verification, safety, support and pricing.
 
-Plus a public website (`fuber.app`, placeholder domain) for driver applications, trip-share links and legal pages.
+Plus a public website (`vara.example`, placeholder domain) for driver applications, trip-share links and legal pages.
 
 ## 2. Problem
 
@@ -58,7 +58,7 @@ Plus a public website (`fuber.app`, placeholder domain) for driver applications,
 | **Martha, driver** | 38, single mother, owns or borrows a car. Wants flexible income without risk. | Only women passengers, fair earnings, know where she is going before committing, quick help if something goes wrong. |
 | **Guest passenger** | Elderly mother or teenage daughter (16+, see §10) booked by a verified rider. Possibly no smartphone. | Get the driver details and PIN by SMS. |
 | **Emergency contact** | Rider's or driver's chosen person. No app. | Receive a trip link and SOS alerts by SMS. |
-| **Ops agent** | FUber staff: verification reviewer, safety desk, support. | Fast review queues, full trip context during incidents, audit trail. |
+| **Ops agent** | VARA staff: verification reviewer, safety desk, support. | Fast review queues, full trip context during incidents, audit trail. |
 
 ## 5. Scope — feature requirements
 
@@ -120,8 +120,8 @@ Priority: **M** = must for launch, **S** = should (launch if ready), **C** = cou
 
 | ID | Requirement | P |
 | --- | --- | --- |
-| S-1 | **SOS** on every screen of both apps during a ride and while online. 3-second cancellable countdown, then: alert to the FUber safety desk with live location and trip details, and SMS to emergency contacts with a live trip link. The app offers one-tap call to Namibian Police (10111). | M |
-| S-2 | **Share trip**: rider (and driver) can share a live link (`fuber.app/t/<token>`) showing position, driver first name, car, plate, destination area and ETA. Link expires 30 min after trip end. | M |
+| S-1 | **SOS** on every screen of both apps during a ride and while online. 3-second cancellable countdown, then: alert to the VARA safety desk with live location and trip details, and SMS to emergency contacts with a live trip link. The app offers one-tap call to Namibian Police (10111). | M |
+| S-2 | **Share trip**: rider (and driver) can share a live link (`vara.example/t/<token>`) showing position, driver first name, car, plate, destination area and ETA. Link expires 30 min after trip end. | M |
 | S-3 | **RideCheck**: if the car goes > 150 m off the planned route or stops > 2 min unexpectedly mid-trip, the rider gets *Are you okay?* (*Yes, I'm fine / Call for help*). No answer in 60 s → safety desk alerted. | M |
 | S-4 | Safety desk console: live incidents queue, trip map, call/chat both parties, escalate to police, close with notes. | M |
 | S-5 | Report an issue after the trip (categories incl. harassment, unsafe driving, wrong person, lost item). | M |
@@ -134,11 +134,11 @@ Priority: **M** = must for launch, **S** = should (launch if ready), **C** = cou
 | --- | --- | --- |
 | P-1 | Price locked at request (quote = charge). Detours, traffic or waiting never change it. | M |
 | P-2 | **Cash**: driver confirms cash received at trip end. | M |
-| P-3 | **Card**: card saved via a PCI-compliant payment provider (tokenised; FUber never sees card numbers). Pre-authorise at request, capture at completion, release on cancellation. | M |
+| P-3 | **Card**: card saved via a PCI-compliant payment provider (tokenised; VARA never sees card numbers). Pre-authorise at request, capture at completion, release on cancellation. | M |
 | P-4 | Fare breakdown after trip: base + distance + time + surge; receipt by email (optional) and in trip history. | M |
 | P-5 | Service fee (15 / 16.5 / 18 %) deducted from the driver's share. Drivers see per-trip earnings before accepting. | M |
-| P-6 | Driver earnings dashboard: today, week, trips, hours online, per-trip list. Cash trips accrue a service-fee balance owed to FUber; card trips accrue a payout balance. Weekly settlement. | M |
-| P-7 | FUber wallet / mobile money top-up. | C |
+| P-6 | Driver earnings dashboard: today, week, trips, hours online, per-trip list. Cash trips accrue a service-fee balance owed to VARA; card trips accrue a payout balance. Weekly settlement. | M |
+| P-7 | VARA wallet / mobile money top-up. | C |
 | P-8 | Tipping. | C |
 
 ### 5.7 After the trip

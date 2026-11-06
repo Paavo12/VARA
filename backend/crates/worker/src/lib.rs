@@ -1,4 +1,4 @@
-//! FUber background work (TRD §2.1), as a library so the API's integration tests can run the
+//! VARA background work (TRD §2.1), as a library so the API's integration tests can run the
 //! same code the worker process runs.
 //!
 //! - `upload.process`: virus scan, type check and re-encode an upload (TRD §7.2).
@@ -289,7 +289,7 @@ pub async fn guest_sms(ctx: &Ctx, ride_id: Uuid) -> Result<(), JobError> {
     let driver = driver.unwrap_or_else(|| "Your driver".into());
     let booker = booker.unwrap_or_else(|| "A friend".into());
     let body = format!(
-        "FUber {code}: Hi {guest}, {booker} booked you a ride. {driver} is coming in a {colour} {car}, plate {plate}.          Your PIN is {pin}: say it to her at pickup, and only get in if the plate matches."
+        "VARA {code}: Hi {guest}, {booker} booked you a ride. {driver} is coming in a {colour} {car}, plate {plate}.          Your PIN is {pin}: say it to her at pickup, and only get in if the plate matches."
     );
     notify(ctx, Some(phone), &body).await;
     Ok(())
@@ -357,7 +357,7 @@ pub async fn check_documents(ctx: &Ctx, today: Date) -> Result<(), JobError> {
         notify(
             ctx,
             phone,
-            &format!("FUber: your {name} has expired, so you can't go online. Upload the new one in the FUber driver app to drive again."),
+            &format!("VARA: your {name} has expired, so you can't go online. Upload the new one in the VARA driver app to drive again."),
         )
         .await;
     }
@@ -379,7 +379,7 @@ pub async fn check_documents(ctx: &Ctx, today: Date) -> Result<(), JobError> {
             notify(
                 ctx,
                 phone,
-                &format!("FUber: your {name} expires on {on}. Upload the new one in the FUber driver app before then to keep driving."),
+                &format!("VARA: your {name} expires on {on}. Upload the new one in the VARA driver app before then to keep driving."),
             )
             .await;
         }

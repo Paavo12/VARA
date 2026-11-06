@@ -3,7 +3,7 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
-	"description": "FUber design tokens, Svelte components and formatting helpers (docs/04-ui-ux-design-brief.md).",
+	"description": "VARA design tokens, Svelte components and formatting helpers (docs/04-ui-ux-design-brief.md).",
 	"svelte": "./src/index.ts",
 	"exports": {
 		".": {

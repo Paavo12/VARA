@@ -3,7 +3,7 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
-	"description": "Typed client for the FUber API, generated from the backend's OpenAPI document. Never edit src/schema.d.ts by hand.",
+	"description": "Typed client for the VARA API, generated from the backend's OpenAPI document. Never edit src/schema.d.ts by hand.",
 	"exports": {
 		".": {
 			"types": "./src/index.ts",
