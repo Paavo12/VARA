@@ -7,6 +7,15 @@
   const priorityLabel = (p) => Math.round(p.points) + ' pts · ' + p.cancels + ' cancel' + (p.cancels === 1 ? '' : 's');
   const fmtT = (ms) => { const t = Math.floor(ms / 1000); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
 
+  // What exists outside this simulation. Keep it in step with docs/06-implementation-plan.md.
+  const PRODUCT_STATUS = [
+    ['Built, in testing (not live yet)', 'built', ['Phone sign-up, ID and document checks', 'Booking, locked fares and driver matching', 'PIN check and the block after 5 wrong PINs', 'SOS and the ops safety desk', 'Cash payments, 15–18% fees, ratings and earnings']],
+    ['Previewed here, not built yet', 'next', ['In-app chat (next up)', 'Share trip', 'RideCheck', 'Report an issue']],
+    ['Later', 'later', ['Card payments, after the cash pilot', 'Real SMS provider', 'Private calling', 'Direct emergency-services calling', 'Map Experts', 'Staffed 24/7 safety desk', 'Legal sign-off']],
+  ];
+  const statusList = () => PRODUCT_STATUS.map(([title, tone, items]) =>
+    '<div class="status-group" data-tone="' + tone + '"><b>' + title + '</b><ul>' + items.map((x) => '<li>' + x + '</li>').join('') + '</ul></div>').join('');
+
   class DebugPanel {
     constructor(el) {
       this.el = el;
@@ -15,17 +24,20 @@
         '<section><h4>Ride progress</h4><div data-k="sm"></div></section>' +
         '<section><h4>Ride details</h4><div data-k="metrics"></div></section>' +
         '<section><h4>Priority points <small class="dbg-hint">hidden from rider and driver</small></h4><div data-k="priority"></div></section>' +
+        '<section><h4>Safety desk</h4><div data-k="incidents"></div></section>' +
         '<section><h4>Demo shortcuts</h4><div class="dbg-btns">' +
         this.btn('X_ARRIVE_NOW', 'Driver arrives now', 'pin') +
         this.btn('X_JUMP_DEST', 'Jump to destination', 'flag') +
         this.btn('X_DEVIATE', 'Route deviation', 'route', null, 'RideCheck') +
         this.btn('X_STOP', 'Unexpected stop', 'alert', null, 'RideCheck') +
+        this.btn('X_PIN_LOCKOUT', '5 wrong PINs', 'lock', null, 'Safety') +
         this.btn('X_APPROVE', 'Approve verifications', 'shieldCheck') +
         '</div></section>' +
         '<section><h4>Settings</h4><div class="dbg-settings">' +
         '<label>Demo speed <select data-set="timeScale"><option value="10">10× (slow)</option><option value="20">20×</option><option value="30">30×</option><option value="60">60× (fast)</option></select></label>' +
         '</div></section>' +
-        '<section><h4>What just happened</h4><div class="dbg-log" data-k="log"></div></section>';
+        '<section><h4>What just happened</h4><div class="dbg-log" data-k="log"></div></section>' +
+        '<section><h4>Real product status <small class="dbg-hint">this demo is simulated</small></h4>' + statusList() + '</section>';
       this.k = {};
       for (const n of el.querySelectorAll('[data-k]')) this.k[n.dataset.k] = n;
       el.addEventListener('click', async (e) => {
@@ -81,7 +93,7 @@
         const cls = r && r.state === x ? 'cur' : visited.has(x) ? 'done' : '';
         sm += '<span class="sm-step ' + cls + '" data-tone="' + STATE_META[x].tone + '">' + x.replace(/_/g, ' ') + '</span>';
       }
-      if (r && (r.state === 'CANCELLED' || r.state === 'NO_DRIVERS')) sm += '<span class="sm-step cur" data-tone="' + STATE_META[r.state].tone + '">' + r.state.replace('_', ' ') + '</span>';
+      if (r && (r.state === 'CANCELLED' || r.state === 'NO_DRIVERS' || r.state === 'BLOCKED')) sm += '<span class="sm-step cur" data-tone="' + STATE_META[r.state].tone + '">' + r.state.replace('_', ' ') + '</span>';
       this.set('sm', sm + '</div>');
 
       // Ride details
@@ -106,6 +118,11 @@
       let pr = '<div class="metrics">' + m('Rider · ' + esc(s.rider.profile.name || 'not signed in'), priorityLabel(s.rider.priority));
       for (const x of s.drivers) pr += m('Driver · ' + esc(x.short), priorityLabel(x.priority));
       this.set('priority', pr + '</div>');
+
+      // Safety desk
+      const incidents = s.incidents || [];
+      this.set('incidents', incidents.length ? incidents.map((x) => '<div class="incident"><div><b>' + esc(x.kind) + ' · ' + esc(x.driverName) + '</b><span>' + esc(x.id) + ' · ride ' + esc(x.rideId) + ' · requests paused</span></div>' +
+        this.btn('X_CLOSE_INCIDENT', 'Close incident', 'check', { id: x.id }) + '</div>').join('') : '<div class="incident-none">No open incidents</div>');
 
       // Log
       this.set('log', s.log.slice(0, 12).map((l) => '<div class="lg" data-kind="' + l.kind + '"><time>' + fmtT(l.t) + '</time><span>' + esc(l.text) + '</span></div>').join(''));

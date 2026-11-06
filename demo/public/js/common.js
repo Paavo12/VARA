@@ -275,6 +275,7 @@
     RATED: { tone: 'ink', rider: 'Thanks for riding', driver: 'Trip closed' },
     CANCELLED: { tone: 'gray', rider: 'Ride cancelled', driver: 'Trip cancelled' },
     NO_DRIVERS: { tone: 'red', rider: 'No drivers available', driver: 'No drivers' },
+    BLOCKED: { tone: 'red', rider: 'Trip stopped for your safety', driver: 'Trip blocked' },
   };
   function statusBanner(state, who) {
     const m = STATE_META[state];
@@ -282,8 +283,8 @@
   }
   // Shown in the SOS modal after "Call emergency services". Placeholder: nothing is dialled yet.
   function emsConfirm() {
-    return '<div class="ems-confirm" role="status">' + ic('shieldCheck') + '<div><b>Emergency services have been notified</b>' +
-      '<div class="tiny">They have your live location. Keep your phone with you — help is on the way.</div></div></div>';
+    return '<div class="ems-confirm" role="status">' + ic('shieldCheck') + '<div><b>Calling emergency services</b>' +
+      '<div class="tiny">Stay on the line and keep your phone with you.</div></div></div>';
   }
 
   // ---------------------------------------------------------------------------

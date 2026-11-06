@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Offline APK build for the FUber wrapper app: no Gradle and no downloads. It uses only the
+# Offline APK build for the VARA wrapper app: no Gradle and no downloads. It uses only the
 # Android SDK build-tools and Android Studio's bundled JDK.
 #
 #   ./build-apk.sh            build  build/hera-demo.apk
@@ -53,7 +53,7 @@ echo "› aligning and signing"
 KS=debug.keystore
 if [ ! -f "$KS" ]; then
   "$JDK/bin/keytool.exe" -genkeypair -keystore "$KS" -storepass android -keypass android -alias androiddebugkey \
-    -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=FUber Demo Debug" >/dev/null 2>&1
+    -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=VARA Demo Debug" >/dev/null 2>&1
 fi
 "$BT/zipalign.exe" -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 "$BT/apksigner.bat" sign --ks "$KS" --ks-pass pass:android --key-pass pass:android \
@@ -70,5 +70,5 @@ if [ "${1:-}" = "install" ]; then
     "$ADB" -s "$dev" install -r "$OUT/hera-demo.apk"
     "$ADB" -s "$dev" reverse tcp:3100 tcp:3100 || true
   done
-  echo "✓ installed on $(echo "$DEVICES" | wc -w) device(s) — look for 'FUber Rider' and 'FUber Driver' in the app drawer"
+  echo "✓ installed on $(echo "$DEVICES" | wc -w) device(s) — look for 'VARA Rider' and 'VARA Driver' in the app drawer"
 fi

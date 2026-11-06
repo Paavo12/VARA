@@ -1,5 +1,5 @@
 /*
- * FUber demo server — zero dependencies.
+ * VARA demo server — zero dependencies.
  *
  * Runs the simulation authoritatively, serves the web app, and pushes state to
  * every connected screen over Server-Sent Events. That lets you open the Rider
@@ -96,7 +96,7 @@ async function handle(req, res) {
 
 server.listen(PORT, () => {
   const lan = Object.values(os.networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
-  console.log('\n  FUber — women-only ride-hailing demo\n');
+  console.log('\n  VARA — women-only ride-hailing demo\n');
   console.log('  Presenter view (both portals):  http://localhost:' + PORT + '/');
   console.log('  Rider portal only:              http://localhost:' + PORT + '/?view=rider');
   console.log('  Driver portal only:             http://localhost:' + PORT + '/?view=driver');

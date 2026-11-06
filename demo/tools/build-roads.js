@@ -24,7 +24,7 @@ const SIMPLIFY_M = 2.5;
 async function fetchRaw() {
   const q = '[out:json][timeout:120];(way["highway"~"^(' + HIGHWAYS.join('|') + ')$"](' + BBOX.join(',') + '););out body;>;out skel qt;';
   const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST', body: new URLSearchParams({ data: q }), headers: { 'User-Agent': 'FUber-demo-build/1.0 (local prototype)' },
+    method: 'POST', body: new URLSearchParams({ data: q }), headers: { 'User-Agent': 'VARA-demo-build/1.0 (local prototype)' },
   });
   if (!res.ok) throw new Error('Overpass returned ' + res.status + ' — it is often busy, try again in a minute');
   fs.mkdirSync(path.dirname(RAW), { recursive: true });
