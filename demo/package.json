@@ -1,7 +1,7 @@
 {
-  "name": "fuber-ride-demo",
+  "name": "vara-ride-demo",
   "version": "1.0.0",
-  "description": "FUber — women-only ride-hailing demo (Rider + Driver portals with simulated dispatch)",
+  "description": "VARA — women-only ride-hailing demo (Rider + Driver portals with simulated dispatch)",
   "private": true,
   "scripts": {
     "start": "node server.js"

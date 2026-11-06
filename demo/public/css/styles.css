@@ -1,4 +1,4 @@
-/* FUber demo — stage + phone UI */
+/* VARA demo — stage + phone UI */
 :root {
   --plum: #6b2c91;
   --plum-700: #521f72;
@@ -730,3 +730,19 @@ body.solo .statusbar > * { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Cash pilot: cards are shown but can't be chosen yet */
+.pay-opt.pay-soon { color: var(--muted); border-style: dashed; }
+.pay-opt.pay-soon .ic { color: var(--muted); }
+
+/* Presentation panel: safety desk and real product status */
+.incident { display: flex; flex-direction: column; gap: 6px; background: #241c2e; border: 1px solid #f9a8d4; border-radius: 10px; padding: 8px 10px; }
+.incident b { display: block; font-size: 13px; }
+.incident span { font-size: 11px; color: var(--stage-muted); }
+.incident .dbg-btn span { font-size: inherit; color: inherit; }
+.incident-none { font-size: 12px; color: var(--stage-muted); }
+.status-group { background: #241c2e; border-radius: 10px; padding: 8px 10px; border-left: 3px solid var(--stage-muted); }
+.status-group[data-tone="built"] { border-left-color: var(--green); }
+.status-group[data-tone="next"] { border-left-color: var(--gold-300); }
+.status-group b { font-size: 12px; }
+.status-group ul { margin: 4px 0 0; padding-left: 16px; font-size: 11.5px; color: #c9bfd6; display: flex; flex-direction: column; gap: 1px; }

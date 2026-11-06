@@ -17,7 +17,7 @@
 
   document.getElementById('app').innerHTML =
     '<header class="topbar">' +
-    '<div class="tb-brand"><span class="logo">' + ic('shieldCheck') + '</span><div><b>FUber</b><span>Women-only ride-hailing · Windhoek, Namibia</span></div></div>' +
+    '<div class="tb-brand"><span class="logo">' + ic('shieldCheck') + '</span><div><b>VARA</b><span>Women-only ride-hailing · Windhoek · Simulated demo</span></div></div>' +
     '<div class="tb-group"><span class="tb-label">Show</span><div class="tb-seg" data-group="view"><button data-v="both">Both portals</button><button data-v="rider">Rider</button><button data-v="driver">Driver</button></div></div>' +
     '<div class="tb-group"><span class="tb-label">Demand</span><div class="tb-seg" data-group="demand"><button data-v="normal">Normal</button><button data-v="high">High</button><button data-v="peak">Peak</button></div><span class="tb-surge" id="tbSurge"></span></div>' +
     '<div class="tb-right"><span class="tb-mode" id="tbMode"></span>' +
