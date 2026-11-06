@@ -4,10 +4,10 @@
   const { E, Store, esc, money, mins, km, arriveAt, dateShort, mmss, firstName, range, greeting, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm } = Hera;
 
   const PAY = {
-    card: { icon: 'card', label: 'Visa •••• 4242' },
     cash: { icon: 'cash', label: 'Cash' },
-    wallet: { icon: 'wallet', label: 'FUber Wallet' },
   };
+  // The closed pilot is cash only; card payments follow it.
+  const CARD_SOON = '<div class="pay-opt pay-soon">' + ic('card') + '<span class="grow">Card · after the cash pilot</span></div>';
   const RATE_TAGS = ['Safe driving', 'Friendly', 'Clean car', 'On time', 'Felt safe', 'Great music'];
   const QUICK_MSGS = ["I'm on my way down", "I'm by the entrance", 'Running 2 min late', 'Thank you!'];
   const byId = (s, id) => s.drivers.find((d) => d.id === id);
@@ -131,9 +131,9 @@
           key: 'onb-welcome',
           html: () => '<div class="page onb-welcome">' +
             '<div class="welcome-art"><div class="brand-orb">' + ic('shieldCheck') + '</div></div>' +
-            '<div class="brand-word">FUber</div>' +
+            '<div class="brand-word">VARA</div>' +
             '<h1 class="h1">Rides by women,<br>for women.</h1>' +
-            '<p class="muted">Every driver and every rider on FUber is a verified woman. Up to ' + E.CFG.MAX_SEATS + ' women riders per trip.</p>' +
+            '<p class="muted">Every driver and every rider on VARA is a verified woman. Up to ' + E.CFG.MAX_SEATS + ' women riders per trip.</p>' +
             '<ul class="trust-list">' +
             '<li>' + ic('shieldCheck') + '<span><b>Verified women only</b><br>ID and selfie checks for drivers and riders</span></li>' +
             '<li>' + ic('user') + '<span><b>No shared rides</b><br>Just you in the car, every time</span></li>' +
@@ -178,7 +178,7 @@
           key: 'onb-verify:' + v.id + v.selfie + v.status,
           html: () => '<div class="page">' + this.stepHead('signup', 2) +
             '<h2 class="h2">Verify you\'re a woman</h2>' +
-            '<p class="muted small">FUber is women-only. We check a government ID and a live selfie for every rider. Documents are encrypted and deleted after review.</p>' +
+            '<p class="muted small">VARA is women-only. We check a government ID and a live selfie for every rider. Documents are encrypted and deleted after review.</p>' +
             tile('id', 'idcard', 'Government ID', 'Passport, national ID or driving licence', u.idPreview) +
             tile('selfie', 'camera', 'Live selfie', 'Matched against your ID photo', u.selfiePreview, true) +
             '<div class="stack-sm push-bottom">' + status + '</div></div>',
@@ -324,7 +324,7 @@
           '<div class="seg"><button data-a="when" data-v="now"' + (u.when === 'now' ? ' aria-pressed="true"' : '') + '>' + ic('zap') + 'Now</button>' +
           '<button data-a="when" data-v="later"' + (u.when === 'later' ? ' aria-pressed="true"' : '') + '>' + ic('calendar') + 'Schedule</button></div>' +
           (u.when === 'later' ? '<label class="field"><span>Pickup time</span><input class="input" type="datetime-local" data-m="schedAt" value="' + esc(u.schedAt) + '"></label>' : '') +
-          '<div class="row gap"><button class="pay-chip" data-a="cyclePay">' + ic(PAY[pay].icon) + PAY[pay].label + (pay === 'wallet' ? ' · ' + money(s.rider.wallet) : '') + ic('chevronRight') + '</button>' +
+          '<div class="row gap"><button class="pay-chip" data-a="cyclePay">' + ic(PAY[pay].icon) + PAY[pay].label + '</button>' +
           '<span class="badge-wo">' + ic('shieldCheck') + 'Women-only</span></div>' +
           '<button class="btn btn-primary btn-block btn-lg" data-a="request"' + (sel.avail ? '' : ' disabled') + '>' + (u.when === 'later' ? 'Schedule ' : 'Request ') + esc(sel.o.short) + ' · ' + money(sel.est.total) + '</button>' +
           '<p class="tiny muted center">Up to ' + E.CFG.MAX_SEATS + ' passengers · no shared rides with strangers · price locked at request</p></div>',
@@ -342,6 +342,7 @@
         case 'PIN_VERIFIED': case 'IN_TRIP': return this.inTrip(s, r, d);
         case 'COMPLETED': return this.completed(s, r, d);
         case 'RATED': return this.rated(s, r, d);
+        case 'BLOCKED': return this.blocked(s, r);
         default: return this.cancelled(s, r, d);
       }
     }
@@ -472,13 +473,13 @@
           line('Total', money(f.total), 'total') + '</div>' +
           (rated ? '<div class="note ok">' + ic('check') + '<span><b>Paid ' + money(f.total) + '.</b> Waiting for ' + esc(d.first) + ' to rate the trip…</span></div>' :
             '<div class="card"><div class="eyebrow">Pay with</div><div class="pay-list">' + Object.entries(PAY).map(([k, p]) =>
-              '<button class="pay-opt" data-a="payMethod" data-v="' + k + '"' + (pay === k ? ' aria-pressed="true"' : '') + '>' + ic(p.icon) + '<span class="grow">' + p.label + (k === 'wallet' ? ' · ' + money(s.rider.wallet) : '') + (k === 'cash' ? ' · pay on arrival' : '') + '</span><i class="radio"></i></button>').join('') + '</div></div>' +
+              '<button class="pay-opt" data-a="payMethod" data-v="' + k + '"' + (pay === k ? ' aria-pressed="true"' : '') + '>' + ic(p.icon) + '<span class="grow">' + p.label + ' · pay your driver</span><i class="radio"></i></button>').join('') + CARD_SOON + '</div></div>' +
             '<div class="card"><div class="rate-head">' + avatar(d, 48) + '<div><div class="eyebrow">Rate your driver</div><b>How was your ride with ' + esc(d.first) + '?</b></div></div>' +
             '<div class="star-input">' + [1, 2, 3, 4, 5].map((n) => '<button data-a="star" data-v="' + n + '" class="' + (n <= u.rating.stars ? 'on' : '') + '">' + ic('star', '', true) + '</button>').join('') + '</div>' +
             '<div class="tag-list">' + RATE_TAGS.map((t) => '<button class="tag' + (u.rating.tags.includes(t) ? ' on' : '') + '" data-a="tag" data-v="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>' +
             '<label class="toggle-row fav-row"><span>' + ic('heart', '', true) + ' Add ' + esc(d.first) + ' to Favourite Drivers<br><small class="muted">Favourites get priority when they\'re nearby</small></span><input type="checkbox" class="switch" data-m="rating.favourite"' + (u.rating.favourite ? ' checked' : '') + '></label>' +
             '<textarea class="input" rows="2" placeholder="Add a comment (optional)" data-m="rating.comment">' + esc(u.rating.comment) + '</textarea></div>' +
-            '<button class="btn btn-primary btn-block btn-lg" data-a="payRate"' + (u.rating.stars ? '' : ' disabled') + '>Pay ' + money(f.total) + ' & submit rating</button>') +
+            '<button class="btn btn-primary btn-block btn-lg" data-a="payRate"' + (u.rating.stars ? '' : ' disabled') + '>Pay ' + money(f.total) + ' in cash & submit rating</button>') +
           '</div>',
       };
     }
@@ -486,11 +487,22 @@
     rated(s, r, d) {
       return {
         key: 'rated:' + r.id + ':' + !!r.driverRating,
-        html: () => this.sos() + '<div class="page done-page"><div class="done-hero"><div class="big-check">' + ic('heart', '', true) + '</div><div class="h2">Thanks for riding with FUber</div>' +
+        html: () => this.sos() + '<div class="page done-page"><div class="done-hero"><div class="big-check">' + ic('heart', '', true) + '</div><div class="h2">Thanks for riding with VARA</div>' +
           '<div class="small muted">Paid ' + money(r.fare.total) + ' with ' + PAY[r.payment].label + '</div></div>' +
           '<div class="card"><div class="fare-line"><span>You rated ' + esc(d.first) + '</span><span>' + stars(r.riderRating.stars) + '</span></div>' +
           '<div class="fare-line"><span>' + esc(d.first) + ' rated you</span><span>' + (r.driverRating ? stars(r.driverRating.stars) : '<span class="tiny muted">' + (r.driverDone ? 'not rated' : 'pending…') + '</span>') + '</span></div>' +
           (s.rider.favourites.includes(d.id) ? '<div class="note ok">' + ic('heart', '', true) + '<span>' + esc(d.first) + ' is in your Favourite Drivers. She\'ll get priority when nearby.</span></div>' : '') + '</div>' +
+          '<button class="btn btn-primary btn-block btn-lg" data-a="finish">Done</button></div>',
+      };
+    }
+
+    blocked(s, r) {
+      return {
+        key: 'blocked:' + r.id,
+        html: () => this.sos() + '<div class="page done-page"><div class="done-hero"><div class="big-check muted-check">' + ic('alert') + '</div><div class="h2">Trip stopped for your safety</div>' +
+          '<div class="small muted">The PIN was entered wrong ' + E.CFG.PIN_MAX_ATTEMPTS + ' times</div></div>' +
+          '<div class="note warn">' + ic('shieldCheck') + '<span><b>Please don\'t get in the car.</b> The VARA safety desk has been alerted and will contact you.</span></div>' +
+          '<div class="card"><p class="small">You have not been charged.</p></div>' +
           '<button class="btn btn-primary btn-block btn-lg" data-a="finish">Done</button></div>',
       };
     }
@@ -500,7 +512,7 @@
       return {
         key: 'cancel:' + r.id,
         html: () => this.sos() + '<div class="page done-page"><div class="done-hero"><div class="big-check muted-check">' + ic('x') + '</div><div class="h2">Ride cancelled</div>' +
-          '<div class="small muted">' + (c.by === 'driver' ? esc(c.reason || 'Cancelled by driver') : 'You cancelled this ride') + '</div></div>' +
+          '<div class="small muted">' + (c.by === 'safety' ? 'Closed by the VARA safety desk' : c.by === 'driver' ? esc(c.reason || 'Cancelled by driver') : 'You cancelled this ride') + '</div></div>' +
           '<div class="card"><p class="small">' + (c.by === 'driver' ? 'Your driver waited 5 minutes at the pickup. ' : '') + 'You have not been charged.</p></div>' +
           '<button class="btn btn-primary btn-block btn-lg" data-a="finish">Done</button></div>',
       };
@@ -532,7 +544,7 @@
       return {
         key: 'safety:' + rd.contacts.length + ':' + rd.favourites.join() + ':' + JSON.stringify(rd.consent),
         html: () => this.sos() + '<div class="page with-tabs"><div class="h1 page-title">Safety</div>' +
-          '<div class="card sos-explain">' + ic('shield') + '<div><b>SOS is on every screen</b><div class="tiny muted">Tap the red SOS button. After a 3-second cancel window, we alert your emergency contacts and the FUber Safety Team with your live location.</div></div></div>' +
+          '<div class="card sos-explain">' + ic('shield') + '<div><b>SOS is on every screen</b><div class="tiny muted">Tap the red SOS button. After a 3-second cancel window, we alert your emergency contacts and the VARA safety desk with your live location.</div></div></div>' +
           '<div class="eyebrow">Emergency contacts</div>' +
           rd.contacts.map((c, i) => '<div class="list-row">' + ic('user') + '<div class="grow"><b>' + esc(c.name) + '</b><div class="tiny muted">' + esc(c.phone) + '</div></div><button class="icon-btn sm" data-a="removeContact" data-v="' + i + '">' + ic('trash') + '</button></div>').join('') +
           '<div class="contact-edit"><input class="input" placeholder="Name" data-m="newContact.name" value="' + esc(u.newContact.name) + '"><input class="input" placeholder="Phone" data-m="newContact.phone" value="' + esc(u.newContact.phone) + '"><button class="icon-btn" data-a="addContact">' + ic('plus') + '</button></div>' +
@@ -541,8 +553,8 @@
             : '<div class="empty small muted">' + ic('heart') + 'Add drivers after a trip. Favourites get a matching boost when nearby.</div>') +
           '<div class="eyebrow">Preferences</div>' +
           this.consentToggle(rd, 'rideCheck', 'RideCheck automatic check-ins') + this.consentToggle(rd, 'sos', 'Share live location during SOS') + this.consentToggle(rd, 'shareEta', 'Allow live trip sharing links') +
-          '<div class="eyebrow">How FUber keeps you safe</div><ul class="check-list">' +
-          ['Every driver passes ID, gender, licence and criminal-record checks', 'Riders are verified with ID + selfie', 'Up to ' + E.CFG.MAX_SEATS + ' women passengers per trip — never shared with strangers', 'Drivers see your exact address only on arrival, and your destination only after PIN check', 'Masked phone numbers for calls and messages'].map((t) => '<li>' + ic('check') + t + '</li>').join('') +
+          '<div class="eyebrow">How VARA keeps you safe</div><ul class="check-list">' +
+          ['Every driver passes ID, gender, licence and criminal-record checks', 'Riders are verified with ID + selfie', 'Up to ' + E.CFG.MAX_SEATS + ' women passengers per trip — never shared with strangers', 'Drivers see your exact address only on arrival, and your destination only after PIN check', 'In-app messages, so your number stays private'].map((t) => '<li>' + ic('check') + t + '</li>').join('') +
           '</ul></div>' + this.tabbar('safety'),
       };
     }
@@ -554,13 +566,13 @@
     accountTab(s) {
       const rd = s.rider;
       return {
-        key: 'account:' + rd.payment + ':' + rd.wallet + ':' + rd.rating,
+        key: 'account:' + rd.payment + ':' + rd.favourites.length + ':' + rd.rating,
         html: () => this.sos() + '<div class="page with-tabs"><div class="profile-head">' + avatar(rd.profile, 72) +
           '<div><div class="h2">' + esc(rd.profile.name) + '</div><div class="small muted">' + esc(rd.profile.contact) + '</div>' +
           '<span class="badge-verified">' + ic('shieldCheck') + 'Verified woman rider</span></div></div>' +
-          '<div class="stat-grid"><div><b>' + rd.rating.toFixed(2) + '</b><span>Rider rating</span></div><div><b>' + rd.history.filter((h) => h.status === 'completed').length + '</b><span>Trips</span></div><div><b>' + money(rd.wallet) + '</b><span>Wallet</span></div></div>' +
+          '<div class="stat-grid"><div><b>' + rd.rating.toFixed(2) + '</b><span>Rider rating</span></div><div><b>' + rd.history.filter((h) => h.status === 'completed').length + '</b><span>Trips</span></div><div><b>' + rd.favourites.length + '</b><span>Favourites</span></div></div>' +
           '<div class="eyebrow">Default payment</div><div class="pay-list">' + Object.entries(PAY).map(([k, p]) =>
-            '<button class="pay-opt" data-a="setPayment" data-v="' + k + '"' + (rd.payment === k ? ' aria-pressed="true"' : '') + '>' + ic(p.icon) + '<span class="grow">' + p.label + '</span><i class="radio"></i></button>').join('') + '</div>' +
+            '<button class="pay-opt" data-a="setPayment" data-v="' + k + '"' + (rd.payment === k ? ' aria-pressed="true"' : '') + '>' + ic(p.icon) + '<span class="grow">' + p.label + '</span><i class="radio"></i></button>').join('') + CARD_SOON + '</div>' +
           '<div class="eyebrow">Accessibility</div><div class="note">' + ic('wheelchair') + '<span>Wheelchair-accessible vehicles can be requested from the ride options screen.</span></div>' +
           '<button class="btn btn-ghost btn-block" data-a="signOut">Sign out (restart onboarding)</button></div>' + this.tabbar('account'),
       };
@@ -580,10 +592,10 @@
         vals = { sosCount: String(Math.max(1, Math.ceil((3000 - (s.realT - sos.at)) / 1000))) };
         html = () => sos.status === 'sending'
           ? '<div class="modal-back sos-back"><div class="modal center-modal sos-modal"><div class="sos-count" data-b="sosCount"></div><div class="h2">Sending SOS…</div>' +
-          '<p class="small">Alerting your emergency contacts and the FUber Safety Team.</p><button class="btn btn-light btn-block btn-lg" data-a="sosCancel">Cancel — I pressed by mistake</button></div></div>'
+          '<p class="small">Alerting your emergency contacts and the VARA safety desk.</p><button class="btn btn-light btn-block btn-lg" data-a="sosCancel">Cancel — I pressed by mistake</button></div></div>'
           : '<div class="modal-back sos-back"><div class="modal center-modal sos-modal sent"><div class="big-check">' + ic('check') + '</div><div class="h2">Alert sent</div>' +
           '<ul class="sos-list"><li>' + ic('users') + '<span>Emergency contacts notified: ' + esc(s.rider.contacts.map((c) => c.name).join(', ') || '—') + '</span></li>' +
-          '<li>' + ic('shieldCheck') + '<span>FUber Safety Team alerted — an agent will call you within 60 s</span></li>' +
+          '<li>' + ic('shieldCheck') + '<span>VARA safety desk alerted with your live location. They will contact you</span></li>' +
           '<li>' + ic('pin') + '<span>Live location shared' + (t ? ' · ' + esc(t.location) : '') + '</span></li>' +
           (sos.via === 'RideCheck' ? '<li>' + ic('info') + '<span>Triggered from RideCheck</span></li>' : '') + '</ul>' +
           (t ? '<div class="sos-details"><div class="eyebrow">' + ic('car') + 'Ride details sent</div>' +
@@ -604,20 +616,19 @@
         const d = r && r.driverId && byId(s, r.driverId);
         if (u.modal === 'share' && r) {
           key = 'share:' + (r.share && r.share.code);
-          html = () => this.sheetModal('Share my trip', r.share ? '<div class="share-link">' + ic('link') + '<span>fuber.app/t/' + r.share.code + '</span><button class="btn btn-sm btn-soft" data-a="copyLink">' + ic('copy') + 'Copy</button></div>' +
+          html = () => this.sheetModal('Share my trip', r.share ? '<div class="share-link">' + ic('link') + '<span>vara.example/t/' + r.share.code + '</span><button class="btn btn-sm btn-soft" data-a="copyLink">' + ic('copy') + 'Copy</button></div>' +
             '<p class="tiny muted">Anyone with this link can follow your trip live until you arrive. It expires automatically.</p>' +
             '<ul class="check-list compact"><li>' + ic('pin') + 'Live location on a map</li>' + (d ? '<li>' + ic('user') + esc(d.name) + ' · ' + esc(d.vehicle.color + ' ' + d.vehicle.make + ' ' + d.vehicle.model) + ' · <b>' + esc(d.vehicle.plate) + '</b></li>' : '<li>' + ic('user') + 'Driver details once matched</li>') +
             '<li>' + ic('flag') + 'Destination: ' + esc(r.dest.name) + '</li><li>' + ic('clock') + 'Live ETA updates</li></ul>' +
             '<button class="btn btn-primary btn-block" data-a="sendContacts">' + ic('users') + 'Send to my emergency contacts</button>' : '<div class="spinner"></div>');
         } else if (u.modal === 'call' && d) {
           key = 'call';
-          vals = { callT: mmss(Date.now() - u.callStart) };
-          html = () => '<div class="modal-back"><div class="modal center-modal call-modal">' + avatar(d, 84) + '<div class="h2">' + esc(d.first) + '</div><div class="small muted">FUber secure line · <span data-b="callT"></span></div>' +
-            '<div class="note">' + ic('lock') + '<span>Both numbers are masked. ' + esc(d.first) + ' sees <b>+264 61 000 ' + r.pin.slice(0, 2) + '00</b>, not your number.</span></div>' +
-            '<button class="btn btn-danger btn-block btn-lg" data-a="closeModal">' + ic('phone') + 'End call</button></div></div>';
+          html = () => '<div class="modal-back"><div class="modal center-modal call-modal">' + avatar(d, 84) + '<div class="h2">Private calling is on the way</div>' +
+            '<div class="note">' + ic('lock') + '<span>Calls that hide both numbers are being set up with Namibian networks. For now, message ' + esc(d.first) + ' in the app.</span></div>' +
+            '<button class="btn btn-primary btn-block btn-lg" data-a="modal" data-v="chat">' + ic('message') + 'Message ' + esc(d.first) + '</button><button class="btn btn-ghost btn-block" data-a="closeModal">Close</button></div></div>';
         } else if (u.modal === 'chat' && d) {
           key = 'chat:' + r.messages.length;
-          html = () => this.sheetModal('Message ' + esc(d.first), '<div class="chat">' + (r.messages.length ? r.messages.map((m) => '<div class="bubble ' + (m.from === 'rider' ? 'me' : '') + '">' + esc(m.text) + '</div>').join('') : '<div class="tiny muted center">Messages are sent through FUber. Your number stays private.</div>') + '</div>' +
+          html = () => this.sheetModal('Message ' + esc(d.first), '<div class="chat">' + (r.messages.length ? r.messages.map((m) => '<div class="bubble ' + (m.from === 'rider' ? 'me' : '') + '">' + esc(m.text) + '</div>').join('') : '<div class="tiny muted center">Messages are sent through VARA. Your number stays private.</div>') + '</div>' +
             '<div class="quick-msgs">' + QUICK_MSGS.map((q) => '<button class="tag" data-a="quickMsg" data-v="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
             '<div class="row gap"><input class="input grow" placeholder="Type a message" data-m="chat" value="' + esc(u.chat) + '"><button class="btn btn-primary" data-a="sendMsg">Send</button></div>');
         } else if (u.modal === 'cancel' && r) {
@@ -733,7 +744,7 @@
         case 'closeModal': this.set({ modal: null }); break;
         case 'share': this.act('R_SHARE'); this.set({ modal: 'share' }); break;
         case 'copyLink':
-          try { await navigator.clipboard.writeText('https://fuber.app/t/' + s.ride.share.code); } catch (err) { /* clipboard may be blocked */ }
+          try { await navigator.clipboard.writeText('https://vara.example/t/' + s.ride.share.code); } catch (err) { /* clipboard may be blocked */ }
           toast(this.phone, 'Link copied', 'ok');
           break;
         case 'sendContacts': toast(this.phone, 'Trip link sent to ' + s.rider.contacts.length + ' emergency contact' + (s.rider.contacts.length === 1 ? '' : 's'), 'ok'); this.set({ modal: null }); break;

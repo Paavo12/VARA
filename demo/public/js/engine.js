@@ -1,5 +1,5 @@
 /*
- * FUber ride-hailing demo — simulation engine.
+ * VARA ride-hailing demo — simulation engine.
  *
  * Shared by server.js (authoritative, multi-device mode) and the browser
  * (stand-alone mode when index.html is opened directly from disk).
@@ -61,9 +61,9 @@
   const OPTIONS = {
     // Prices in Namibian dollars (N$).
     // Ordered cheapest → most expensive; a higher tier charges more per trip.
-    classic: { id: 'classic', name: 'Classic', short: 'Classic', blurb: 'Affordable everyday rides', base: 15, perKm: 8, perMin: 1.2, min: 35, serviceFee: 0.02 },
-    comfort: { id: 'comfort', name: 'Comfort', short: 'Comfort', blurb: 'Roomier cars · top-rated drivers', base: 20, perKm: 10, perMin: 1.5, min: 45, serviceFee: 0.025 },
-    softlife: { id: 'softlife', name: 'Soft Life', short: 'Soft Life', blurb: 'Premium cars · the full treatment', base: 28, perKm: 13, perMin: 2, min: 60, serviceFee: 0.03 },
+    classic: { id: 'classic', name: 'Classic', short: 'Classic', blurb: 'Affordable everyday rides', base: 15, perKm: 8, perMin: 1.2, min: 35, serviceFee: 0.15 },
+    comfort: { id: 'comfort', name: 'Comfort', short: 'Comfort', blurb: 'Roomier cars · top-rated drivers', base: 20, perKm: 10, perMin: 1.5, min: 45, serviceFee: 0.165 },
+    softlife: { id: 'softlife', name: 'Soft Life', short: 'Soft Life', blurb: 'Premium cars · the full treatment', base: 28, perKm: 13, perMin: 2, min: 60, serviceFee: 0.18 },
   };
   const DEMAND = {
     normal: { id: 'normal', label: 'Normal demand', surge: 1.0, traffic: 1.2, weights: { eta: 0.7, acc: 0.3 } },
@@ -82,6 +82,7 @@
     ETA_NORM_MIN: 12, // ETA at which the ETA score reaches 0
     MAX_SEATS: 4, // passengers per trip (every car seats four)
     FAV_BONUS: 0.08,
+    PIN_MAX_ATTEMPTS: 5, // wrong PINs before the trip is blocked
     // Priority points: hidden from riders and drivers, only the presenter panel shows them.
     PRIORITY_START: 100,
     PRIORITY_MAX: 150,
@@ -481,6 +482,7 @@
       const straight = dist(d, pickup);
       let reason = null;
       if (!d.online) reason = 'Offline';
+      else if (d.hold) reason = 'On hold: safety review';
       else if (!signedIn(s, d.id)) reason = 'Not signed in on a phone';
       else if (d.busy) reason = 'On an active trip';
       else if (d.vehicle.type !== optionId) reason = 'Vehicle is ' + OPTIONS[d.vehicle.type].short;
@@ -527,7 +529,7 @@
     const o = OPTIONS[type], now = Date.now(), recent = [];
     for (let i = randInt(3, 6); i > 0; i--) {
       const fare = r2(Math.max(o.min, o.base + o.perKm * rand(2, 9) + o.perMin * rand(6, 22)));
-      recent.push({ rideId: 'FU-' + randInt(3000, 3999), rider: pick(PAST_RIDERS), fare, earned: r2(fare * (1 - o.serviceFee)), at: now - (recent.length + 1) * rand(30, 55) * 60000, to: pick(PLACES).name, ratingFromRider: pick([4, 5, 5, 5]), ratingGiven: 5 });
+      recent.push({ rideId: 'VA-' + randInt(3000, 3999), rider: pick(PAST_RIDERS), fare, earned: r2(fare * (1 - o.serviceFee)), at: now - (recent.length + 1) * rand(30, 55) * 60000, to: pick(PLACES).name, ratingFromRider: pick([4, 5, 5, 5]), ratingGiven: 5 });
     }
     return {
       today: r2(recent.reduce((t, x) => t + x.earned, 0)), trips: recent.length, onlineMs: rand(2, 6) * 3600000, recent,
@@ -573,7 +575,7 @@
       profile: { name: '', contact: '', photo: null },
       verification: { id: false, selfie: false, status: 'none', submittedAt: 0 },
       contacts: [], consent: { sos: true, rideCheck: true, shareEta: true },
-      pickup: { ...HOME, source: 'gps' }, payment: 'card', wallet: 400, rating: 4.92, ratingCount: 38,
+      pickup: { ...HOME, source: 'gps' }, payment: 'cash', rating: 4.92, ratingCount: 38,
       favourites: [], scheduled: [], priority: newPriority(),
       history: [],
     };
@@ -604,7 +606,7 @@
       settings: { ...settings },
       surge: DEMAND[settings.demand].surge, traffic: DEMAND[settings.demand].traffic,
       rider: seedRider(), drivers: SEED_DRIVERS.map(makeDriver), driverPortals: {},
-      ride: null, sos: { rider: null, driver: null },
+      ride: null, sos: { rider: null, driver: null }, incidents: [],
       log: [], notices: [],
     };
     log(s, 'Demo reset — ' + s.drivers.length + ' verified women drivers seeded', 'system');
@@ -666,7 +668,7 @@
     const pickup = { x: pk.x, y: pk.y, address: addressOf(pk), area: zoneOf(pk), near: approxArea(pk), street: streetOf(pk) };
     const est = estimate(s, pickup, dest, p.option);
     const r = {
-      id: 'FU-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
+      id: 'VA-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
       option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), pickup, dest, pin: String(randInt(1000, 9999)), payment: p.payment || rider.payment,
       // Booked on behalf of someone without internet: they get the PIN and driver details by SMS.
       passenger: p.passenger ? { name: String(p.passenger.name).slice(0, 40), phone: String(p.passenger.phone).slice(0, 30) } : null,
@@ -768,12 +770,25 @@
     log(s, d.first + ' is within ' + CFG.ARRIVE_M + ' m of pickup → exact address revealed to driver', 'privacy');
   }
 
+  // No cost to either side: no fare, and no priority points lost. Time alone never releases the driver.
+  function blockTrip(s, r) {
+    const d = byId(s, r.driverId);
+    d.busy = false;
+    d.path = null;
+    d.hold = { rideId: r.id };
+    s.incidents.unshift({ id: 'INC-' + (700 + s.seq++), kind: 'PIN lockout', rideId: r.id, driverId: d.id, driverName: d.short, at: s.realT });
+    s.rider.history.unshift({ id: r.id, at: Date.now(), from: r.pickup.address, to: r.dest.name, driverId: d.id, driverName: d.short, option: r.option, fare: 0, rating: null, status: 'cancelled', payment: r.payment });
+    setState(s, r, 'BLOCKED');
+    log(s, 'Trip blocked after ' + CFG.PIN_MAX_ATTEMPTS + ' wrong PINs → safety desk alerted, ' + d.first + ' gets no requests until it is reviewed', 'safety');
+  }
+
   function verifyPin(s, r, pin) {
     if (r.state !== 'DRIVER_ARRIVED') return fail('The PIN can only be entered at the pickup point');
     if (String(pin) !== r.pin) {
       r.pinErrors++;
       r.pinErrorAt = s.realT;
-      log(s, 'Incorrect PIN entered by driver (attempt ' + r.pinErrors + ')', 'warn');
+      log(s, 'Incorrect PIN entered by driver (attempt ' + r.pinErrors + ' of ' + CFG.PIN_MAX_ATTEMPTS + ')', 'warn');
+      if (r.pinErrors >= CFG.PIN_MAX_ATTEMPTS) { blockTrip(s, r); return { ok: true }; }
       return fail('Incorrect PIN');
     }
     setState(s, r, 'PIN_VERIFIED');
@@ -795,7 +810,7 @@
   function openRideCheck(s, r, reason) {
     r.rideCheck = { reason, at: s.realT, status: 'open', offRouteM: Math.round(r.offRouteM) };
     log(s, 'RideCheck triggered: ' + (reason === 'deviation' ? 'route deviation (' + Math.round(r.offRouteM) + ' m off planned route)' : 'vehicle stopped for over 2 min'), 'safety');
-    notify(s, 'driver', 'RideCheck: FUber is checking in with your rider.', 'warn', r.driverId);
+    notify(s, 'driver', 'RideCheck: VARA is checking in with your rider.', 'warn', r.driverId);
   }
 
   function tickTrip(s, r, d, dtSim) {
@@ -914,7 +929,7 @@
   // What a rider's SOS sends along with the alert: the car, the driver and the trip, frozen at the moment SOS was pressed.
   function rideDetails(s) {
     const r = s.ride;
-    if (!r || ['COMPLETED', 'RATED', 'CANCELLED', 'NO_DRIVERS'].includes(r.state)) return null;
+    if (!r || ['COMPLETED', 'RATED', 'CANCELLED', 'NO_DRIVERS', 'BLOCKED'].includes(r.state)) return null;
     const d = r.driverId && byId(s, r.driverId);
     const where = toLatLng(d && r.state === 'IN_TRIP' ? d : r.pickup);
     return {
@@ -947,7 +962,7 @@
       if (a && a.status === 'sending' && s.realT - a.at >= 3000) {
         a.status = 'sent';
         a.sentAt = s.realT;
-        log(s, 'SOS from ' + who + ': alert + live location sent to emergency contacts and the FUber Safety Team', 'safety');
+        log(s, 'SOS from ' + who + ': alert + live location sent to emergency contacts and the VARA safety desk', 'safety');
         logSosDetails(s, a);
       }
     }
@@ -961,7 +976,7 @@
     const v = s.rider.verification;
     if (v.status !== 'pending') return false;
     v.status = 'verified';
-    notify(s, 'rider', 'Identity verified — welcome to FUber', 'ok');
+    notify(s, 'rider', 'Identity verified — welcome to VARA', 'ok');
     log(s, 'Rider gender/ID verification approved', 'system');
     return true;
   }
@@ -1102,6 +1117,27 @@
       r.stop = { since: s.simT, checked: false };
       log(s, 'Scenario: vehicle stops unexpectedly (RideCheck after 2 sim-min)', 'scenario');
     },
+    X_PIN_LOCKOUT(s) {
+      const r = rideFor(s);
+      if (!r || r.state !== 'DRIVER_ARRIVED') return fail('The driver must be at the pickup first');
+      r.pinErrors = CFG.PIN_MAX_ATTEMPTS - 1;
+      verifyPin(s, r, '0000'); // PINs run from 1000 to 9999, so this is always wrong
+    },
+    // The safety desk closes the incident: the blocked trip is cancelled and the driver gets requests again.
+    X_CLOSE_INCIDENT(s, p) {
+      const inc = s.incidents.find((x) => x.id === p.id);
+      if (!inc) return fail('Incident already closed');
+      s.incidents = s.incidents.filter((x) => x !== inc);
+      const d = byId(s, inc.driverId), r = s.ride;
+      if (d) d.hold = null;
+      if (r && r.id === inc.rideId && r.state === 'BLOCKED') {
+        r.cancel = { by: 'safety' };
+        r.driverDone = true;
+        setState(s, r, 'CANCELLED');
+      }
+      if (d) notify(s, 'driver', 'The safety desk has finished its review. You can receive requests again.', 'ok', d.id);
+      log(s, 'Safety desk closed ' + inc.id + ' with a written outcome (audit-logged) → ' + inc.driverName + ' released', 'safety');
+    },
     X_APPROVE(s) {
       let any = approveRider(s);
       for (const dp of Object.values(s.driverPortals)) any = approvePortal(s, dp) || any;
@@ -1232,7 +1268,7 @@
     },
     R_FINISH(s) {
       const r = rideFor(s);
-      if (r && !['RATED', 'CANCELLED'].includes(r.state)) return fail('Ride still active');
+      if (r && !['RATED', 'CANCELLED', 'BLOCKED'].includes(r.state)) return fail('Ride still active');
       s.ride = null;
     },
     R_PAY_RATE(s, p) {
@@ -1242,7 +1278,6 @@
       const stars = clamp(Math.round(p.stars || 5), 1, 5);
       r.paid = true;
       r.payment = p.method || r.payment;
-      if (r.payment === 'wallet') s.rider.wallet = r2(s.rider.wallet - r.fare.total);
       r.riderRating = { stars, tags: p.tags || [], comment: String(p.comment || '').slice(0, 200) };
       r.riderRatedAt = s.realT;
       d.rating = r2((d.rating * d.ratingCount + stars) / (d.ratingCount + 1));
@@ -1283,9 +1318,9 @@
       const r = rideFor(s);
       if (!r) return fail('No active trip to share');
       if (!r.share) r.share = { code: code(), at: s.realT };
-      log(s, 'Rider shared trip link fuber.app/t/' + r.share.code, 'safety');
+      log(s, 'Rider shared trip link vara.example/t/' + r.share.code, 'safety');
     },
-    R_CALL(s) { log(s, 'Rider called driver through masked number', 'privacy'); },
+    R_CALL(s) { log(s, 'Rider tapped Call: private calling is planned, in-app chat offered', 'info'); },
     R_SOS(s) { startSos(s, 'rider'); },
     R_SOS_CANCEL(s) { if (s.sos.rider) log(s, 'Rider marked herself safe — SOS closed', 'safety'); s.sos.rider = null; },
 
@@ -1422,16 +1457,16 @@
       const r = rideFor(s);
       if (!r) return fail('No trip');
       if (!r.driverShare) r.driverShare = { code: code(), at: s.realT };
-      log(s, 'Driver shared route fuber.app/r/' + r.driverShare.code + ' with FUber Safety', 'safety');
+      log(s, 'Driver shared route vara.example/r/' + r.driverShare.code + ' with VARA Safety', 'safety');
     },
     D_REPORT(s, p) {
       const r = rideFor(s);
       if (!r) return fail('No trip');
       r.reports.push({ reason: p.reason, t: s.realT });
-      notify(s, 'driver', 'Report submitted. The FUber Safety Team will review it within 24 h.', 'ok', r.driverId);
+      notify(s, 'driver', 'Report submitted. The VARA safety desk will review it.', 'ok', r.driverId);
       log(s, 'Driver reported rider: ' + p.reason, 'safety');
     },
-    D_CALL(s) { log(s, 'Driver called rider through masked number', 'privacy'); },
+    D_CALL(s) { log(s, 'Driver tapped Call: private calling is planned, in-app chat offered', 'info'); },
     D_SOS(s, p) { startSos(s, 'driver', null, p.driverId); },
     D_SOS_CANCEL(s, p) {
       const a = s.sos.driver;
