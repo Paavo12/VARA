@@ -696,6 +696,34 @@ async fn both_phones_see_request_offer_and_accept_live() {
 }
 
 #[tokio::test]
+async fn a_chat_message_reaches_both_phones_live() {
+    let t = setup!(relaxed());
+    let addr = serve(&t).await;
+    let trip = t.accepted().await;
+    let mut rider_ws = connect(addr, &trip.rider.access).await;
+    let mut driver_ws = connect(addr, &trip.driver.access).await;
+    // Give the listener a moment to subscribe.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+
+    let k = key();
+    let (status, sent) = t
+        .call_with(
+            Method::POST,
+            &format!("/v1/rides/{}/messages", trip.id),
+            Some(&trip.driver.access),
+            Some(json!({ "quick_reply": "two_minutes" })),
+            &[("idempotency-key", k.as_str())],
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{sent}");
+    for ws in [&mut rider_ws, &mut driver_ws] {
+        let pushed = next_of(ws, "chat.message").await;
+        assert_eq!(pushed["data"], sent);
+        assert_eq!(pushed["data"]["text"], "I'm 2 minutes away");
+    }
+}
+
+#[tokio::test]
 async fn sockets_need_a_valid_token_in_the_first_message() {
     let t = setup!(relaxed());
     let addr = serve(&t).await;
