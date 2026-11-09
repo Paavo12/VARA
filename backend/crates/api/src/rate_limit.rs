@@ -86,6 +86,8 @@ pub struct RateLimits {
     pub ride_request_hourly: Rule,
     /// Driver position updates over HTTP, per user (the WebSocket has its own per-connection limit).
     pub location: Rule,
+    /// `POST /rides/{id}/messages`, per user.
+    pub chat: Rule,
     /// WebSocket handshakes, per IP.
     pub ws_connect: Rule,
 }
@@ -111,6 +113,7 @@ impl Default for RateLimits {
             ride_request: Rule::per_minute(5),
             ride_request_hourly: Rule::per_hour(30),
             location: Rule::per_minute(40),
+            chat: Rule::per_minute(30),
             ws_connect: Rule::per_minute(30),
         }
     }

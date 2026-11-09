@@ -2,6 +2,7 @@
 //! priority points. Ported from the demo engine (`demo/public/js/engine.js`), which is the
 //! behavioural reference; tests here pin the same numbers.
 
+pub mod chat;
 pub mod geo;
 pub mod matching;
 pub mod money;

@@ -1,11 +1,12 @@
 <!--
 	Safety desk (PRD S-1, T-3): incidents not yet closed. Closing a PIN lockout needs an outcome,
-	cancels the blocked trip and is the only thing that lets the driver get requests again.
+	cancels the blocked trip and is the only thing that lets the driver get requests again. The
+	trip's chat loads only when asked for, because each view goes in the audit log.
 -->
 <script lang="ts">
 	import { Button, Notice, TextField } from '@fuber/ui';
 	import { formatWhen, messageOf } from '#lib/format.ts';
-	import { api, staff, type IncidentItem } from '#lib/staff.svelte.ts';
+	import { api, staff, type IncidentItem, type IncidentMessage } from '#lib/staff.svelte.ts';
 
 	const KINDS: Record<string, string> = {
 		sos: 'SOS',
@@ -21,6 +22,16 @@
 	let busy = $state(false);
 	let error = $state<string | null>(null);
 	let notice = $state<string | null>(null);
+	let chats = $state<Record<string, IncidentMessage[]>>({});
+
+	async function showChat(incident: IncidentItem) {
+		error = null;
+		const { data, error: err } = await api
+			.GET('/v1/ops/incidents/{id}/messages', { params: { path: { id: incident.id } } })
+			.catch(() => ({ data: undefined, error: undefined }));
+		if (data) chats[incident.id] = data;
+		else error = messageOf(err, 'The chat didn’t load.');
+	}
 
 	async function load() {
 		error = null;
@@ -90,6 +101,20 @@
 					{/if}
 					{#if i.raised_by}
 						<p>Raised by: {i.raised_by.display_name ?? 'Name not given'}, {i.raised_by.phone}</p>
+					{/if}
+					{#if chats[i.id]}
+						<ol class="chat" aria-label="Chat on this trip">
+							{#each chats[i.id] as m (m.id)}
+								<li>
+									<span>{m.sender === 'rider' ? 'Rider' : 'Driver'}, {formatWhen(m.sent_at)}</span>
+									<p>{m.text}</p>
+								</li>
+							{:else}
+								<li><p>No messages on this trip.</p></li>
+							{/each}
+						</ol>
+					{:else if i.ride_id}
+						<button type="button" class="link" onclick={() => showChat(i)}>Show chat</button>
 					{/if}
 					{#if closing === i.id}
 						<TextField label="Outcome of the review" bind:value={outcome} maxlength={500} />
@@ -166,6 +191,29 @@
 		color: var(--color-brand);
 		font-weight: 700;
 		font-size: var(--text-sm);
+	}
+	.chat {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: grid;
+		gap: var(--space-2);
+	}
+	.chat li {
+		display: block;
+		padding: 0;
+		border: 0;
+	}
+	.chat span {
+		color: var(--color-text-muted);
+		font-size: var(--text-sm);
+	}
+	.chat p {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.link {
+		justify-self: start;
 	}
 	.actions {
 		display: flex;

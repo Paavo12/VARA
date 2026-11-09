@@ -533,6 +533,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/incidents/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["messages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/vehicles/{id}/decision": {
         parameters: {
             query?: never;
@@ -784,6 +800,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["driver_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["thread"];
+        put?: never;
+        post: operations["send"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1057,6 +1089,28 @@ export interface components {
          * @description An amount of Namibian dollars in cents. Money is never a float.
          */
         Cents: number;
+        ChatMessage: {
+            /** Format: int64 */
+            id: number;
+            /** @description The quick reply's ID, when it was one. */
+            quick_reply?: string | null;
+            /** Format: uuid */
+            ride_id: string;
+            /** @description `rider` or `driver`. */
+            sender: string;
+            /** Format: date-time */
+            sent_at: string;
+            /** @description Plain text: render it as text, never as HTML. */
+            text: string;
+        };
+        ChatThread: {
+            /** @description False once the trip is over or blocked: the conversation stays readable. */
+            can_send: boolean;
+            /** @description Oldest first: the newest 200 of this conversation. */
+            messages: components["schemas"]["ChatMessage"][];
+            /** @description The buttons to offer this person. */
+            quick_replies: components["schemas"]["QuickReplyOption"][];
+        };
         /** @description What the safety desk found, kept on the incident and in the audit log. */
         CloseIncident: {
             /** @example Rider's phone was off; spoke to both, no safety concern. */
@@ -1330,6 +1384,21 @@ export interface components {
             /** @description `open`, `claimed` or `escalated`. */
             status: string;
         };
+        IncidentMessage: {
+            /**
+             * Format: uuid
+             * @description The driver on the ride at the time. It changes if one cancelled and another took over.
+             */
+            driver_id: string;
+            /** Format: int64 */
+            id: number;
+            /** @description `rider` or `driver`. */
+            sender: string;
+            /** Format: date-time */
+            sent_at: string;
+            /** @description Plain text: render it as text, never as HTML. */
+            text: string;
+        };
         /**
          * @description A point inside the service area. v1 serves Windhoek plus about 20 km; the bounding box is
          *     replaced by the `service_areas` polygon once the database is wired in.
@@ -1552,6 +1621,10 @@ export interface components {
             /** Format: uuid */
             user_id: string;
         };
+        QuickReplyOption: {
+            id: string;
+            text: string;
+        };
         Quote: {
             currency: string;
             /** @description `normal`, `high` or `peak`. */
@@ -1749,6 +1822,16 @@ export interface components {
             /** @description Ride types the driver wants to offer; ops decide which are approved. */
             requested_tiers: components["schemas"]["Tier"][];
             vehicle: components["schemas"]["Vehicle"];
+        };
+        /** @description Exactly one of the two. */
+        SendMessage: {
+            /**
+             * @description An ID from the thread's `quick_replies`.
+             * @example at_entrance
+             */
+            quick_reply?: string | null;
+            /** @example I'm by the entrance */
+            text?: string | null;
         };
         SetTiers: {
             /** @description The full set of approved tiers; an empty list removes them all. */
@@ -3104,6 +3187,46 @@ export interface operations {
             };
         };
     };
+    messages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every message on the incident's ride, oldest first, across all its drivers (empty without a ride). Each view goes in the audit log */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IncidentMessage"][];
+                };
+            };
+            /** @description Not safety staff */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such incident */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     decide_vehicle: {
         parameters: {
             query?: never;
@@ -3713,6 +3836,102 @@ export interface operations {
             };
             /** @description `invalid_state`: not after the PIN */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    thread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description This conversation; empty until the first message, and for a rider between drivers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatThread"];
+                };
+            };
+            /** @description Not this person's ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    send: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Random per message; a resend with the same key returns the same message and tells nobody twice */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessage"];
+            };
+        };
+        responses: {
+            /** @description Saved and on its way to the other person */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatMessage"];
+                };
+            };
+            /** @description Not this person's ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `chat_closed`: the trip is over, blocked or has no driver */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not exactly one of `text` and `quick_reply`, empty, over 500 characters, or an unknown quick reply */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many messages */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
