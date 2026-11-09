@@ -63,7 +63,7 @@ pub struct AssignedDriver {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct RiderRide {
     pub id: Uuid,
-    /// Short reference such as `FU-4102`.
+    /// Short reference such as `VA-4102`.
     pub code: String,
     #[schema(value_type = String, example = "SEARCHING")]
     pub state: RideState,
