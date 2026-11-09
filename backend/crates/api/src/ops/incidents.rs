@@ -32,7 +32,7 @@ pub struct IncidentItem {
     /// `open`, `claimed` or `escalated`.
     pub status: String,
     pub ride_id: Option<Uuid>,
-    /// e.g. `FU-4123`.
+    /// e.g. `VA-4123`.
     pub ride_code: Option<String>,
     /// Who pressed SOS; absent for incidents the system raised.
     pub raised_by: Option<Person>,

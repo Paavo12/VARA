@@ -216,7 +216,9 @@ Operations
 | Map Experts | Flat 15 % for drivers working unmapped or newly developed zones who help verify wayfinding and geofencing | Not started; needs qualification thresholds and who grants it |
 | Background location | Tauri or native handling approved if it keeps drivers visible | Stay on Capacitor; native foreground service still to build and test on Samsung and Huawei |
 | Cards | DPO Pay or PayToday; PayPoint later. Closed pilot on cash only | Provider integration not started; final pick open |
-| Masked calls | Explore MTC / Paratus; in-app chat is primary meanwhile | Chat (T-8) built on `phase-3/chat`; calls wait for the provider |
+| Masked calls | Explore MTC / Paratus; in-app chat is primary meanwhile | Chat (T-8) built (PR #17); calls wait for the provider |
+| Chat access (2026-11-09) | The safety team may read a trip's chat when a safety issue is raised about it. No extra encryption requirement | Built: audited view on the Safety desk; Privacy Policy draft says so (migration 0011) |
+| Ride codes (2026-11-09) | Codes follow the VARA name | New rides get `VA-` codes (migration 0011); older rides keep `FU-` |
 
 **Launch date:** set once Phase 3, cloud staging, real SMS and legal approvals are finished.
 

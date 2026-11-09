@@ -316,7 +316,7 @@ CREATE SEQUENCE ride_code_seq START 4100;
 
 CREATE TABLE rides (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  code                text NOT NULL UNIQUE DEFAULT ('FU-' || nextval('ride_code_seq')),
+  code                text NOT NULL UNIQUE DEFAULT ('VA-' || nextval('ride_code_seq')),
   rider_id            uuid NOT NULL REFERENCES rider_profiles(user_id),
   driver_id           uuid REFERENCES driver_profiles(user_id),
   vehicle_id          uuid REFERENCES vehicles(id),
