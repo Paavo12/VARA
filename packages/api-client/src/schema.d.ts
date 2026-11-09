@@ -1377,7 +1377,7 @@ export interface components {
             /** Format: double */
             lon?: number | null;
             raised_by?: null | components["schemas"]["Person"];
-            /** @description e.g. `FU-4123`. */
+            /** @description e.g. `VA-4123`. */
             ride_code?: string | null;
             /** Format: uuid */
             ride_id?: string | null;
@@ -1747,7 +1747,7 @@ export interface components {
             arrived_at?: string | null;
             /** @description `rider`, `driver`, `system` or `staff` for cancelled rides. */
             cancelled_by?: string | null;
-            /** @description Short reference such as `FU-4102`. */
+            /** @description Short reference such as `VA-4102`. */
             code: string;
             /** Format: date-time */
             completed_at?: string | null;

@@ -4510,7 +4510,7 @@
               "string",
               "null"
             ],
-            "description": "e.g. `FU-4123`."
+            "description": "e.g. `VA-4123`."
           },
           "ride_id": {
             "type": [
@@ -5544,7 +5544,7 @@
           },
           "code": {
             "type": "string",
-            "description": "Short reference such as `FU-4102`."
+            "description": "Short reference such as `VA-4102`."
           },
           "completed_at": {
             "type": [
