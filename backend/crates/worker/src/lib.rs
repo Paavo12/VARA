@@ -238,6 +238,10 @@ pub async fn erase_account(ctx: &Ctx, user_id: Uuid) -> Result<(), JobError> {
     .await?;
     let upload_ids: Vec<Uuid> = sqlx::query_scalar("SELECT id FROM uploads WHERE user_id = $1").bind(user_id).fetch_all(&mut *tx).await?;
     for q in [
+        // Chat goes with the account, unless an incident on the ride still holds it.
+        "DELETE FROM ride_messages m USING rides r
+         WHERE r.id = m.ride_id AND (r.rider_id = $1 OR m.driver_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = m.ride_id AND i.hold_data)",
         "DELETE FROM identity_verifications WHERE user_id = $1",
         "DELETE FROM driver_documents WHERE driver_id = $1",
         "DELETE FROM uploads WHERE user_id = $1",
@@ -397,6 +401,12 @@ pub async fn cleanup(ctx: &Ctx) -> Result<(), JobError> {
         .execute(&ctx.db)
         .await?;
     sqlx::query("DELETE FROM staff_sessions WHERE expires_at < now() - interval '7 days'").execute(&ctx.db).await?;
+    sqlx::query(
+        "DELETE FROM ride_messages m WHERE m.sent_at < now() - interval '90 days'
+           AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = m.ride_id AND i.hold_data)",
+    )
+    .execute(&ctx.db)
+    .await?;
     let abandoned: Vec<Uuid> = sqlx::query_scalar(
         "DELETE FROM uploads WHERE status = 'awaiting_upload' AND url_expires_at < now() - interval '1 hour' RETURNING id",
     )

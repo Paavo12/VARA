@@ -417,7 +417,10 @@ CREATE TABLE ride_messages (
   sender     party NOT NULL CHECK (sender IN ('rider', 'driver')),
   body       text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 500),
   quick_reply text,
-  sent_at    timestamptz NOT NULL DEFAULT now()
+  sent_at    timestamptz NOT NULL DEFAULT now(),
+  driver_id  uuid NOT NULL REFERENCES driver_profiles(user_id), -- whose conversation: the next driver doesn't see it
+  client_key text NOT NULL,                                    -- Idempotency-Key, for safe resends
+  UNIQUE (ride_id, sender, client_key)
 );
 
 CREATE TABLE ratings (
@@ -665,7 +668,7 @@ All under `https://api.vara.example/v1`, JSON, documented by OpenAPI (generated 
 | `GET /rides/active` · `GET /rides/{id}` · `GET /rides?before=` (rider) · `GET /driver/trips?before=` (driver) | rider/driver | role-filtered DTOs; history 20 a page |
 | `POST /rides/{id}/cancel` | rider/driver | reason |
 | `POST /rides/{id}/retry` | rider | from NO_DRIVERS |
-| `POST /rides/{id}/messages` · `GET …/messages` | rider/driver | |
+| `POST /rides/{id}/messages` · `GET …/messages` | rider/driver | text or quick reply, `Idempotency-Key`; sending open from accept until the trip ends or is blocked; one conversation per driver |
 | `POST /rides/{id}/call` | rider/driver | → masked-call session |
 | `POST /rides/{id}/share` | rider/driver | → share token URL |
 | `POST /rides/{id}/rating` · `POST /rides/{id}/rating/skip` | rider/driver · driver | stars 1–5, reasons below 3, rider may add a favourite; `RATED` once both done |
@@ -688,7 +691,7 @@ All under `https://api.vara.example/v1`, JSON, documented by OpenAPI (generated 
 | `GET /legal/{kind}/latest` | public | |
 | `POST /webhooks/{provider}` | provider | signature-verified |
 | `WS /ws` | rider/driver | §5 of the TRD |
-| `/ops/*` | staff | separate router, role checks, audit-logged. Phase 1: `POST /ops/auth/login` (password + TOTP → 8 h bearer token; cookie + CSRF in Phase 5), `GET /ops/verifications[/{id}]`, `POST /ops/verifications/{id}/decision`, `GET /ops/drivers[/{id}]`, `PUT /ops/drivers/{id}/tiers`, `POST /ops/drivers/{id}/decision`, `POST /ops/documents/{id}/decision`, `POST /ops/vehicles/{id}/decision` |
+| `/ops/*` | staff | separate router, role checks, audit-logged. Phase 1: `POST /ops/auth/login` (password + TOTP → 8 h bearer token; cookie + CSRF in Phase 5), `GET /ops/verifications[/{id}]`, `POST /ops/verifications/{id}/decision`, `GET /ops/drivers[/{id}]`, `PUT /ops/drivers/{id}/tiers`, `POST /ops/drivers/{id}/decision`, `POST /ops/documents/{id}/decision`, `POST /ops/vehicles/{id}/decision`. Phase 3: `GET /ops/incidents`, `GET /ops/incidents/{id}/messages` (safety role; each view audited), `POST /ops/incidents/{id}/close` |
 
 ### Phase 1 schema changes
 

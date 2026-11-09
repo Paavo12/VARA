@@ -3,7 +3,7 @@
 //! - **Socket**: `GET /v1/ws`, one per signed-in app. The first message must be
 //!   `{"type":"auth","data":{"token":"<access token>"}}` within 10 s (tokens never go in URLs,
 //!   which get logged). Server → client: `ride.updated`, `offer.created`, `offer.expired`,
-//!   `driver.location`, `session.revoked`, `pong`. Client → server: `location.update` (driver),
+//!   `driver.location`, `chat.message`, `session.revoked`, `pong`. Client → server: `location.update` (driver),
 //!   `ping`. Ride actions stay on HTTPS.
 //! - **Hub**: every change to a ride or an offer is announced by Postgres (`pg_notify` from the
 //!   `ride_events` / `ride_offers` triggers, on commit). Each API instance listens and, for the
@@ -38,7 +38,10 @@ use crate::{
     auth::{self, App, AuthUser},
     error::ApiError,
     extract::ClientIp,
-    routes::driving::{LocationUpdate, record_location},
+    routes::{
+        chat,
+        driving::{LocationUpdate, record_location},
+    },
     views,
 };
 
@@ -116,6 +119,7 @@ struct Event {
     lat: Option<f64>,
     lon: Option<f64>,
     heading: Option<i32>,
+    message_id: Option<i64>,
 }
 
 /// Listens for change notifications and pushes them to this instance's sockets. Runs for the
@@ -193,6 +197,16 @@ async fn try_deliver(db: &PgPool, hub: &Hub, e: Event) -> Result<(), sqlx::Error
         "location" => {
             if let (Some(rider), Some(ride_id), Some(lat), Some(lon)) = (e.rider_id, e.ride_id, e.lat, e.lon) {
                 hub.send(rider, App::Rider, "driver.location", json!({ "ride_id": ride_id, "lat": lat, "lon": lon, "heading": e.heading }));
+            }
+        }
+        "chat" => {
+            // Both sides: the sender's other phone stays in step, and apps ignore what they have.
+            let (Some(rider), Some(driver), Some(id)) = (e.rider_id, e.driver_id, e.message_id) else { return Ok(()) };
+            if (hub.connected(rider, App::Rider) || hub.connected(driver, App::Driver))
+                && let Some(message) = chat::message(db, id).await?
+            {
+                hub.send(rider, App::Rider, "chat.message", json!(message));
+                hub.send(driver, App::Driver, "chat.message", json!(message));
             }
         }
         other => tracing::debug!(kind = other, "ignored ride event"),
