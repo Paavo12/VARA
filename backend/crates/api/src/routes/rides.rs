@@ -300,7 +300,7 @@ pub struct RideRequest {
     pub scheduled_for: Option<OffsetDateTime>,
 }
 
-fn idempotency_key(headers: &HeaderMap) -> Result<String, ApiError> {
+pub(crate) fn idempotency_key(headers: &HeaderMap) -> Result<String, ApiError> {
     headers
         .get("idempotency-key")
         .and_then(|v| v.to_str().ok())

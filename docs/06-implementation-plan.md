@@ -216,7 +216,7 @@ Operations
 | Map Experts | Flat 15 % for drivers working unmapped or newly developed zones who help verify wayfinding and geofencing | Not started; needs qualification thresholds and who grants it |
 | Background location | Tauri or native handling approved if it keeps drivers visible | Stay on Capacitor; native foreground service still to build and test on Samsung and Huawei |
 | Cards | DPO Pay or PayToday; PayPoint later. Closed pilot on cash only | Provider integration not started; final pick open |
-| Masked calls | Explore MTC / Paratus; in-app chat is primary meanwhile | Chat (T-8) not built yet |
+| Masked calls | Explore MTC / Paratus; in-app chat is primary meanwhile | Chat (T-8) built on `phase-3/chat`; calls wait for the provider |
 
 **Launch date:** set once Phase 3, cloud staging, real SMS and legal approvals are finished.
 

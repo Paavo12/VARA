@@ -9,12 +9,13 @@
 <script lang="ts">
 	import {
 		connectLive,
+		type ChatMessage,
 		type DriverRide,
 		type DriverStatus,
 		type LiveMessage,
 		type OfferCard
 	} from '@fuber/api-client';
-	import { messageOf, Sos, useSession } from '@fuber/account';
+	import { Chat, messageOf, Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen, formatDistance, formatMinutes, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
 	import Earnings from './Earnings.svelte';
@@ -42,6 +43,16 @@
 		comfort: 'Comfort',
 		softlife: 'Soft Life'
 	};
+
+	/** Driver and passenger can message each other from acceptance until the trip ends (PRD T-8). */
+	const CHAT_OPEN = [
+		'DRIVER_ASSIGNED',
+		'DRIVER_EN_ROUTE',
+		'DRIVER_ARRIVED',
+		'PIN_VERIFIED',
+		'IN_TRIP'
+	];
+	let chat = $state<Chat>();
 
 	let status = $state<DriverStatus | null>(null);
 	let offer = $state<OfferCard | null>(null);
@@ -89,6 +100,8 @@
 			const next = m.data as DriverRide;
 			if (ride?.id === next.id || !ride) ride = next;
 			if (status?.hold && next.state === 'CANCELLED') void load();
+		} else if (m.type === 'chat.message') {
+			chat?.receive(m.data as ChatMessage);
 		} else if (m.type === 'ride.removed') {
 			ride = null;
 			notice = 'The passenger cancelled the trip. No fee for you.';
@@ -196,7 +209,10 @@
 			baseUrl: session.baseUrl,
 			token: session.accessToken,
 			onmessage,
-			onconnect: load,
+			onconnect: () => {
+				void load();
+				void chat?.refresh();
+			},
 			onrevoked: () => session.signOut()
 		});
 		void load();
@@ -217,6 +233,9 @@
 <!-- SOS on every screen while she is online or on a trip (PRD S-1). -->
 {#if ride || status?.online}
 	<Sos rideId={ride?.id ?? null} safetyDeskPhone={SAFETY_DESK_PHONE} />
+{/if}
+{#if ride && CHAT_OPEN.includes(ride.state)}
+	<Chat bind:this={chat} rideId={ride.id} party="driver" name={ride.passenger.name} />
 {/if}
 
 {#if ride}

@@ -1,3 +1,4 @@
+export { default as Chat } from './Chat.svelte';
 export { default as Consents } from './Consents.svelte';
 export { default as DeleteAccount } from './DeleteAccount.svelte';
 export { default as Details } from './Details.svelte';

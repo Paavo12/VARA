@@ -15,6 +15,7 @@ export type VerificationQueueItem = components['schemas']['QueueItem'];
 export type VerificationDetail = components['schemas']['VerificationDetail'];
 export type Tier = components['schemas']['Tier'];
 export type IncidentItem = components['schemas']['IncidentItem'];
+export type IncidentMessage = components['schemas']['IncidentMessage'];
 
 /** The API base URL. Set VITE_API_URL at build time. */
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8080';

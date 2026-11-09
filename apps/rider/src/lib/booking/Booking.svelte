@@ -4,8 +4,14 @@
 	the active ride is refetched, so a reload or a dropped connection resumes where it was.
 -->
 <script lang="ts">
-	import { connectLive, type LiveMessage, type Me, type RiderRide } from '@fuber/api-client';
-	import { Sos, useSession } from '@fuber/account';
+	import {
+		connectLive,
+		type ChatMessage,
+		type LiveMessage,
+		type Me,
+		type RiderRide
+	} from '@fuber/api-client';
+	import { Chat, Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
 	import { SAFETY_DESK_PHONE } from '../session';
@@ -40,6 +46,9 @@
 	let dropoff = $state<Stop | null>(null);
 
 	const FINISHED = ['COMPLETED', 'RATED', 'CANCELLED', 'BLOCKED'];
+	/** The driver and rider can message each other from acceptance until the trip ends (PRD T-8). */
+	const CHAT_OPEN = WITH_DRIVER.filter((s) => s !== 'BLOCKED');
+	let chat = $state<Chat>();
 
 	async function loadActive() {
 		const { data, response } = await session.api
@@ -64,6 +73,8 @@
 			if (ride && next.id !== ride.id && !FINISHED.includes(ride.state)) return;
 			ride = next;
 			stage = 'ride';
+		} else if (m.type === 'chat.message') {
+			chat?.receive(m.data as ChatMessage);
 		} else if (m.type === 'driver.location' && ride?.driver) {
 			const d = m.data as { ride_id: string; lat: number; lon: number };
 			if (d.ride_id === ride.id) ride.driver = { ...ride.driver, lat: d.lat, lon: d.lon };
@@ -95,7 +106,10 @@
 			baseUrl: session.baseUrl,
 			token: session.accessToken,
 			onmessage,
-			onconnect: loadActive,
+			onconnect: () => {
+				void loadActive();
+				void chat?.refresh();
+			},
 			onrevoked: () => session.signOut()
 		});
 		void loadActive();
@@ -178,6 +192,9 @@
 	<RideStatus {ride} onchange={(r) => (ride = r)} ondone={done} />
 	{#if WITH_DRIVER.includes(ride.state)}
 		<Sos rideId={ride.id} safetyDeskPhone={SAFETY_DESK_PHONE} />
+	{/if}
+	{#if CHAT_OPEN.includes(ride.state) && ride.driver}
+		<Chat bind:this={chat} rideId={ride.id} party="rider" name={ride.driver.first_name} />
 	{/if}
 {/if}
 

@@ -119,6 +119,63 @@ pub async fn queue(State(s): State<AppState>, staff: Staff) -> Result<Json<Vec<I
     ))
 }
 
+#[derive(Debug, Serialize, ToSchema, sqlx::FromRow)]
+pub struct IncidentMessage {
+    pub id: i64,
+    /// `rider` or `driver`.
+    pub sender: String,
+    /// The driver on the ride at the time. It changes if one cancelled and another took over.
+    pub driver_id: Uuid,
+    /// Plain text: render it as text, never as HTML.
+    pub text: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub sent_at: OffsetDateTime,
+}
+
+#[utoipa::path(
+    get, path = "/v1/ops/incidents/{id}/messages", tag = "ops", security(("staff" = [])),
+    params(("id" = Uuid, Path)),
+    responses(
+        (status = 200, description = "Every message on the incident's ride, oldest first, across all its drivers (empty without a ride). Each view goes in the audit log", body = Vec<IncidentMessage>),
+        (status = 403, description = "Not safety staff", body = ErrorBody),
+        (status = 404, description = "No such incident", body = ErrorBody),
+    )
+)]
+pub async fn messages(
+    State(s): State<AppState>,
+    staff: Staff,
+    ClientIp(ip): ClientIp,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Vec<IncidentMessage>>, ApiError> {
+    staff.require_safety()?;
+    let ride_id: Option<Uuid> = sqlx::query_scalar::<_, Option<Uuid>>("SELECT ride_id FROM safety_incidents WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&s.db)
+        .await?
+        .ok_or_else(ApiError::not_found)?;
+    // Logged before the messages are read out, so no staff member can read a chat unrecorded.
+    audit::record(
+        &s.db,
+        audit::Entry {
+            staff_id: Some(staff.id),
+            user_id: None,
+            action: "chat.view",
+            target_type: "incident",
+            target_id: id.to_string(),
+            detail: Some(json!({ "ride_id": ride_id })),
+            ip: Some(ip),
+        },
+    )
+    .await?;
+    let rows = sqlx::query_as(
+        "SELECT id, sender::text AS sender, driver_id, body AS text, sent_at FROM ride_messages WHERE ride_id = $1 ORDER BY id",
+    )
+    .bind(ride_id)
+    .fetch_all(&s.db)
+    .await?;
+    Ok(Json(rows))
+}
+
 /// What the safety desk found, kept on the incident and in the audit log.
 #[derive(Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
