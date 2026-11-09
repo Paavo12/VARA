@@ -35,6 +35,7 @@ This policy applies to the VARA Rider app, the VARA Driver app, the website **va
   - *Drivers:* your device location while you are online in the Driver app, **including when the app is in the background**, and during trips. We do not collect your location when you are offline.
 - **Trip information:** pickup and destination, route, times, distance, fare, ride type, number of passengers, payment status, PIN-entry events, cancellations.
 - **Safety information:** SOS alerts, RideCheck events (for example, a long unexpected stop or route deviation), and the records of how our safety team handled them.
+- **In-app messages:** what you and your driver/rider write to each other in the app. If a safety issue is raised about a trip, our safety team can read the messages on that trip to investigate it; every time they do, it is logged. Otherwise our staff do not read them.
 - **Device and usage information:** device model, operating system, app version, language, crash reports, IP address, and push-notification token.
 - **Call information:** when you call through the app's masked line, we record that a call took place, its time and duration. **We do not record call audio.**
 
@@ -57,7 +58,7 @@ Identity documents, selfies used to verify your identity, police clearance certi
 | Verify identity and eligibility (women-only service) | ID, selfie, driver documents | Your consent and our legitimate interest in safety |
 | Match riders and drivers, show prices and ETAs | Location, trip information | Contract |
 | Show the other party only what they need, when they need it (for example, the exact pickup address only when the driver arrives, the destination only after the correct PIN) | Trip information | Contract and safety |
-| Safety features: SOS, Share trip, RideCheck, safety team response, incident investigation | Location, trip, safety information, emergency contacts | Legitimate interest in protecting life and safety; vital interests in emergencies |
+| Safety features: SOS, Share trip, RideCheck, safety team response, incident investigation | Location, trip, safety information, emergency contacts, in-app messages on the trip concerned | Legitimate interest in protecting life and safety; vital interests in emergencies |
 | Process payments, driver earnings and payouts | Payment and trip information | Contract; legal obligations (tax, accounting) |
 | Ratings, fairness and reliability (including internal priority scores that affect matching after repeated cancellations) | Ratings, cancellations, trips | Legitimate interest in a reliable service |
 | Customer support, lost items, disputes | All relevant information | Contract; legitimate interest |

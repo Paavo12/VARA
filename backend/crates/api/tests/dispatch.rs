@@ -82,7 +82,7 @@ async fn the_quoted_price_is_exactly_the_price_charged() {
     assert_eq!(status, StatusCode::CREATED, "{ride}");
     assert_eq!(ride["state"], "SEARCHING");
     assert_eq!(ride["fare"], opts[1]["fare"], "charged fare = quoted Comfort fare");
-    assert!(ride["code"].as_str().unwrap().starts_with("FU-"));
+    assert!(ride["code"].as_str().unwrap().starts_with("VA-"));
     assert_eq!(ride["pin"].as_str().unwrap().len(), 4);
 
     // A retry with the same key returns the same ride instead of booking twice.
