@@ -53,6 +53,8 @@
 		'IN_TRIP'
 	];
 	let chat = $state<Chat>();
+	/** An SOS countdown or its result is on screen: it stays even if she goes offline meanwhile. */
+	let sosActive = $state(false);
 
 	let status = $state<DriverStatus | null>(null);
 	let offer = $state<OfferCard | null>(null);
@@ -103,8 +105,13 @@
 		} else if (m.type === 'chat.message') {
 			chat?.receive(m.data as ChatMessage);
 		} else if (m.type === 'ride.removed') {
-			ride = null;
-			notice = 'The passenger cancelled the trip. No fee for you.';
+			// Sent only after she cancelled (a rider's cancel arrives as `ride.updated`), and may
+			// land before or after the cancel's own reply.
+			const d = m.data as { ride_id: string };
+			if (ride?.id === d.ride_id) {
+				ride = null;
+				notice = 'You cancelled. The request went to another driver.';
+			}
 		}
 	}
 
@@ -231,8 +238,8 @@
 </script>
 
 <!-- SOS on every screen while she is online or on a trip (PRD S-1). -->
-{#if ride || status?.online}
-	<Sos rideId={ride?.id ?? null} safetyDeskPhone={SAFETY_DESK_PHONE} />
+{#if ride || status?.online || sosActive}
+	<Sos rideId={ride?.id ?? null} safetyDeskPhone={SAFETY_DESK_PHONE} bind:active={sosActive} />
 {/if}
 {#if ride && CHAT_OPEN.includes(ride.state)}
 	<Chat bind:this={chat} rideId={ride.id} party="driver" name={ride.passenger.name} />

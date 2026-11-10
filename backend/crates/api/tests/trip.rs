@@ -324,6 +324,27 @@ async fn a_driver_who_cancels_sends_the_request_to_someone_else() {
 }
 
 #[tokio::test]
+async fn a_driver_who_cancelled_after_wrong_pins_is_never_offered_that_ride_again() {
+    let t = setup!(relaxed());
+    let trip = t.accepted().await;
+    t.drive_to(&trip.driver, POST_ST_MALL).await;
+    let bad = wrong(&trip.pin);
+    for _ in 0..4 {
+        assert_eq!(t.trip_action(&trip, "pin", json!({ "pin": bad })).await.0, StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    assert_eq!(t.trip_action(&trip, "driver-cancel", json!({ "reason": "other" })).await.0, StatusCode::NO_CONTENT);
+
+    // Nobody else is online, so the rider tries again: a new round must not bring her back
+    // with five fresh PIN attempts.
+    assert_eq!(t.tick().await.no_drivers, 1);
+    let (status, e) = t.post(&format!("/v1/rides/{}/retry", trip.id), &trip.rider.access, json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{e}");
+    let tick = t.tick().await;
+    assert_eq!((tick.offered, tick.no_drivers), (0, 1));
+    assert!(t.driver_status(&trip.driver).await["offer"].is_null());
+}
+
+#[tokio::test]
 async fn no_driver_cancel_after_the_pin() {
     let t = setup!(relaxed());
     let trip = t.accepted().await;

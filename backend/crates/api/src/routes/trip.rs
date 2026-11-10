@@ -364,8 +364,8 @@ pub async fn driver_cancel(
     let state = rides::lock(&mut tx, id).await.map_err(ride_error)?;
     let event = RideEvent::Cancel { by: Party::Driver };
     state.apply(event).map_err(|e| ride_error(RideError::Invalid(e)))?;
-    // Back to the pool as if never assigned. Her offer for this round stays `accepted`, so
-    // matching won't ask her again (PRD T-7); the rider keeps her PIN.
+    // Back to the pool as if never assigned. Her offer stays `accepted`, so matching never
+    // asks her again, in any round (PRD T-7); the rider keeps her PIN.
     sqlx::query(
         "UPDATE rides SET driver_id = NULL, vehicle_id = NULL, assigned_at = NULL, arrived_at = NULL, wait_started_at = NULL,
                 pin_attempts = 0, search_started_at = now()
