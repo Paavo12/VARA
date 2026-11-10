@@ -30,7 +30,7 @@ use crate::{
 /// ignored and the location may be anywhere (she may have been driven out of Windhoek).
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct SosRequest {
-    /// Her ride; when absent, her current one (if any).
+    /// Her ride; when absent or not hers, her current one (if any).
     pub ride_id: Option<Uuid>,
     /// Where the phone is. When unknown or invalid, a driver's last reported position is used.
     pub location: Option<Point>,
@@ -64,8 +64,8 @@ pub struct SosAlert {
     post, path = "/v1/safety/sos", tag = "safety", security(("bearer" = [])),
     request_body = SosRequest,
     responses(
-        (status = 200, description = "The safety desk has the incident and her contacts are being texted (a repeat within 2 minutes returns the same incident)", body = SosAlert),
-        (status = 404, description = "`ride_id` is not her ride", body = ErrorBody),
+        (status = 200, description = "The safety desk has the incident and her contacts are being texted (a repeat within 2 minutes returns the same incident). A `ride_id` that isn't hers is ignored", body = SosAlert),
+        (status = 401, description = "Not signed in", body = ErrorBody),
     )
 )]
 pub async fn sos(State(s): State<AppState>, user: AuthUser, ValidJson(req): ValidJson<SosRequest>) -> Result<Json<SosAlert>, ApiError> {
@@ -137,8 +137,10 @@ fn alert(incident_id: Uuid, ride_id: Option<Uuid>, contacts_alerted: usize, mess
     SosAlert { incident_id, ride_id, contacts_alerted, police_phone: POLICE_PHONE, message: message.into() }
 }
 
-/// The ride she named (404 unless it is hers), or her current one. A blocked trip counts:
-/// that is exactly when she may need help.
+/// The ride she named if it is hers, else her current one. A blocked trip counts: that is
+/// exactly when she may need help. A ride that isn't hers (a driver who just cancelled, whose
+/// screen still shows it) is ignored rather than refusing the SOS, and never attached: her
+/// contacts must not get a live link to someone else's trip.
 async fn her_ride(s: &AppState, user: &AuthUser, named: Option<Uuid>) -> Result<Option<Uuid>, ApiError> {
     let column = match user.app {
         App::Rider => "rider_id",
@@ -150,10 +152,10 @@ async fn her_ride(s: &AppState, user: &AuthUser, named: Option<Uuid>) -> Result<
             .bind(user.user_id)
             .fetch_optional(&s.db)
             .await?;
-        return match mine {
-            Some(true) => Ok(Some(id)),
-            _ => Err(ApiError::not_found()),
-        };
+        if mine == Some(true) {
+            return Ok(Some(id));
+        }
+        tracing::warn!(security_event = "sos_other_ride", user_id = %user.user_id, ride_id = %id, "SOS named a ride that isn't hers; ignored");
     }
     let active: Vec<&str> = match user.app {
         App::Rider => RIDER_ACTIVE.to_vec(),

@@ -1,6 +1,6 @@
 //! Phase 3 SOS tests against a real PostGIS database: the incident on the safety desk's queue,
 //! the emergency texts within 5 s with a live trip link, a repeat press, SOS without a ride or
-//! outside Windhoek, the retry job, no rate limit, and wrong-user access.
+//! outside Windhoek, the retry job, no rate limit, and a ride that isn't hers.
 //!
 //! Runs only when TEST_DATABASE_URL is set (CI provides one).
 
@@ -208,12 +208,55 @@ async fn sos_is_never_rate_limited() {
 }
 
 #[tokio::test]
-async fn sos_needs_a_signed_in_user_and_only_her_own_ride() {
+async fn sos_is_never_held_back_by_her_own_request_allowance() {
+    let limits = RateLimits { user: Rule::per_minute(30), ..relaxed() };
+    let t = setup!(limits);
+    let rider = t.rider().await;
+    let mut limited = false;
+    for _ in 0..40 {
+        if t.get("/v1/me", &rider.access).await.0 == StatusCode::TOO_MANY_REQUESTS {
+            limited = true;
+            break;
+        }
+    }
+    assert!(limited, "her per-user limit should have been reached");
+    for _ in 0..3 {
+        let (status, alert) = t.sos(&rider, json!({})).await;
+        assert_eq!(status, StatusCode::OK, "{alert}");
+    }
+    assert_eq!(t.get("/v1/me", &rider.access).await.0, StatusCode::TOO_MANY_REQUESTS, "other routes stay limited");
+}
+
+#[tokio::test]
+async fn sos_needs_a_signed_in_user_and_never_names_someone_elses_ride() {
     let t = setup!(relaxed());
-    let (_rider, _driver, ride_id) = t.on_a_ride().await;
+    let (_rider, driver, ride_id) = t.on_a_ride().await;
+    let links = || async {
+        let n: i64 = sqlx::query_scalar("SELECT count(*) FROM trip_shares WHERE ride_id = $1::uuid")
+            .bind(&ride_id)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+        n
+    };
+
+    // Someone else's ride, or no such ride: still an SOS, without that ride and its link.
     let stranger = t.rider().await;
-    assert_eq!(t.sos(&stranger, json!({ "ride_id": ride_id })).await.0, StatusCode::NOT_FOUND);
-    let missing = uuid::Uuid::new_v4();
-    assert_eq!(t.sos(&stranger, json!({ "ride_id": missing })).await.0, StatusCode::NOT_FOUND);
+    t.with_contacts(&stranger).await;
+    let (status, alert) = t.sos(&stranger, json!({ "ride_id": ride_id })).await;
+    assert_eq!(status, StatusCode::OK, "{alert}");
+    assert!(alert["ride_id"].is_null(), "{alert}");
+    assert_eq!(links().await, 0);
+    let (status, _) = t.sos(&t.rider().await, json!({ "ride_id": uuid::Uuid::new_v4() })).await;
+    assert_eq!(status, StatusCode::OK);
+
+    // She cancelled because she felt unsafe and pressed SOS before her screen caught up.
+    let (status, e) = t.post(&format!("/v1/rides/{ride_id}/driver-cancel"), &driver.access, json!({ "reason": "feel_unsafe" })).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{e}");
+    let (status, alert) = t.sos(&driver, json!({ "ride_id": ride_id })).await;
+    assert_eq!(status, StatusCode::OK, "{alert}");
+    assert!(alert["ride_id"].is_null(), "{alert}");
+    assert_eq!(links().await, 0);
+
     assert_eq!(t.call(Method::POST, "/v1/safety/sos", None, Some(json!({}))).await.0, StatusCode::UNAUTHORIZED);
 }

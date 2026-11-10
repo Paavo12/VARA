@@ -15,9 +15,14 @@
 		rideId?: string | null;
 		/** The safety desk's SMS number for the fallback; without it only 10111 is offered. */
 		safetyDeskPhone?: string;
+		/**
+		 * True from the tap until she closes the overlay. Keep the component mounted while it is:
+		 * the trip may end or change during the countdown, and unmounting would drop the alert.
+		 */
+		active?: boolean;
 	}
 
-	let { rideId = null, safetyDeskPhone }: Props = $props();
+	let { rideId = null, safetyDeskPhone, active = $bindable(false) }: Props = $props();
 	const session = useSession();
 
 	const COUNTDOWN_S = 3;
@@ -31,6 +36,10 @@
 	let police = $state(POLICE);
 	let position: { lat: number; lon: number } | null = null;
 	let timer: ReturnType<typeof setInterval> | undefined;
+
+	$effect(() => {
+		active = step !== 'idle';
+	});
 
 	function locate() {
 		position = null;

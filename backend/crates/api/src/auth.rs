@@ -12,7 +12,7 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::FromRequestParts,
+    extract::{FromRequestParts, OriginalUri},
     http::{header, request::Parts},
 };
 use fuber_common::{
@@ -195,7 +195,12 @@ impl FromRequestParts<AppState> for AuthUser {
     async fn from_request_parts(parts: &mut Parts, s: &AppState) -> Result<Self, ApiError> {
         let token = bearer(parts).ok_or_else(ApiError::unauthorized)?;
         let user = authenticate(s, token).await?;
-        s.limiter.check("user", &user.user_id.to_string(), s.limits.user).await?;
+        // Safety is never throttled (TRD §5), not even by her own request allowance. Inside
+        // the `/v1` nest `parts.uri` has lost its prefix; the original URI keeps it.
+        let path = parts.extensions.get::<OriginalUri>().map_or(parts.uri.path(), |u| u.path());
+        if path != crate::rate_limit::SOS_PATH {
+            s.limiter.check("user", &user.user_id.to_string(), s.limits.user).await?;
+        }
         Ok(user)
     }
 }

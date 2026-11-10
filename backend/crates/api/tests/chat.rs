@@ -292,7 +292,7 @@ async fn sending_is_rate_limited_per_person() {
 }
 
 #[tokio::test]
-async fn old_chats_are_deleted_after_90_days_unless_an_incident_holds_them() {
+async fn old_chats_and_tracks_are_deleted_after_90_days_unless_an_incident_holds_them() {
     let t = setup!(relaxed());
     // Completed last: a finished driver would otherwise be offered the next ride.
     let held = t.accepted().await;
@@ -308,6 +308,17 @@ async fn old_chats_are_deleted_after_90_days_unless_an_incident_holds_them() {
         .await
         .unwrap();
     }
+    for (ride, age) in [(&plain, "91 days"), (&held, "91 days"), (&recent, "1 day")] {
+        sqlx::query(
+            "INSERT INTO ride_track_points (ride_id, at, location)
+             SELECT id, now() - $2::interval, pickup FROM rides WHERE id = $1::uuid",
+        )
+        .bind(&ride.id)
+        .bind(age)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    }
     t.say(&recent.id, &recent.rider, "New").await;
     t.incident_on(&held.id, &held.rider).await;
 
@@ -316,6 +327,14 @@ async fn old_chats_are_deleted_after_90_days_unless_an_incident_holds_them() {
     assert_eq!(t.thread(&plain.id, &plain.rider).await["messages"], json!([]));
     assert_eq!(texts(&t.thread(&held.id, &held.rider).await), ["old"]);
     assert_eq!(texts(&t.thread(&recent.id, &recent.rider).await), ["New"]);
+    for (ride, left) in [(&plain, 0), (&held, 1), (&recent, 1)] {
+        let n: i64 = sqlx::query_scalar("SELECT count(*) FROM ride_track_points WHERE ride_id = $1::uuid")
+            .bind(&ride.id)
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+        assert_eq!(n, left, "track points left on {}", ride.id);
+    }
 }
 
 #[tokio::test]

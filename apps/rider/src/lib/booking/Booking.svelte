@@ -49,6 +49,8 @@
 	/** The driver and rider can message each other from acceptance until the trip ends (PRD T-8). */
 	const CHAT_OPEN = WITH_DRIVER.filter((s) => s !== 'BLOCKED');
 	let chat = $state<Chat>();
+	/** An SOS countdown or its result is on screen: it stays even if the trip ends meanwhile. */
+	let sosActive = $state(false);
 
 	async function loadActive() {
 		const { data, response } = await session.api
@@ -190,8 +192,8 @@
 	{/key}
 {:else if stage === 'ride' && ride}
 	<RideStatus {ride} onchange={(r) => (ride = r)} ondone={done} />
-	{#if WITH_DRIVER.includes(ride.state)}
-		<Sos rideId={ride.id} safetyDeskPhone={SAFETY_DESK_PHONE} />
+	{#if WITH_DRIVER.includes(ride.state) || sosActive}
+		<Sos rideId={ride.id} safetyDeskPhone={SAFETY_DESK_PHONE} bind:active={sosActive} />
 	{/if}
 	{#if CHAT_OPEN.includes(ride.state) && ride.driver}
 		<Chat bind:this={chat} rideId={ride.id} party="rider" name={ride.driver.first_name} />
