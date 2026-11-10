@@ -3,7 +3,7 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
-	"description": "Sign-in and account screens shared by the rider and driver apps (PRD A-1 \u2013 A-3, A-7, A-8).",
+	"description": "Sign-in and account screens shared by the rider and driver apps (PRD A-1 – A-3, A-7, A-8).",
 	"svelte": "./src/index.ts",
 	"exports": {
 		".": {
@@ -25,6 +25,7 @@
 		"svelte": "^5.57.0"
 	},
 	"devDependencies": {
+		"jsdom": "^26.1.0",
 		"vitest": "^4.1.12"
 	}
 }
