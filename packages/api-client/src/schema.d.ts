@@ -1865,7 +1865,7 @@ export interface components {
             location?: null | components["schemas"]["Point"];
             /**
              * Format: uuid
-             * @description Her ride; when absent, her current one (if any).
+             * @description Her ride; when absent or not hers, her current one (if any).
              */
             ride_id?: string | null;
         };
@@ -4259,7 +4259,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The safety desk has the incident and her contacts are being texted (a repeat within 2 minutes returns the same incident) */
+            /** @description The safety desk has the incident and her contacts are being texted (a repeat within 2 minutes returns the same incident). A `ride_id` that isn't hers is ignored */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4268,8 +4268,8 @@ export interface operations {
                     "application/json": components["schemas"]["SosAlert"];
                 };
             };
-            /** @description `ride_id` is not her ride */
-            404: {
+            /** @description Not signed in */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

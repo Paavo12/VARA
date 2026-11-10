@@ -2,8 +2,9 @@
 //!
 //! - **Socket**: `GET /v1/ws`, one per signed-in app. The first message must be
 //!   `{"type":"auth","data":{"token":"<access token>"}}` within 10 s (tokens never go in URLs,
-//!   which get logged). Server → client: `ride.updated`, `offer.created`, `offer.expired`,
-//!   `driver.location`, `chat.message`, `session.revoked`, `pong`. Client → server: `location.update` (driver),
+//!   which get logged). Server → client: `ride.updated`, `ride.removed` (the driver who
+//!   cancelled), `offer.created`, `offer.expired`, `driver.location`, `chat.message`,
+//!   `session.revoked`, `pong`. Client → server: `location.update` (driver),
 //!   `ping`. Ride actions stay on HTTPS.
 //! - **Hub**: every change to a ride or an offer is announced by Postgres (`pg_notify` from the
 //!   `ride_events` / `ride_offers` triggers, on commit). Each API instance listens and, for the

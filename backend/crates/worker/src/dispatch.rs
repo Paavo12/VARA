@@ -128,11 +128,16 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
     .await?;
     let Some((lat, lon, tier, wheelchair, rider_id, round, demand, earning, rider_points)) = row else { return Ok(None) };
     let demand = Demand::parse(&demand).unwrap_or(Demand::Normal);
-    let asked: Vec<Uuid> = sqlx::query_scalar("SELECT driver_id FROM ride_offers WHERE ride_id = $1 AND round = $2")
-        .bind(ride_id)
-        .bind(round)
-        .fetch_all(&mut *tx)
-        .await?;
+    // Drivers asked this round, plus any who accepted this ride in an earlier round and then
+    // cancelled: she has seen the exact pickup, and a new driver's PIN attempts start again.
+    let offers: Vec<(Uuid, bool)> =
+        sqlx::query_as("SELECT driver_id, round = $2 FROM ride_offers WHERE ride_id = $1 AND (round = $2 OR response = 'accepted')")
+            .bind(ride_id)
+            .bind(round)
+            .fetch_all(&mut *tx)
+            .await?;
+    let asked = offers.iter().filter(|(_, this_round)| *this_round).count();
+    let exclude: Vec<Uuid> = offers.iter().map(|(d, _)| *d).collect();
     let found = presence::candidates(
         &mut *tx,
         &Search {
@@ -142,7 +147,7 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
             wheelchair,
             radius_m: cfg.radius_m,
             stale_s: cfg.location_stale_s,
-            exclude: &asked,
+            exclude: &exclude,
             rider_id: Some(rider_id),
             limit: cfg.max_candidates,
         },
@@ -169,17 +174,10 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
     }
     let ranked = matching::rank(ranked_in, demand, rider_points);
     let Some(&((driver_id, eta_s, distance_m), score)) = ranked.offer_order.first() else {
-        rides::transition(
-            &mut tx,
-            ride_id,
-            RideEvent::NoDriverLeft,
-            Party::System,
-            None,
-            Some(serde_json::json!({ "asked": asked.len() })),
-        )
-        .await?;
+        rides::transition(&mut tx, ride_id, RideEvent::NoDriverLeft, Party::System, None, Some(serde_json::json!({ "asked": asked })))
+            .await?;
         tx.commit().await?;
-        tracing::info!(%ride_id, asked = asked.len(), "no drivers left");
+        tracing::info!(%ride_id, asked, "no drivers left");
         return Ok(Some(false));
     };
     let inserted = sqlx::query(
@@ -188,7 +186,7 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
     )
     .bind(ride_id)
     .bind(driver_id)
-    .bind(asked.len() as i16 + 1)
+    .bind(asked as i16 + 1)
     .bind(score.clamp(-99.0, 99.0))
     .bind(eta_s)
     .bind(distance_m)
@@ -204,6 +202,6 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
         Err(e) => return Err(e.into()),
     }
     tx.commit().await?;
-    tracing::info!(%ride_id, %driver_id, rank = asked.len() + 1, eta_s, held = ranked.held.len(), "offer sent");
+    tracing::info!(%ride_id, %driver_id, rank = asked + 1, eta_s, held = ranked.held.len(), "offer sent");
     Ok(Some(true))
 }

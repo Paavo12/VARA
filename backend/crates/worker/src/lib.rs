@@ -401,9 +401,16 @@ pub async fn cleanup(ctx: &Ctx) -> Result<(), JobError> {
         .execute(&ctx.db)
         .await?;
     sqlx::query("DELETE FROM staff_sessions WHERE expires_at < now() - interval '7 days'").execute(&ctx.db).await?;
+    // Chat and trip GPS tracks: 90 days unless an incident holds the ride (Privacy Policy, schema §12).
     sqlx::query(
         "DELETE FROM ride_messages m WHERE m.sent_at < now() - interval '90 days'
            AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = m.ride_id AND i.hold_data)",
+    )
+    .execute(&ctx.db)
+    .await?;
+    sqlx::query(
+        "DELETE FROM ride_track_points p WHERE p.at < now() - interval '90 days'
+           AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = p.ride_id AND i.hold_data)",
     )
     .execute(&ctx.db)
     .await?;
