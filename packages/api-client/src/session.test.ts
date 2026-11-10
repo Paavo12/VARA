@@ -17,7 +17,9 @@ const pair = (n: number) => ({
 /** A fake API: counts refreshes, accepts only the latest access token. */
 function fakeApi() {
 	const state = { refreshes: 0, current: 'access-0', seen: [] as string[] };
-	const fetchImpl = async (input: Request) => {
+	const fetchImpl: typeof fetch = async (info, init) => {
+		// openapi-fetch passes a Request; anything else `fetch` accepts works too.
+		const input = info instanceof Request ? info : new Request(info, init);
 		const url = new URL(input.url);
 		if (url.pathname === '/v1/auth/refresh') {
 			state.refreshes += 1;
