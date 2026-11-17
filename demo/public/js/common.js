@@ -280,6 +280,20 @@
     const m = STATE_META[state];
     return '<div class="status-banner" data-tone="' + m.tone + '"><span class="pulse-dot"></span><span>' + m[who] + '</span></div>';
   }
+  // The women-only identity checks, ticking off one by one while they run.
+  function checksShown(v, now) {
+    if (v.status !== 'checking') return v.checks.length;
+    return Math.min(v.checks.length, Math.floor((now - v.checkAt) / E.CHECK_STEP_MS));
+  }
+  function idChecks(v, now) {
+    const shown = checksShown(v, now);
+    return '<ul class="id-checks">' + v.checks.map((c, i) => {
+      if (i >= shown) return '<li class="wait"><span class="spinner xs"></span><span><b>' + esc(c.label) + '</b></span></li>';
+      const tone = c.ok === true ? 'ok' : c.ok === null ? 'ask' : 'bad';
+      return '<li class="' + tone + '">' + ic(tone === 'ok' ? 'check' : tone === 'ask' ? 'eye' : 'x') + '<span><b>' + esc(c.label) + '</b><span class="tiny">' + esc(c.detail) + '</span></span></li>';
+    }).join('') + '</ul>';
+  }
+
   // Shown in the SOS modal after "Call emergency services". Placeholder: nothing is dialled yet.
   function emsConfirm() {
     return '<div class="ems-confirm" role="status">' + ic('shieldCheck') + '<div><b>Emergency services have been notified</b>' +
@@ -529,5 +543,6 @@
   window.Hera = {
     E, Store, esc, money, mins, km, clock, arriveAt, dateShort, mmss, firstName, initials, range, greeting,
     ic, stars, avatar, photoOf, avatarURI, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm, STATE_META, MapView,
+    idChecks, checksShown,
   };
 })();

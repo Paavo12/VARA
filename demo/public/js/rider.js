@@ -1,7 +1,7 @@
 /* Rider portal */
 (function () {
   'use strict';
-  const { E, Store, esc, money, mins, km, arriveAt, dateShort, mmss, firstName, range, greeting, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm } = Hera;
+  const { E, Store, esc, money, mins, km, arriveAt, dateShort, mmss, firstName, range, greeting, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm, idChecks, checksShown } = Hera;
 
   const PAY = {
     card: { icon: 'card', label: 'Visa •••• 4242' },
@@ -48,9 +48,10 @@
       this.ui = {
         v: 0, tab: 'home', flow: 'idle', query: '', dest: null, option: 'classic', wav: false, when: 'now', schedAt: defaultSchedule(),
         modal: null, signup: { name: '', contact: '', password: '', photo: null }, contacts: [{ name: '', phone: '' }],
-        consent: { sos: true, rideCheck: true, shareEta: true }, idPreview: null, selfiePreview: null,
+        consent: { sos: true, rideCheck: true, shareEta: true },
         rating: { stars: 0, tags: [], favourite: false, comment: '' }, payMethod: null, chat: '', newContact: { name: '', phone: '' },
         callStart: 0, forOther: false, guest: { name: '', phone: '' }, seats: 1,
+        demoRider: 'r1', idForm: { name: '', idNumber: '', dob: '', sex: '' },
       };
     }
 
@@ -139,7 +140,7 @@
             '<li>' + ic('user') + '<span><b>No shared rides</b><br>Just you in the car, every time</span></li>' +
             '<li>' + ic('alert') + '<span><b>Safety built in</b><br>SOS, PIN check, RideCheck and live trip sharing</span></li></ul>' +
             '<div class="stack-sm push-bottom"><button class="btn btn-primary btn-block" data-a="goto" data-v="signup">Create account</button>' +
-            '<button class="btn btn-ghost btn-block" data-a="demoLogin">Use demo account (skip onboarding)</button></div></div>',
+            '<button class="btn btn-ghost btn-block" data-a="goto" data-v="demo">Use demo account (skip onboarding)</button></div></div>',
         };
       }
       if (step === 'signup') {
@@ -157,33 +158,8 @@
             '<button class="btn btn-link" data-a="fillSignup">Fill sample details</button></div></div>',
         };
       }
-      if (step === 'verify') {
-        const v = rd.verification;
-        const tile = (doc, icon, title, sub, preview, capture) => {
-          const done = v[doc];
-          return '<div class="upload-tile' + (done ? ' done' : '') + '"><div class="ut-icon">' + (preview ? '<img src="' + preview + '" alt="">' : ic(done ? 'check' : icon)) + '</div>' +
-            '<div class="ut-main"><b>' + title + '</b><div class="tiny muted">' + sub + '</div></div>' +
-            (done ? '<span class="ut-ok">' + ic('check') + ' Added</span>' :
-              '<div class="ut-actions"><label class="btn btn-sm btn-soft">' + ic(capture ? 'camera' : 'upload') + (capture ? 'Take' : 'Upload') +
-              '<input type="file" accept="image/*" ' + (capture ? 'capture="user" ' : '') + 'data-file="' + doc + '" hidden></label>' +
-              '<button class="btn btn-sm btn-link" data-a="sampleDoc" data-v="' + doc + '">Sample</button></div>') + '</div>';
-        };
-        let status = '';
-        if (v.status === 'none') status = '<button class="btn btn-primary btn-block" data-a="submitVerify"' + (v.id && v.selfie ? '' : ' disabled') + '>Submit for verification</button>';
-        else if (v.status === 'pending') status = '<div class="verify-state pending">' + ic('clock') + '<div><b>Pending verification</b><div class="tiny muted">Our safety team is reviewing your documents</div></div></div>' +
-          '<button class="btn btn-primary btn-block" data-a="approveNow">' + ic('shieldCheck') + 'Approve verification</button>';
-        else status = '<div class="verify-state verified"><div class="big-check">' + ic('check') + '</div><div><b>Verified</b><div class="tiny muted">Welcome to a women-only community</div></div></div>' +
-          '<button class="btn btn-primary btn-block" data-a="goto" data-v="contacts">Continue</button>';
-        return {
-          key: 'onb-verify:' + v.id + v.selfie + v.status,
-          html: () => '<div class="page">' + this.stepHead('signup', 2) +
-            '<h2 class="h2">Verify you\'re a woman</h2>' +
-            '<p class="muted small">FUber is women-only. We check a government ID and a live selfie for every rider. Documents are encrypted and deleted after review.</p>' +
-            tile('id', 'idcard', 'Government ID', 'Passport, national ID or driving licence', u.idPreview) +
-            tile('selfie', 'camera', 'Live selfie', 'Matched against your ID photo', u.selfiePreview, true) +
-            '<div class="stack-sm push-bottom">' + status + '</div></div>',
-        };
-      }
+      if (step === 'demo') return this.demoRiders(s);
+      if (step === 'verify') return this.verifyStep(s);
       // contacts + consent
       return {
         key: 'onb-contacts',
@@ -199,6 +175,78 @@
           this.toggle('consent.shareEta', 'Let me share live trip links with friends') +
           '<div class="stack-sm push-bottom"><button class="btn btn-primary btn-block" data-a="saveContacts">Finish setup</button>' +
           '<button class="btn btn-link" data-a="fillContacts">Fill sample contacts</button></div></div>',
+      };
+    }
+
+    // Sign in as any verified rider in the community (five for every driver).
+    demoRiders(s) {
+      const riding = new Set(s.bgRides.map((r) => r.riderId));
+      const pickId = this.ui.demoRider || 'r1';
+      return {
+        key: 'onb-demo:' + s.riders.length + ':' + [...riding].join() + ':' + pickId,
+        html: () => '<div class="page"><div class="page-head"><button class="icon-btn" data-a="goto" data-v="welcome">' + ic('chevronLeft') + '</button></div>' +
+          '<h2 class="h2">Demo rider account</h2><p class="small muted">' + s.riders.length + ' verified women riders: ' + E.RIDERS_PER_DRIVER + ' for every driver, plus anyone who signs up. The others book rides on their own while you demo.</p>' +
+          '<div class="opt-list rider-pick">' + s.riders.map((r) => '<button class="opt-card" data-a="demoRider" data-v="' + r.id + '"' + (r.id === pickId ? ' aria-pressed="true"' : '') + (riding.has(r.id) ? ' disabled' : '') + '>' +
+            avatar(r, 36) + '<div class="opt-main"><div class="opt-name">' + esc(r.name) + '</div><div class="tiny muted">' + esc(r.suburb) + ' · ' + r.trips + ' trips · since ' + r.since + '</div></div>' +
+            '<div class="opt-price">' + ic('star', 'star-ic', true) + r.rating.toFixed(2) + '<span class="tiny muted">' + (riding.has(r.id) ? 'On a ride' : 'Verified') + '</span></div></button>').join('') + '</div>' +
+          '<div class="stack-sm push-bottom"><button class="btn btn-primary btn-block" data-a="demoLogin">Sign in as ' + esc(firstName((s.riders.find((r) => r.id === pickId) || {}).name)) + '</button></div></div>',
+      };
+    }
+
+    verifyStep(s) {
+      const rd = s.rider, v = rd.verification, u = this.ui;
+      const open = v.status === 'none' || v.status === 'retake';
+      const shown = checksShown(v, s.realT);
+      const samples = (doc, list, chosen) => '<div class="sample-row"><span class="tiny muted">Samples:</span>' + Object.entries(list).map(([k, x]) =>
+        '<button class="tag' + (chosen === k ? ' on' : '') + '" data-a="sampleDoc" data-v="' + doc + ':' + k + '">' + esc(x.label) + '</button>').join('') + '</div>';
+      const idTile = () => {
+        const id = v.id;
+        const head = '<div class="ut-row"><div class="ut-icon">' + (id && id.image ? '<img src="' + id.image + '" alt="">' : ic(id ? 'check' : 'idcard')) + '</div>' +
+          '<div class="ut-main"><b>Government ID</b><div class="tiny muted">' + (id ? esc(id.docType) + (id.source === 'sample' ? ' · sample' : ' · your photo') : 'Namibian ID card or passport') + '</div></div>' +
+          (open && v.status !== 'retake' ? '<div class="ut-actions"><label class="btn btn-sm btn-soft">' + ic('upload') + (id ? 'Replace' : 'Upload') + '<input type="file" accept="image/*" data-file="id" hidden></label></div>' : id ? '<span class="ut-ok">' + ic('check') + 'Added</span>' : '') + '</div>';
+        let body = '';
+        if (id && id.source === 'sample') {
+          body = '<div class="id-read"><span>Name</span><b>' + esc(id.name) + '</b><span>ID number</span><b>' + esc(id.idNumber) + '</b><span>Born</span><b>' + esc(id.dob) + '</b><span>Sex</span><b>' + esc(id.sex) + '</b></div>';
+        } else if (id && open) {
+          const f = u.idForm;
+          body = '<p class="tiny muted">The live app reads these from your ID. In this demo, type them exactly as printed.</p><div class="id-form">' +
+            '<label class="field wide"><span>Name on ID</span><input class="input" data-m="idForm.name" value="' + esc(f.name) + '"></label>' +
+            '<label class="field"><span>ID number</span><input class="input" inputmode="numeric" maxlength="11" placeholder="11 digits" data-m="idForm.idNumber" value="' + esc(f.idNumber) + '"></label>' +
+            '<label class="field"><span>Date of birth</span><input class="input" type="date" data-m="idForm.dob" value="' + esc(f.dob) + '"></label>' +
+            '<div class="field wide"><span>Sex on ID</span><div class="seg"><button data-a="idSex" data-v="F"' + (f.sex === 'F' ? ' aria-pressed="true"' : '') + '>F</button><button data-a="idSex" data-v="M"' + (f.sex === 'M' ? ' aria-pressed="true"' : '') + '>M</button></div></div></div>';
+        }
+        return '<div class="upload-tile stack' + (id ? ' done' : '') + '">' + head + body + (open && v.status !== 'retake' ? samples('id', E.ID_SAMPLES, id && id.sample) : '') + '</div>';
+      };
+      const selfieTile = () => {
+        const sf = v.selfie;
+        return '<div class="upload-tile stack' + (sf ? ' done' : '') + '"><div class="ut-row"><div class="ut-icon">' + (sf && sf.image ? '<img src="' + sf.image + '" alt="">' : ic(sf ? 'check' : 'camera')) + '</div>' +
+          '<div class="ut-main"><b>Live selfie</b><div class="tiny muted">' + (sf ? (sf.source === 'sample' ? esc(E.SELFIE_SAMPLES[sf.sample].label) + ' · sample' : 'Your photo') : 'Blink and turn your head; matched to your ID photo') + '</div></div>' +
+          (open ? '<div class="ut-actions"><label class="btn btn-sm btn-soft">' + ic('camera') + (sf ? 'Retake' : 'Take') + '<input type="file" accept="image/*" capture="user" data-file="selfie" hidden></label></div>' : '<span class="ut-ok">' + ic('check') + 'Added</span>') + '</div>' +
+          (open ? samples('selfie', E.SELFIE_SAMPLES, sf && sf.sample) : '') + '</div>';
+      };
+      let status = '';
+      if (open) {
+        status = (v.status === 'retake' ? '<div class="note warn">' + ic('camera') + '<span><b>Please take your selfie again.</b> ' + esc(v.reason) + '</span></div>' : '') +
+          '<button class="btn btn-primary btn-block" data-a="submitVerify"' + (v.id && v.selfie ? '' : ' disabled') + '>' + ic('shieldCheck') + 'Check my identity</button>';
+      } else if (v.status === 'checking') {
+        status = '<div class="verify-state pending"><span class="spinner"></span><div><b>Checking your documents…</b><div class="tiny muted">This takes a few seconds</div></div></div>';
+      } else if (v.status === 'review') {
+        status = '<div class="verify-state review">' + ic('eye') + '<div><b>With our Safety Team</b><div class="tiny muted">A person checks what the automatic checks couldn\'t: ' + esc(v.reason) + '. Usually within 2 hours.</div></div></div>' +
+          '<div class="row gap"><button class="btn btn-soft grow" data-a="rejectNow">' + ic('x') + 'Reject (demo)</button><button class="btn btn-primary grow" data-a="approveNow">' + ic('shieldCheck') + 'Approve (demo)</button></div>';
+      } else if (v.status === 'rejected') {
+        status = '<div class="verify-state rejected">' + ic('alert') + '<div><b>We couldn\'t verify you</b><div class="tiny">' + esc(v.reason) + '</div></div></div>' +
+          '<button class="btn btn-soft btn-block" data-a="verifyReset">Start again (demo)</button>';
+      } else {
+        status = '<div class="verify-state verified"><div class="big-check">' + ic('check') + '</div><div><b>Verified</b><div class="tiny muted">Welcome to a women-only community</div></div></div>' +
+          '<button class="btn btn-primary btn-block" data-a="goto" data-v="contacts">Continue</button>';
+      }
+      return {
+        key: 'onb-verify:' + v.status + ':' + shown + ':' + JSON.stringify([v.id && [v.id.sample, v.id.source], v.selfie && [v.selfie.sample, v.selfie.source]]),
+        html: () => '<div class="page">' + this.stepHead('signup', 2) +
+          '<h2 class="h2">Verify you\'re a woman</h2>' +
+          '<p class="muted small">FUber is women-only. We check a government ID and a live selfie for every rider and driver. Documents are encrypted and deleted after review.</p>' +
+          (open ? idTile() + selfieTile() : v.checks.length ? idChecks(v, s.realT) : '') +
+          '<div class="stack-sm push-bottom">' + status + '</div></div>',
       };
     }
 
@@ -300,7 +348,9 @@
       const sel = opts.find((x) => x.o.id === u.option) || opts[0];
       const pay = u.payMethod || s.rider.payment;
       const vals = {};
-      for (const x of opts) vals['eta_' + x.o.id] = x.avail ? mins(x.best) + ' away' : (u.wav ? 'No accessible car online within 3 km' : 'No driver online within 3 km');
+      // Drivers taken by other riders' trips show as busy, not missing.
+      const busyNear = (id) => s.drivers.some((d) => d.online && d.busy && d.vehicle.type === id && E.dist(d, pk) <= E.CFG.RADIUS);
+      for (const x of opts) vals['eta_' + x.o.id] = x.avail ? mins(x.best) + ' away' : u.wav ? 'No accessible car online within 3 km' : busyNear(x.o.id) ? 'Drivers nearby are on trips · try again shortly' : 'No driver online within 3 km';
       vals.tripLine = sel.est.distKm.toFixed(1) + ' km · ~' + mins(sel.est.durMin) + ' trip · arrive ~' + arriveAt(sel.est.durMin + (sel.best || 0));
       const route = E.route(pk, dest);
       return {
@@ -651,12 +701,12 @@
       if (el.dataset.live === 'wav') { this.set({ wav: el.checked }); return; }
       if (el.dataset.consent) { this.act('R_SET_CONSENT', { key: el.dataset.consent, value: el.checked }); return; }
       if (el.dataset.file) {
-        const img = await Hera.readImage(el.files[0], el.dataset.file === 'photo' ? 128 : 96);
         const f = el.dataset.file;
+        const img = await Hera.readImage(el.files[0], f === 'photo' ? 128 : 160);
         if (f === 'photo') { this.ui.signup.photo = img; this.ui.v++; this.render(Store.state); return; }
-        this.ui[f === 'id' ? 'idPreview' : 'selfiePreview'] = img;
+        if (f === 'id') this.ui.idForm = { name: Store.state.rider.profile.name, idNumber: '', dob: '', sex: '' };
         this.ui.v++;
-        this.act('R_UPLOAD', { doc: f });
+        this.act('R_UPLOAD', { doc: f, image: img });
       }
     }
 
@@ -667,7 +717,8 @@
       const a = el.dataset.a, v = el.dataset.v, s = Store.state, u = this.ui;
       switch (a) {
         case 'goto': this.act('R_GOTO', { step: v }); break;
-        case 'demoLogin': this.act('R_DEMO_LOGIN'); break;
+        case 'demoRider': this.set({ demoRider: v }); break;
+        case 'demoLogin': this.act('R_DEMO_LOGIN', { riderId: u.demoRider }); break;
         case 'fillSignup':
           u.signup = { name: 'Ndeshi Amutenya', contact: '+264 81 234 5678', password: 'hera-demo', photo: u.signup.photo };
           this.set({});
@@ -679,12 +730,26 @@
           this.act('R_SIGNUP', { name: f.name.trim(), contact: f.contact.trim(), photo: f.photo });
           break;
         }
-        case 'sampleDoc':
-          u[v === 'id' ? 'idPreview' : 'selfiePreview'] = null;
-          this.act('R_UPLOAD', { doc: v });
+        case 'sampleDoc': {
+          const [doc, sample] = v.split(':');
+          this.act('R_UPLOAD', { doc, sample });
           break;
-        case 'submitVerify': this.act('R_SUBMIT_VERIFICATION'); break;
+        }
+        case 'idSex': u.idForm.sex = v; this.set({}); break;
+        case 'submitVerify': {
+          const id = s.rider.verification.id;
+          if (id && id.source === 'photo') {
+            const f = u.idForm;
+            if (!f.name.trim() || !/^\d{11}$/.test(f.idNumber.trim()) || !f.dob || !f.sex) return toast(this.phone, 'Enter the name, 11-digit ID number, date of birth and sex exactly as printed on your ID', 'err');
+            const r = await this.act('R_ID_DETAILS', { name: f.name.trim(), idNumber: f.idNumber.trim(), dob: f.dob, sex: f.sex });
+            if (!r.ok) return;
+          }
+          this.act('R_SUBMIT_VERIFICATION');
+          break;
+        }
         case 'approveNow': this.act('R_APPROVE'); break;
+        case 'rejectNow': this.act('R_REJECT'); break;
+        case 'verifyReset': this.act('R_VERIFY_RESET'); break;
         case 'addContactRow': u.contacts.push({ name: '', phone: '' }); this.set({}); break;
         case 'fillContacts':
           u.contacts = [{ name: 'Meme Selma (Mum)', phone: '+264 81 555 0142' }, { name: 'Taimi (sister)', phone: '+264 85 555 0199' }];

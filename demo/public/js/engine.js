@@ -94,6 +94,10 @@
   const DRIVER_LOCKED = new Set(['DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'PIN_VERIFIED', 'IN_TRIP']);
   // No vehicle-registration document: a driver may be driving a car she doesn't own.
   const DRIVER_DOCS = ['identity', 'licence', 'insurance', 'background'];
+  // The rider community grows with the fleet: five verified riders for every driver.
+  const RIDERS_PER_DRIVER = 5;
+  // How often one of the other riders books a ride, in real seconds [min, max], by demand level.
+  const BOOKING_GAP_S = { normal: [30, 55], high: [18, 32], peak: [10, 20] };
 
   // ---------------------------------------------------------------------------
   // Geometry helpers
@@ -468,13 +472,13 @@
    *   3. within the 3 km straight-line radius
    * Then ranks by a blend of road-distance ETA and acceptance probability.
    */
-  function rankDrivers(s, pickup, optionId, wav, declined, favourites) {
+  function rankDrivers(s, pickup, optionId, wav, declined, favourites, riderPoints, rideId) {
     declined = declined || [];
     favourites = favourites || (s.rider && s.rider.favourites) || [];
     const weights = DEMAND[s.settings.demand].weights;
     const v = speedMs(s);
     // Low-priority riders lose the nearest drivers; high-priority riders get closeness weighted up.
-    const rp = s.rider ? s.rider.priority.points : CFG.PRIORITY_START;
+    const rp = riderPoints != null ? riderPoints : s.rider ? s.rider.priority.points : CFG.PRIORITY_START;
     const etaBoost = Math.max(1, rp / CFG.PRIORITY_START);
     const candidates = [], excluded = [];
     for (const d of s.drivers) {
@@ -483,6 +487,7 @@
       if (!d.online) reason = 'Offline';
       else if (!signedIn(s, d.id)) reason = 'Not signed in on a phone';
       else if (d.busy) reason = 'On an active trip';
+      else if (offeredTo(s, d.id, rideId)) reason = 'Reviewing another request';
       else if (d.vehicle.type !== optionId) reason = 'Vehicle is ' + OPTIONS[d.vehicle.type].short;
       else if (wav && !d.vehicle.wav) reason = 'Not wheelchair accessible';
       else if (declined.includes(d.id)) reason = 'Declined / timed out';
@@ -515,11 +520,87 @@
   // Each home is an offset from the rider's location in metres (east, south), snapped to the nearest road.
   const DEMO_DRIVER_ID = 'd1';
   const SEED_DRIVERS = [
-    { id: DEMO_DRIVER_ID, name: 'Hilma Nangolo', phone: '+264 81 640 2219', type: 'classic', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver', hex: '#c9ccd1', plate: 'N 6152 W', acc: 0.9, rating: 4.92, n: 214, home: nearHome(900, -700), wander: 1, offline: true, av: ['#8d5524', '#1b1410', '#f3e8ff', 'long'] },
-    { id: 'd2', name: 'Selma Nghipandulwa', phone: '+264 81 432 1987', type: 'classic', make: 'Volkswagen', model: 'Polo Vivo', year: 2021, color: 'Pearl White', hex: '#f1ede4', plate: 'N 4471 W', acc: 0.88, rating: 4.88, n: 167, home: nearHome(-800, 600), wander: 1, offline: true, av: ['#c68642', '#120d0b', '#fde8ef', 'bun'] },
-    { id: 'd3', name: 'Ndapewa Haufiku', phone: '+264 85 610 2245', type: 'comfort', make: 'Toyota', model: 'Corolla Cross', year: 2023, color: 'Midnight Blue', hex: '#26375f', plate: 'N 2318 W', acc: 0.92, rating: 4.95, n: 301, home: nearHome(700, 900), wander: 1, offline: true, av: ['#6b3e26', '#0d0a08', '#e8f4ff', 'bob'] },
-    { id: 'd4', name: 'Martha van Wyk', phone: '+264 81 298 7730', type: 'softlife', make: 'Mercedes-Benz', model: 'C-Class', year: 2023, color: 'Graphite', hex: '#5b5f66', plate: 'N 7705 W', acc: 0.85, rating: 4.97, n: 122, home: nearHome(-900, -600), wander: 1, offline: true, av: ['#e0ac69', '#6b3e26', '#eafaf1', 'long'] },
+    { id: DEMO_DRIVER_ID, name: 'Hilma Nangolo', phone: '+264 81 640 2219', idNumber: '89031400417', type: 'classic', make: 'Toyota', model: 'Corolla', year: 2022, color: 'Silver', hex: '#c9ccd1', plate: 'N 6152 W', acc: 0.9, rating: 4.92, n: 214, home: nearHome(900, -700), wander: 1, offline: true, av: ['#8d5524', '#1b1410', '#f3e8ff', 'long'] },
+    { id: 'd2', name: 'Selma Nghipandulwa', phone: '+264 81 432 1987', idNumber: '92112100625', type: 'classic', make: 'Volkswagen', model: 'Polo Vivo', year: 2021, color: 'Pearl White', hex: '#f1ede4', plate: 'N 4471 W', acc: 0.88, rating: 4.88, n: 167, home: nearHome(-800, 600), wander: 1, offline: true, av: ['#c68642', '#120d0b', '#fde8ef', 'bun'] },
+    { id: 'd3', name: 'Ndapewa Haufiku', phone: '+264 85 610 2245', idNumber: '86070900283', type: 'comfort', make: 'Toyota', model: 'Corolla Cross', year: 2023, color: 'Midnight Blue', hex: '#26375f', plate: 'N 2318 W', acc: 0.92, rating: 4.95, n: 301, home: nearHome(700, 900), wander: 1, offline: true, av: ['#6b3e26', '#0d0a08', '#e8f4ff', 'bob'] },
+    { id: 'd4', name: 'Martha van Wyk', phone: '+264 81 298 7730', idNumber: '80122600151', type: 'softlife', make: 'Mercedes-Benz', model: 'C-Class', year: 2023, color: 'Graphite', hex: '#5b5f66', plate: 'N 7705 W', acc: 0.85, rating: 4.97, n: 122, home: nearHome(-900, -600), wander: 1, offline: true, av: ['#e0ac69', '#6b3e26', '#eafaf1', 'long'] },
   ];
+
+  // ---------------------------------------------------------------------------
+  // Rider community: five verified women riders per driver. The first one is the rider phone's
+  // demo account; the others book rides on their own (see tickCity) so a driver who goes online
+  // gets real requests to accept or decline. Each lives in a real suburb.
+  // ---------------------------------------------------------------------------
+  const SEED_RIDERS = [
+    ['Ndeshi Amutenya', 'Windhoek Central', '+264 81 234 5678', '1996-05-14', 4.92, 38],
+    ['Loide Shikongo', 'Katutura', '+264 81 377 4120', '1993-02-07', 4.88, 112],
+    ['Ester Nghidinwa', 'Wanaheda', '+264 85 201 6634', '1999-09-23', 4.95, 64],
+    ['Aina Iipinge', 'Khomasdal', '+264 81 455 0918', '1988-12-01', 4.81, 151],
+    ['Saara Nandjembo', 'Windhoek West', '+264 81 610 7745', '2001-06-30', 4.97, 27],
+    ['Frieda Mbango', 'Otjomuise', '+264 85 733 2290', '1990-03-18', 4.76, 89],
+    ['Penda Ithete', 'Windhoek North', '+264 81 128 5531', '1995-11-11', 4.9, 73],
+    ['Uerikua Tjiueza', 'Eros', '+264 81 947 1102', '1984-07-25', 4.93, 140],
+    ['Kaera Kandjii', 'Klein Windhoek', '+264 81 302 8876', '1998-01-09', 4.86, 45],
+    ['Anna-Marie Hoebes', 'Hochland Park', '+264 85 455 3017', '1979-10-03', 4.99, 176],
+    ['Rosalia Gaes', 'Dorado Park', '+264 81 660 2143', '2003-04-22', 4.84, 12],
+    ['Charlene Botha', 'Avis', '+264 81 128 9904', '1986-08-15', 4.91, 98],
+    ['Liezel van der Merwe', 'Pionierspark', '+264 81 774 3365', '1992-05-27', 4.87, 57],
+    ['Katrin Brandt', 'Olympia', '+264 81 255 6178', '1975-02-12', 4.96, 133],
+    ['Mutaleni Simasiku', 'Academia', '+264 85 618 0042', '2002-12-19', 4.8, 21],
+    ['Theresia Haingura', 'Rocky Crest', '+264 81 449 7713', '1991-07-07', 4.89, 66],
+    ['Hileni Shapwa', 'Eros Park', '+264 81 803 2256', '1997-03-29', 4.94, 39],
+    ['Meriam Garoes', 'Soweto', '+264 85 377 6620', '1987-09-02', 4.78, 104],
+    ['Tangeni Amupolo', 'Suiderhof', '+264 81 562 1189', '2000-10-16', 4.92, 33],
+    ['Nangula Kalimbo', 'Auasblick', '+264 81 690 4417', '1994-06-05', 4.98, 81],
+  ];
+  // Names for riders who join as the fleet grows.
+  const JOIN_FIRST = ['Selma', 'Albertina', 'Emilia', 'Lahja', 'Ruusa', 'Victoria', 'Ndinelao', 'Kauna', 'Petrina', 'Jacqueline', 'Bertha', 'Monika', 'Ottilie', 'Rauha', 'Helena', 'Wilhelmina', 'Magano', 'Fransina', 'Elina', 'Josephine'];
+  const JOIN_LAST = ['Nakale', 'Shivute', 'Mwafufya', 'Tjombe', 'Karuaihe', 'Swartbooi', 'Isaacs', 'Engelbrecht', 'Muyunda', 'Kapenda', 'Hamutenya', 'Shilunga', 'Uushona', 'Namupala', 'Kavari', 'Beukes', 'Nashandi', 'Kamati'];
+  const RIDER_TONES = [['#8d5524', '#1b1410'], ['#6b3e26', '#0d0a08'], ['#c68642', '#120d0b'], ['#e0ac69', '#6b3e26'], ['#f1c99a', '#3a2418']];
+  const RIDER_BGS = ['#fde8ef', '#f3e8ff', '#e8f4ff', '#eafaf1', '#fff4e0'];
+  const RIDER_STYLES = ['long', 'bun', 'bob'];
+
+  // Namibian ID numbers are 11 digits and start with the holder's date of birth (YYMMDD).
+  function idNumberFor(dob) {
+    return dob.slice(2, 4) + dob.slice(5, 7) + dob.slice(8, 10) + String(randInt(0, 99999)).padStart(5, '0');
+  }
+
+  function makeRider(id, name, suburb, phone, dob, rating, n) {
+    const z = SUBURBS.find((x) => x.name === suburb) || SUBURBS[0];
+    const tone = pick(RIDER_TONES);
+    const prefs = rand(0, 1);
+    return {
+      id, name, first: name.split(' ')[0], short: name.split(' ')[0] + ' ' + name.split(' ').slice(-1)[0][0] + '.',
+      suburb: z.name, home: snap({ x: z.x + rand(-250, 250), y: z.y + rand(-250, 250) }), phone, dob, idNumber: idNumberFor(dob), sex: 'F',
+      rating, ratingCount: n, trips: n + randInt(0, 12), since: 2026 - Math.min(3, Math.ceil(n / 45)),
+      // Most riders book Classic; some prefer Comfort or Soft Life.
+      pref: prefs < 0.65 ? 'classic' : prefs < 0.9 ? 'comfort' : 'softlife',
+      verified: true, priority: newPriority(), favourites: [],
+      avatar: { skin: tone[0], hair: tone[1], bg: pick(RIDER_BGS), style: pick(RIDER_STYLES) },
+    };
+  }
+
+  function seedRiders() {
+    return SEED_RIDERS.map((r, i) => makeRider('r' + (i + 1), ...r));
+  }
+
+  /** New riders sign up as the fleet grows, so there are always five riders for every driver. */
+  function growRiders(s) {
+    const want = s.drivers.length * RIDERS_PER_DRIVER;
+    const joined = [];
+    while (s.riders.length < want) {
+      let name;
+      do name = pick(JOIN_FIRST) + ' ' + pick(JOIN_LAST); while (s.riders.some((r) => r.name === name));
+      const dob = randInt(1975, 2005) + '-' + String(randInt(1, 12)).padStart(2, '0') + '-' + String(randInt(1, 28)).padStart(2, '0');
+      const z = pick(SUBURBS);
+      const r = makeRider('r' + (s.riders.length + 1), name, z.name, '+264 8' + pick([1, 5]) + ' ' + randInt(100, 999) + ' ' + randInt(1000, 9999), dob, 5, 0);
+      r.trips = 0;
+      r.since = 2026;
+      s.riders.push(r);
+      joined.push(r.first);
+    }
+    if (joined.length) log(s, joined.length + ' new riders joined (' + joined.join(', ') + ') · ' + s.riders.length + ' riders for ' + s.drivers.length + ' drivers', 'system');
+  }
 
   // Earlier trips today, so a demo driver's Earnings tab lists trips that match her trip count.
   const PAST_RIDERS = ['Hilma', 'Ester', 'Loide', 'Aina', 'Johanna', 'Saara', 'Frieda', 'Penda'];
@@ -562,18 +643,21 @@
       online: !o.offline, busy: !!o.busy, home: { ...o.home }, wander: w, priority: newPriority(),
       x: pos.x, y: pos.y, heading: 0, path: null, pathPos: 0, pathLen: 0,
       stats: o.stats || seedStats(o.type),
-      isNew: !!o.isNew,
+      isNew: !!o.isNew, idNumber: o.idNumber || null,
     };
   }
 
+  function newVerification() {
+    return { status: 'none', id: null, selfie: null, checks: [], checkAt: 0, submittedAt: 0, reason: null };
+  }
+
   function seedRider() {
-    const now = Date.now();
     return {
-      onboarded: false, step: 'welcome',
+      id: null, onboarded: false, step: 'welcome',
       profile: { name: '', contact: '', photo: null },
-      verification: { id: false, selfie: false, status: 'none', submittedAt: 0 },
+      verification: newVerification(),
       contacts: [], consent: { sos: true, rideCheck: true, shareEta: true },
-      pickup: { ...HOME, source: 'gps' }, payment: 'card', wallet: 400, rating: 4.92, ratingCount: 38,
+      pickup: { ...HOME, source: 'gps' }, payment: 'card', wallet: 400, rating: 5, ratingCount: 0,
       favourites: [], scheduled: [], priority: newPriority(),
       history: [],
     };
@@ -583,6 +667,141 @@
     const docs = {};
     for (const k of DRIVER_DOCS) docs[k] = { status: 'none' };
     return { signedInId: null, step: 'welcome', profile: null, docs, vehicle: null };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Women-only identity verification. Every rider and driver sends a government ID and a live
+  // selfie. Automated checks run first: anything that proves she can't join (the ID shows a man,
+  // she is under 18, the ID is already on another account, the ID number doesn't match the date
+  // of birth) rejects at once; a failed liveness or face match asks for a new selfie; anything
+  // only a person can judge (a name that differs, a photo the demo can't compare) goes to the
+  // FUber Safety Team. When every check passes she is verified automatically.
+  // ---------------------------------------------------------------------------
+  // Sample IDs the presenter can "scan". `name: null` means the name on the account.
+  const ID_SAMPLES = {
+    valid: { label: "Woman's ID", name: null, sex: 'F', dob: '1996-05-14' },
+    male: { label: "Man's ID", name: 'Petrus Amutenya', sex: 'M', dob: '1994-08-02' },
+    minor: { label: 'Under 18', name: null, sex: 'F', dob: '2010-03-05' },
+    otherName: { label: 'Different name', name: 'Selma Nakale', sex: 'F', dob: '1991-11-23' },
+    taken: { label: 'Already used', name: null, sex: 'F', dob: null },
+  };
+  const SELFIE_SAMPLES = {
+    live: { label: 'Live selfie', live: true, match: 0.97 },
+    printed: { label: 'Photo of a photo', live: false, match: 0.91 },
+    other: { label: 'Different person', live: true, match: 0.38 },
+  };
+  const FACE_MATCH_MIN = 0.8;
+  const CHECK_STEP_MS = 550; // each check is shown ticking off one after the other
+
+  function idFromSample(s, key, accountName) {
+    const x = ID_SAMPLES[key];
+    if (!x) return null;
+    if (key === 'taken') {
+      // The ID of a rider who already has an account.
+      const owner = s.riders[1] || s.riders[0];
+      return { source: 'sample', sample: key, docType: 'Namibian ID card', name: accountName, sex: 'F', dob: owner.dob, idNumber: owner.idNumber };
+    }
+    const dob = x.dob;
+    return { source: 'sample', sample: key, docType: 'Namibian ID card', name: x.name || accountName, sex: x.sex, dob, idNumber: idNumberFor(dob) };
+  }
+
+  const foldName = (n) => fold(n).split(' ').filter(Boolean);
+  // First name and surname on the account must both appear on the ID (middle names may differ).
+  function namesMatch(account, onId) {
+    const a = foldName(account), b = foldName(onId);
+    return a.length > 0 && b.includes(a[0]) && b.includes(a[a.length - 1]);
+  }
+
+  function ageOn(dob, now) {
+    const b = new Date(dob + 'T00:00:00'), t = new Date(now);
+    if (isNaN(b)) return NaN;
+    let age = t.getFullYear() - b.getFullYear();
+    if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) age--;
+    return age;
+  }
+
+  /** Every check for one person: { key, label, ok (true/false/null = needs a person), level, detail }. */
+  function identityChecks(s, accountName, id, selfie, selfId) {
+    const out = [];
+    const add = (key, label, ok, level, detail) => out.push({ key, label, ok, level, detail });
+    add('document', 'ID document is genuine', true, 'hard', id.docType + ' · security features and machine-readable zone check out');
+    add('sex', 'ID shows a woman', id.sex === 'F', 'hard', id.sex === 'F' ? 'Sex on ID: F' : 'Sex on ID: ' + (id.sex || 'not readable') + '. FUber is for women only');
+    const age = ageOn(id.dob, Date.now());
+    add('age', 'Aged 18 or over', age >= 18, 'hard', isNaN(age) ? 'Date of birth not readable' : 'Born ' + id.dob + ' · age ' + age);
+    const yymmdd = id.dob ? id.dob.slice(2, 4) + id.dob.slice(5, 7) + id.dob.slice(8, 10) : '';
+    const idOk = /^\d{11}$/.test(id.idNumber || '') && id.idNumber.slice(0, 6) === yymmdd;
+    add('idnumber', 'ID number matches date of birth', idOk, 'hard', idOk ? 'ID ' + id.idNumber.slice(0, 6) + '•••••' : 'ID number ' + (id.idNumber || '—') + ' does not start with ' + (yymmdd || 'the date of birth'));
+    const taken = s.riders.some((r) => r.id !== selfId && r.idNumber === id.idNumber) || s.drivers.some((d) => d.id !== selfId && d.idNumber === id.idNumber);
+    add('unique', 'ID not used by another account', !taken, 'hard', taken ? 'This ID is already linked to another FUber account' : 'No other account uses this ID');
+    const nameOk = namesMatch(accountName, id.name);
+    add('name', 'Name matches the account', nameOk || null, 'review', nameOk ? id.name : 'ID says “' + id.name + '”, account says “' + accountName + '”');
+    if (selfie.source === 'photo' || id.source === 'photo') {
+      add('live', 'Live selfie (not a photo of a photo)', null, 'review', 'A reviewer checks the selfie by eye in this demo');
+      add('face', 'Selfie matches the ID photo', null, 'review', 'A reviewer compares the two photos in this demo');
+    } else {
+      add('live', 'Live selfie (not a photo of a photo)', selfie.live, 'retake', selfie.live ? 'Blink and head-turn detected' : 'No movement detected: looks like a photo of a photo');
+      add('face', 'Selfie matches the ID photo', selfie.match >= FACE_MATCH_MIN, 'retake', 'Face match ' + Math.round(selfie.match * 100) + '% (needs ' + Math.round(FACE_MATCH_MIN * 100) + '%)');
+    }
+    return out;
+  }
+
+  /** The outcome of a set of checks: rejected, retake (new selfie), review (a person decides) or verified. */
+  function checkOutcome(checks) {
+    const hard = checks.find((c) => c.level === 'hard' && c.ok === false);
+    if (hard) return { status: 'rejected', reason: hard.detail };
+    const retake = checks.find((c) => c.level === 'retake' && c.ok === false);
+    if (retake) return { status: 'retake', reason: retake.detail };
+    if (checks.some((c) => c.ok !== true)) return { status: 'review', reason: checks.filter((c) => c.ok !== true).map((c) => c.label).join(' · ') };
+    return { status: 'verified', reason: null };
+  }
+
+  function startChecks(s, v, accountName, selfId) {
+    v.checks = identityChecks(s, accountName, v.id, v.selfie, selfId);
+    v.status = 'checking';
+    v.checkAt = s.realT;
+    v.submittedAt = s.realT;
+    v.reason = null;
+  }
+
+  const checksDone = (s, v) => v.status === 'checking' && s.realT - v.checkAt >= (v.checks.length + 1) * CHECK_STEP_MS;
+
+  function tickVerification(s) {
+    const v = s.rider.verification;
+    if (checksDone(s, v)) {
+      const o = checkOutcome(v.checks);
+      v.status = o.status;
+      v.reason = o.reason;
+      if (o.status === 'verified') riderVerified(s, 'automatically');
+      else if (o.status === 'rejected') { notify(s, 'rider', 'Verification declined: ' + o.reason, 'err'); log(s, 'Rider verification rejected: ' + o.reason, 'safety'); }
+      else if (o.status === 'retake') { v.selfie = null; notify(s, 'rider', 'Please take your selfie again', 'warn'); log(s, 'Rider asked to retake selfie: ' + o.reason, 'system'); }
+      else { notify(s, 'rider', 'Your documents are with our Safety Team', 'info'); log(s, 'Rider verification sent to the Safety Team: ' + o.reason, 'system'); }
+    }
+    for (const dp of Object.values(s.driverPortals)) {
+      const doc = dp.docs.identity;
+      if (!checksDone(s, doc)) continue;
+      const o = checkOutcome(doc.checks);
+      doc.status = o.status === 'verified' ? 'approved' : o.status === 'review' ? 'review' : 'rejected';
+      doc.reason = o.reason;
+      const who = dp.profile ? dp.profile.name : 'Driver applicant';
+      log(s, who + ': identity ' + (doc.status === 'approved' ? 'verified automatically' : doc.status === 'review' ? 'sent to the Safety Team (' + o.reason + ')' : 'rejected: ' + o.reason), doc.status === 'rejected' ? 'safety' : 'system');
+    }
+  }
+
+  // A verified rider who signed up on the phone joins the community, so her ID can't be reused.
+  function riderVerified(s, how) {
+    const rd = s.rider, v = rd.verification;
+    v.status = 'verified';
+    if (!rd.id) {
+      const id = v.id || {};
+      const r = makeRider('r' + (s.riders.length + 1), rd.profile.name, zoneOf(rd.pickup), rd.profile.contact, id.dob || '1996-01-01', 5, 0);
+      if (id.idNumber) r.idNumber = id.idNumber;
+      r.trips = 0;
+      r.since = 2026;
+      s.riders.push(r);
+      rd.id = r.id;
+    }
+    notify(s, 'rider', 'Identity verified — welcome to FUber', 'ok');
+    log(s, 'Rider ' + rd.profile.name + ' verified ' + how + ' (women-only check passed)', 'system');
   }
 
   // Each screen running the driver app has its own portal, keyed by the session id it sends with
@@ -595,20 +814,39 @@
   const signedIn = (s, driverId) => Object.values(s.driverPortals).some((p) => p.signedInId === driverId);
 
   function defaultSettings() {
-    return { timeScale: 20, demand: 'normal' };
+    return { timeScale: 20, demand: 'normal', otherRiders: true };
   }
 
   function createState(settings) {
     const s = {
       rev: 0, realT: 0, simT: 0, startedWall: Date.now(), seq: 1, noticeSeq: 0, lastEtaAt: 0,
-      settings: { ...settings },
+      settings: { ...defaultSettings(), ...settings },
       surge: DEMAND[settings.demand].surge, traffic: DEMAND[settings.demand].traffic,
-      rider: seedRider(), drivers: SEED_DRIVERS.map(makeDriver), driverPortals: {},
-      ride: null, sos: { rider: null, driver: null },
+      rider: seedRider(), riders: seedRiders(), drivers: SEED_DRIVERS.map(makeDriver), driverPortals: {},
+      // `ride` is the rider phone's ride; `bgRides` are booked by the other riders in the community.
+      ride: null, bgRides: [], nextBookingAt: 15000, sos: { rider: null, driver: null },
       log: [], notices: [],
     };
-    log(s, 'Demo reset — ' + s.drivers.length + ' verified women drivers seeded', 'system');
+    log(s, 'Demo reset — ' + s.drivers.length + ' verified women drivers and ' + s.riders.length + ' verified women riders (' + RIDERS_PER_DRIVER + ' per driver)', 'system');
     return s;
+  }
+
+  // ---- Rides: the phone rider's and the community's -------------------------
+  const allRides = (s) => (s.ride ? [s.ride, ...s.bgRides] : s.bgRides);
+  const riderOf = (s, r) => (r.bot ? s.riders.find((x) => x.id === r.riderId) : s.rider);
+  const offeredTo = (s, driverId, exceptRideId) => allRides(s).some((r) => r.id !== exceptRideId && r.search.offer && r.search.offer.driverId === driverId);
+  /** The trip a driver is on (or just finished and hasn't closed yet). */
+  const rideOfDriver = (s, driverId) => allRides(s).find((r) => r.driverId === driverId && !r.driverDone) || null;
+  const lockedDriver = (s, driverId) => allRides(s).some((r) => r.driverId === driverId && DRIVER_LOCKED.has(r.state));
+  const driverOfSid = (s, sid) => { const dp = s.driverPortals[portalKey(sid)]; return dp && dp.signedInId; };
+  // Toasts on the rider phone are only for the phone rider's own ride.
+  function tellRider(s, r, text, kind) { if (!r.bot) notify(s, 'rider', text, kind); }
+  /** The ride the presenter's shortcuts act on: this phone's driver's trip, else the rider phone's ride, else any trip under way. */
+  function focusRide(s, sid, fits) {
+    const did = sid && driverOfSid(s, sid);
+    const own = did && rideOfDriver(s, did);
+    const order = [own, s.ride, ...s.bgRides].filter(Boolean);
+    return order.find((r) => !fits || fits(r)) || null;
   }
 
   // ---------------------------------------------------------------------------
@@ -630,7 +868,8 @@
     r.state = st;
     r.stateAt = s.realT;
     r.timeline.push({ state: st, t: s.realT });
-    log(s, 'Ride ' + r.id + ' → ' + st, 'state');
+    // Other riders' rides log only their milestones, so the phone rider's ride stays readable.
+    if (!r.bot) log(s, 'Ride ' + r.id + ' → ' + st, 'state');
   }
 
   function setPath(d, path) { d.path = path; d.pathPos = 0; d.pathLen = polyLen(path); }
@@ -658,15 +897,22 @@
   // ---------------------------------------------------------------------------
   const seatsOf = (n) => clamp(Math.round(Number(n) || 1), 1, CFG.MAX_SEATS);
 
-  function newRide(s, p) {
+  /** A ride for the phone rider, or for one of the other riders when `who` is given. */
+  function newRide(s, p, who) {
     const rider = s.rider;
     const dp = snap(p.dest);
     const dest = { x: dp.x, y: dp.y, name: p.dest.name || 'Dropped pin', address: addressOf(dp), area: zoneOf(dp) };
-    const pk = rider.pickup;
+    const pk = who ? p.pickup : rider.pickup;
     const pickup = { x: pk.x, y: pk.y, address: addressOf(pk), area: zoneOf(pk), near: approxArea(pk), street: streetOf(pk) };
     const est = estimate(s, pickup, dest, p.option);
+    const person = who || rider;
+    const name = who ? who.name : rider.profile.name;
     const r = {
       id: 'FU-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
+      bot: !!who, riderId: who ? who.id : rider.id,
+      // What the driver may see about the rider: first name, rating and that she is verified.
+      who: { name, first: firstName(name), rating: person.rating, avatar: who ? who.avatar : null, photo: who ? null : rider.profile.photo },
+      said: {},
       option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), pickup, dest, pin: String(randInt(1000, 9999)), payment: p.payment || rider.payment,
       // Booked on behalf of someone without internet: they get the PIN and driver details by SMS.
       passenger: p.passenger ? { name: String(p.passenger.name).slice(0, 40), phone: String(p.passenger.phone).slice(0, 30) } : null,
@@ -678,6 +924,11 @@
       tripMeters: 0, planned: null, atDest: false, offRouteM: 0, fare: null, paid: false,
       riderRating: null, driverRating: null, cancel: null, share: null, driverShare: null, reports: [], driverDone: false, driverCancelled: null,
     };
+    if (who) {
+      s.bgRides.push(r);
+      log(s, who.first + ' (' + who.suburb + ') requested ' + OPTIONS[r.option].short + ': ' + pickup.near + ' → ' + dest.name + ' · N$' + est.total.toFixed(2), 'match');
+      return r;
+    }
     s.ride = r;
     log(s, 'Ride ' + r.id + ' requested: ' + OPTIONS[r.option].short + (r.wav ? ' (wheelchair accessible)' : '') + ' to ' + dest.name + ' · ' + r.seats + ' passenger' + (r.seats > 1 ? 's' : '') + ' · N$' + est.total.toFixed(2) + ' · PIN ' + r.pin, 'state');
     if (r.passenger) {
@@ -688,12 +939,14 @@
   }
 
   function nextOffer(s, r) {
-    const m = rankDrivers(s, r.pickup, r.option, r.wav, r.search.declined);
+    const rd = riderOf(s, r);
+    const m = rankDrivers(s, r.pickup, r.option, r.wav, r.search.declined, rd ? rd.favourites : [], rd ? rd.priority.points : CFG.PRIORITY_START, r.id);
     Object.assign(r.search, { ranking: m.candidates, excluded: m.excluded, weights: m.weights, demand: s.settings.demand });
     if (!m.candidates.length) {
       r.search.offer = null;
       setState(s, r, 'NO_DRIVERS');
-      notify(s, 'rider', 'No driver accepted nearby. Try again or pick another ride type.', 'err');
+      tellRider(s, r, 'No driver accepted nearby. Try again or pick another ride type.', 'err');
+      if (r.bot) log(s, r.who.first + ' could not get a ' + OPTIONS[r.option].short + ' ride: no driver accepted', 'warn');
       return;
     }
     // Every candidate is signed in on a driver phone: the offer waits for her to tap Accept or Decline.
@@ -703,7 +956,7 @@
       eta: c.eta, road: c.road, straight: c.straight, score: c.score,
     };
     r.search.offers.push({ driverId: d.id, at: s.realT, result: 'pending', score: c.score, eta: c.eta });
-    log(s, 'Offer #' + r.search.offers.length + ' → ' + d.name + ' · score ' + Math.round(c.score * 100) + ' · ETA ' + c.eta.toFixed(1) + ' min · accept ' + Math.round(d.acceptProb * 100) + '%', 'match');
+    if (!r.bot) log(s, 'Offer #' + r.search.offers.length + ' → ' + d.name + ' · score ' + Math.round(c.score * 100) + ' · ETA ' + c.eta.toFixed(1) + ' min · accept ' + Math.round(d.acceptProb * 100) + '%', 'match');
     notify(s, 'driver', 'New ride request — 15 seconds to respond', 'info', d.id);
   }
 
@@ -722,12 +975,12 @@
       r.assignedAt = s.realT;
       setState(s, r, 'DRIVER_ASSIGNED');
       refreshEta(s);
-      log(s, d.name + ' accepted after ' + (entry.after / 1000).toFixed(1) + ' s', 'match');
-      notify(s, 'rider', d.first + ' accepted your ride', 'ok');
+      log(s, d.name + ' accepted ' + (r.bot ? r.who.first + "'s ride " : '') + 'after ' + (entry.after / 1000).toFixed(1) + ' s', 'match');
+      tellRider(s, r, d.first + ' accepted your ride', 'ok');
       return { ok: true };
     }
     r.search.declined.push(d.id);
-    log(s, d.name + (result === 'timeout' ? ' did not respond within 15 s' : ' declined') + ' → offering to next best driver', 'warn');
+    log(s, d.name + (result === 'timeout' ? ' did not respond within 15 s' : ' declined') + (r.bot ? ' ' + r.who.first + "'s request" : '') + ' → offering to next best driver', 'warn');
     nextOffer(s, r);
     return { ok: true };
   }
@@ -746,8 +999,10 @@
   function refreshEta(s) {
     s.lastEtaAt = s.realT;
     s.traffic = Math.round(DEMAND[s.settings.demand].traffic * rand(0.95, 1.07) * 1000) / 1000;
-    const r = s.ride;
-    if (!r) return;
+    for (const r of allRides(s)) rideEta(s, r);
+  }
+
+  function rideEta(s, r) {
     const v = speedMs(s);
     const d = r.driverId && byId(s, r.driverId);
     let pickupM = null, tripM;
@@ -763,9 +1018,9 @@
   function arrive(s, r, d) {
     setState(s, r, 'DRIVER_ARRIVED');
     r.arrivedSim = s.simT;
-    notify(s, 'rider', d.first + ' has arrived. Share your PIN ' + r.pin + ' to start the trip.', 'warn');
+    tellRider(s, r, d.first + ' has arrived. Share your PIN ' + r.pin + ' to start the trip.', 'warn');
     notify(s, 'driver', 'Arrived — exact pickup address unlocked. Ask the rider for her PIN.', 'ok', d.id);
-    log(s, d.first + ' is within ' + CFG.ARRIVE_M + ' m of pickup → exact address revealed to driver', 'privacy');
+    log(s, d.first + ' is within ' + CFG.ARRIVE_M + ' m of ' + (r.bot ? r.who.first + "'s" : 'the') + ' pickup → exact address revealed to driver', 'privacy');
   }
 
   function verifyPin(s, r, pin) {
@@ -777,7 +1032,7 @@
       return fail('Incorrect PIN');
     }
     setState(s, r, 'PIN_VERIFIED');
-    notify(s, 'rider', 'PIN verified — your driver will start the trip', 'ok');
+    tellRider(s, r, 'PIN verified — your driver will start the trip', 'ok');
     notify(s, 'driver', 'PIN verified — destination unlocked: ' + r.dest.name, 'ok', r.driverId);
     log(s, 'PIN verified → destination revealed to driver', 'privacy');
     return { ok: true };
@@ -798,6 +1053,19 @@
     notify(s, 'driver', 'RideCheck: FUber is checking in with your rider.', 'warn', r.driverId);
   }
 
+  function answerRideCheck(s, r, answer) {
+    const rc = r.rideCheck;
+    rc.status = answer === 'help' ? 'help' : 'ok';
+    rc.answeredAt = s.realT;
+    r.rideChecks.push(rc);
+    r.rideCheck = null;
+    const d = byId(s, r.driverId);
+    if (rc.reason === 'deviation') r.planned = remainingPath(d.path, d.pathPos);
+    if (rc.reason === 'stop') r.stop = null;
+    if (rc.status === 'help') startSos(s, 'rider', 'RideCheck');
+    log(s, 'RideCheck answered' + (r.bot ? ' by ' + r.who.first : '') + ': ' + (rc.status === 'ok' ? "\"Yes, I'm fine\"" : '"Call for help" → SOS escalated'), 'safety');
+  }
+
   function tickTrip(s, r, d, dtSim) {
     const t = s.realT;
     if (r.stop) {
@@ -811,7 +1079,7 @@
         r.atDest = true;
         r.atDestAt = t;
         notify(s, 'driver', "You've reached the destination — slide to complete the trip.", 'ok', d.id);
-        notify(s, 'rider', 'Arriving at ' + r.dest.name, 'ok');
+        tellRider(s, r, 'Arriving at ' + r.dest.name, 'ok');
       }
     }
     if (!r.atDest && !r.rideCheck && r.planned) {
@@ -835,14 +1103,20 @@
     d.path = null;
     const net = r2(r.fare.total * (1 - OPTIONS[r.option].serviceFee));
     r.driverEarning = net;
-    reward(s.rider.priority);
+    const rd = riderOf(s, r);
+    if (rd) reward(rd.priority);
     reward(d.priority);
     d.stats.today = r2(d.stats.today + net);
     d.stats.trips++;
-    d.stats.recent.unshift({ rideId: r.id, rider: firstName(s.rider.profile.name), fare: r.fare.total, earned: net, at: Date.now(), to: r.dest.name, ratingFromRider: null, ratingGiven: null });
-    s.rider.history.unshift({ id: r.id, at: Date.now(), from: r.pickup.address, to: r.dest.name, driverId: d.id, driverName: d.short, option: r.option, fare: r.fare.total, rating: null, status: 'completed', payment: r.payment, distKm, durMin });
+    d.stats.recent.unshift({ rideId: r.id, rider: r.passenger ? firstName(r.passenger.name) : r.who.first, fare: r.fare.total, earned: net, at: Date.now(), to: r.dest.name, ratingFromRider: null, ratingGiven: null });
+    if (r.bot) {
+      if (rd) rd.trips++;
+      log(s, d.first + ' dropped ' + r.who.first + ' at ' + r.dest.name + ' · earned N$' + net.toFixed(2), 'match');
+    } else {
+      s.rider.history.unshift({ id: r.id, at: Date.now(), from: r.pickup.address, to: r.dest.name, driverId: d.id, driverName: d.short, option: r.option, fare: r.fare.total, rating: null, status: 'completed', payment: r.payment, distKm, durMin });
+    }
     setState(s, r, 'COMPLETED');
-    notify(s, 'rider', "You've arrived. Total fare N$" +r.fare.total.toFixed(2), 'ok');
+    tellRider(s, r, "You've arrived. Total fare N$" + r.fare.total.toFixed(2), 'ok');
     return { ok: true };
   }
 
@@ -850,13 +1124,15 @@
     if (r.driverRating) return fail('Already rated');
     const stars = clamp(Math.round(p.stars || 5), 1, 5);
     r.driverRating = { stars, tags: p.tags || [] };
-    const rd = s.rider;
-    rd.rating = r2((rd.rating * rd.ratingCount + stars) / (rd.ratingCount + 1));
-    rd.ratingCount++;
+    const rd = riderOf(s, r);
+    if (rd) {
+      rd.rating = r2((rd.rating * rd.ratingCount + stars) / (rd.ratingCount + 1));
+      rd.ratingCount++;
+    }
     const d = byId(s, r.driverId);
     const rec = d && d.stats.recent.find((x) => x.rideId === r.id);
     if (rec) rec.ratingGiven = stars;
-    log(s, 'Driver rated rider ★' + stars, 'info');
+    log(s, 'Driver rated ' + (r.bot ? r.who.first : 'rider') + ' ★' + stars, 'info');
     if (r.riderRating && r.state === 'COMPLETED') setState(s, r, 'RATED');
     return { ok: true };
   }
@@ -888,11 +1164,12 @@
       d.busy = false;
       d.path = null;
       r.cancel = { by: 'driver', reason: 'Rider did not show up' };
-      s.rider.history.unshift({ id: r.id, at: Date.now(), from: r.pickup.address, to: r.dest.name, driverId: d.id, driverName: d.short, option: r.option, fare: 0, rating: null, status: 'no-show', payment: r.payment });
+      if (!r.bot) s.rider.history.unshift({ id: r.id, at: Date.now(), from: r.pickup.address, to: r.dest.name, driverId: d.id, driverName: d.short, option: r.option, fare: 0, rating: null, status: 'no-show', payment: r.payment });
       setState(s, r, 'CANCELLED');
-      notify(s, 'rider', 'Your driver waited 5 minutes and cancelled the trip.', 'err');
-      log(s, 'Driver cancelled: rider did not show up', 'warn');
-      log(s, 'Rider priority −' + penalise(s.rider.priority) + ' (no-show) → ' + s.rider.priority.points + ' pts', 'system');
+      tellRider(s, r, 'Your driver waited 5 minutes and cancelled the trip.', 'err');
+      log(s, 'Driver cancelled: ' + (r.bot ? r.who.first : 'rider') + ' did not show up', 'warn');
+      const rd = riderOf(s, r);
+      if (rd) log(s, (r.bot ? r.who.first : 'Rider') + ' priority −' + penalise(rd.priority) + ' (no-show) → ' + rd.priority.points + ' pts', 'system');
       return { ok: true };
     }
     // Any other reason: the request goes back into the pool.
@@ -905,7 +1182,7 @@
     r.search.phase = 'scanning';
     r.search.offer = null;
     setState(s, r, 'SEARCHING');
-    notify(s, 'rider', 'Your driver had to cancel. Finding you another driver — no charge.', 'warn');
+    tellRider(s, r, 'Your driver had to cancel. Finding you another driver — no charge.', 'warn');
     log(s, d.name + ' cancelled (' + reason + ') → request returned to the pool', 'warn');
     log(s, d.first + ' priority −' + penalise(d.priority) + ' → ' + d.priority.points + ' pts', 'system');
     return { ok: true };
@@ -956,13 +1233,30 @@
   // Busy areas, shown as the demand heat map on the driver's map.
   const HOTSPOTS = [['postst', 3], ['sqmarket', 2], ['maerua', 2], ['wernhil', 2], ['katuhosp', 1], ['grove', 1], ['unam', 1]]
     .map(([id, w]) => { const pl = PLACES.find((x) => x.id === id); return { x: pl.x, y: pl.y, w }; });
-  // Verifications are approved by a click (on the phone or in the presentation panel), never on a timer.
+  // A case the automated checks couldn't settle waits for a Safety Team decision (a click on the
+  // phone or in the presentation panel). Cases that failed a hard check are never approved here.
   function approveRider(s) {
     const v = s.rider.verification;
-    if (v.status !== 'pending') return false;
-    v.status = 'verified';
-    notify(s, 'rider', 'Identity verified — welcome to FUber', 'ok');
-    log(s, 'Rider gender/ID verification approved', 'system');
+    if (v.status !== 'review') return false;
+    riderVerified(s, 'by the Safety Team');
+    return true;
+  }
+
+  // What the rider is told when a reviewer turns her down, from the check that needed a person.
+  function reviewReason(v) {
+    const open = (v.checks || []).find((c) => c.ok !== true);
+    if (!open) return null;
+    if (open.key === 'name') return 'The name on your ID does not match your account';
+    return 'Your selfie could not be matched to your ID photo';
+  }
+
+  function rejectRider(s, reason) {
+    const v = s.rider.verification;
+    if (v.status !== 'review') return false;
+    v.status = 'rejected';
+    v.reason = reason || 'The Safety Team could not confirm your identity';
+    notify(s, 'rider', 'Verification declined: ' + v.reason, 'err');
+    log(s, 'Safety Team rejected rider verification: ' + v.reason, 'safety');
     return true;
   }
 
@@ -984,7 +1278,7 @@
     const d = makeDriver({
       id, name: pf.name, type: v.type, make: v.make, model: v.model, year: v.year, color: v.color, hex: v.hex, plate: v.plate,
       wav: v.wav, acc: 0.9, rating: 5, n: 0, home, wander: 1, offline: true, photo: pf.photo, vphoto: v.photo,
-      av: [tone[0], tone[1], '#f3e8ff', 'long'], isNew: true,
+      av: [tone[0], tone[1], '#f3e8ff', 'long'], isNew: true, idNumber: dp.docs.identity.idNumber || null,
       stats: { today: 0, trips: 0, onlineMs: 0, recent: [], week: [0, 0, 0, 0, 0, 0, 0] },
     });
     d.x = home.x; d.y = home.y;
@@ -993,13 +1287,116 @@
     dp.step = 'approved';
     notify(s, 'driver', 'Application approved — you can go online', 'ok', id);
     log(s, 'Driver ' + pf.name + ' approved and added to the pool (offline until she goes online)', 'system');
+    growRiders(s);
   }
 
   function firstName(n) { return (n || 'Rider').split(' ')[0]; }
 
-  function tickRide(s, dtSim) {
-    const r = s.ride;
-    if (!r) return;
+  // ---------------------------------------------------------------------------
+  // The other riders. Every so often one of them books a ride near a driver who is online, so
+  // driver phones get real requests. Drivers still accept, enter the PIN and complete by hand;
+  // the rider side plays itself: she messages, reads out her PIN, pays and rates.
+  // ---------------------------------------------------------------------------
+  const BOT_HELLO = ["I'm by the entrance", "I'm at the gate, wearing a yellow top", 'Coming down now', 'Please call when you are outside', "I'm at the main door"];
+  const RATE_TAGS = ['Safe driving', 'Friendly', 'Clean car', 'On time', 'Felt safe'];
+
+  function tickCity(s) {
+    if (!s.settings.otherRiders || s.realT < s.nextBookingAt) return;
+    const gap = BOOKING_GAP_S[s.settings.demand] || BOOKING_GAP_S.normal;
+    s.nextBookingAt = s.realT + rand(gap[0], gap[1]) * 1000;
+    // Never compete with the rider phone while it is looking for a driver.
+    if (s.ride && (s.ride.state === 'REQUESTED' || s.ride.state === 'SEARCHING')) return;
+    const free = s.drivers.filter((d) => d.online && !d.busy && signedIn(s, d.id) && !offeredTo(s, d.id) && !rideOfDriver(s, d.id));
+    const waiting = s.bgRides.filter((r) => r.state === 'REQUESTED' || r.state === 'SEARCHING').length;
+    if (!free.length || waiting >= free.length) return;
+    const d = pick(free);
+    const busyRiders = new Set(s.bgRides.map((r) => r.riderId));
+    const pool = s.riders.filter((r) => r.verified && r.id !== s.rider.id && !busyRiders.has(r.id))
+      .sort((a, b) => dist(a.home, d) - dist(b.home, d)).slice(0, 6);
+    if (!pool.length) return;
+    const who = pick(pool);
+    // She books from home when it is close to the driver; otherwise she is out at a place nearby.
+    let pickup, from = 'home';
+    if (dist(who.home, d) < 2600) pickup = snap({ x: who.home.x + rand(-120, 120), y: who.home.y + rand(-120, 120) });
+    else {
+      const near = PLACES.filter((p) => dist(p, d) < 2600);
+      const pl = near.length ? pick(near) : null;
+      pickup = pl ? snap(pl) : snap({ x: d.x + rand(-1500, 1500), y: d.y + rand(-1500, 1500) });
+      from = pl ? pl.name : 'out';
+    }
+    const dests = [...PLACES.map((p) => ({ x: p.x, y: p.y, name: p.name })), ...SUBURBS.map((z) => ({ x: z.x, y: z.y, name: z.name }))]
+      .filter((p) => { const k = dist(p, pickup); return k > 1500 && k < 7500; });
+    // Going home is the most common trip.
+    const dest = from !== 'home' && dist(who.home, pickup) > 1500 ? { x: who.home.x, y: who.home.y, name: 'Home · ' + who.suburb } : pick(dests);
+    if (!dest) return;
+    // She usually books her favourite ride type; often that's the type the nearby driver drives.
+    const option = Math.random() < 0.7 ? d.vehicle.type : who.pref;
+    newRide(s, { option, dest, pickup, seats: Math.random() < 0.8 ? 1 : randInt(2, 3), payment: pick(['card', 'card', 'cash', 'wallet']) }, who);
+  }
+
+  function botSays(s, r, text) {
+    r.messages.push({ from: 'rider', text, t: s.realT });
+    notify(s, 'driver', r.who.first + ': ' + text, 'msg', r.driverId);
+  }
+
+  /** The other riders' side of a ride: everything the rider phone would do by hand. */
+  function tickBotRide(s, r) {
+    const since = s.realT - r.stateAt;
+    if (r.state === 'DRIVER_EN_ROUTE' && !r.said.hello && since > 6000) {
+      r.said.hello = true;
+      if (Math.random() < 0.6) botSays(s, r, pick(BOT_HELLO));
+    }
+    // In person the rider reads out her PIN; here she sends it once the driver has arrived.
+    if (r.state === 'DRIVER_ARRIVED' && !r.said.pin && since > 3500) {
+      r.said.pin = true;
+      botSays(s, r, "I'm getting in. My PIN is " + r.pin);
+    }
+    if (r.rideCheck && s.realT - r.rideCheck.at > 4000) answerRideCheck(s, r, 'ok');
+    if (r.state === 'COMPLETED' && !r.riderRating && since > 3000) {
+      const stars = Math.random() < 0.82 ? 5 : 4;
+      const tags = RATE_TAGS.filter(() => Math.random() < 0.35).slice(0, 2);
+      payAndRate(s, r, { method: r.payment, stars, tags });
+    }
+  }
+
+  function payAndRate(s, r, p) {
+    const d = byId(s, r.driverId);
+    const stars = clamp(Math.round(p.stars || 5), 1, 5);
+    r.paid = true;
+    r.payment = p.method || r.payment;
+    if (!r.bot && r.payment === 'wallet') s.rider.wallet = r2(s.rider.wallet - r.fare.total);
+    r.riderRating = { stars, tags: p.tags || [], comment: String(p.comment || '').slice(0, 200) };
+    r.riderRatedAt = s.realT;
+    d.rating = r2((d.rating * d.ratingCount + stars) / (d.ratingCount + 1));
+    d.ratingCount++;
+    const rd = riderOf(s, r);
+    if (p.favourite && rd && !rd.favourites.includes(d.id)) {
+      rd.favourites.push(d.id);
+      log(s, d.name + ' added to Favourite Drivers (+' + CFG.FAV_BONUS * 100 + ' match score next time)', 'match');
+    }
+    if (!r.bot) {
+      const h = s.rider.history.find((x) => x.id === r.id);
+      if (h) { h.rating = stars; h.payment = r.payment; }
+    }
+    const rec = d.stats.recent.find((x) => x.rideId === r.id);
+    if (rec) rec.ratingFromRider = stars;
+    notify(s, 'driver', r.who.first + ' rated you ★' + stars, 'ok', d.id);
+    log(s, r.who.first + ' paid N$' + r.fare.total.toFixed(2) + ' (' + r.payment + ') and rated ' + d.first + ' ★' + stars, 'info');
+    if (r.driverRating || r.driverDone) setState(s, r, 'RATED');
+  }
+
+  // Finished community rides leave the list once the driver has closed them.
+  function sweepBotRides(s) {
+    s.bgRides = s.bgRides.filter((r) => {
+      const since = s.realT - r.stateAt;
+      if (r.state === 'NO_DRIVERS') return since < 5000;
+      if (r.state === 'CANCELLED') return !(r.driverDone || !r.driverId);
+      if (r.state === 'RATED') return !r.driverDone;
+      return true;
+    });
+  }
+
+  function tickRide(s, r, dtSim) {
     const since = s.realT - r.stateAt;
     const d = r.driverId ? byId(s, r.driverId) : null;
     switch (r.state) {
@@ -1030,13 +1427,19 @@
     const dtSim = dt * s.settings.timeScale;
     s.simT += dtSim;
     tickSos(s);
-    const locked = s.ride && DRIVER_LOCKED.has(s.ride.state) ? s.ride.driverId : null;
+    tickVerification(s);
+    const locked = new Set(allRides(s).filter((r) => DRIVER_LOCKED.has(r.state)).map((r) => r.driverId));
     for (const d of s.drivers) {
       if (!d.online) continue;
       d.stats.onlineMs += dtSim;
-      if (d.id !== locked) wander(s, d, dtSim);
+      if (!locked.has(d.id)) wander(s, d, dtSim);
     }
-    tickRide(s, dtSim);
+    for (const r of allRides(s)) {
+      tickRide(s, r, dtSim);
+      if (r.bot) tickBotRide(s, r);
+    }
+    sweepBotRides(s);
+    tickCity(s);
     if (s.realT - s.lastEtaAt >= 2000) refreshEta(s);
     s.rev++;
   }
@@ -1045,12 +1448,17 @@
   // Actions
   // ---------------------------------------------------------------------------
   const rideFor = (s) => s.ride;
+  /** The trip of the driver signed in on this phone. */
+  const tripOf = (s, sid) => { const did = driverOfSid(s, sid); return did ? rideOfDriver(s, did) : null; };
   const H = {
     // ---- global / presenter -------------------------------------------------
     SET_SETTING(s, p) {
       if (p.key === 'timeScale') s.settings.timeScale = clamp(Number(p.value) || 20, 1, 120);
-      else return fail('Unknown setting');
-      log(s, 'Setting ' + p.key + ' = ' + s.settings[p.key], 'system');
+      else if (p.key === 'otherRiders') {
+        s.settings.otherRiders = !!p.value;
+        s.nextBookingAt = s.realT + 8000;
+      } else return fail('Unknown setting');
+      log(s, p.key === 'otherRiders' ? 'Other riders ' + (s.settings.otherRiders ? 'are booking rides' : 'stopped booking rides') : 'Setting ' + p.key + ' = ' + s.settings[p.key], 'system');
     },
     SET_DEMAND(s, p) {
       if (!DEMAND[p.level]) return fail('Unknown demand level');
@@ -1060,28 +1468,28 @@
       const w = DEMAND[p.level].weights;
       log(s, DEMAND[p.level].label + ' → surge ' + s.surge.toFixed(1) + '×, matching weights ETA ' + Math.round(w.eta * 100) + '% / acceptance ' + Math.round(w.acc * 100) + '%', 'system');
     },
-    X_FORCE_OFFER(s, p) {
-      const r = rideFor(s);
-      if (!r || !r.search.offer) return fail('No open offer');
+    X_FORCE_OFFER(s, p, sid) {
+      const r = focusRide(s, sid, (x) => x.search.offer);
+      if (!r) return fail('No open offer');
       return resolveOffer(s, r, p.accept ? 'accepted' : 'declined');
     },
-    X_ARRIVE_NOW(s) {
-      const r = rideFor(s);
-      if (!r || r.state !== 'DRIVER_EN_ROUTE') return fail('Driver is not en route');
+    X_ARRIVE_NOW(s, p, sid) {
+      const r = focusRide(s, sid, (x) => x.state === 'DRIVER_EN_ROUTE');
+      if (!r) return fail('Driver is not en route');
       const d = byId(s, r.driverId);
       d.pathPos = Math.max(d.pathPos, d.pathLen - 60);
     },
-    X_JUMP_DEST(s) {
-      const r = rideFor(s);
-      if (!r || r.state !== 'IN_TRIP') return fail('No trip in progress');
+    X_JUMP_DEST(s, p, sid) {
+      const r = focusRide(s, sid, (x) => x.state === 'IN_TRIP');
+      if (!r) return fail('No trip in progress');
       const d = byId(s, r.driverId);
       r.stop = null;
       r.tripMeters += Math.max(0, d.pathLen - 40 - d.pathPos);
       d.pathPos = Math.max(d.pathPos, d.pathLen - 40);
     },
-    X_DEVIATE(s) {
-      const r = rideFor(s);
-      if (!r || r.state !== 'IN_TRIP' || r.atDest) return fail('Deviation can only be simulated during a trip');
+    X_DEVIATE(s, p, sid) {
+      const r = focusRide(s, sid, (x) => x.state === 'IN_TRIP' && !x.atDest);
+      if (!r) return fail('Deviation can only be simulated during a trip');
       const d = byId(s, r.driverId);
       const h = (d.heading || 0) * Math.PI / 180;
       const dir = { x: Math.cos(h), y: Math.sin(h) };
@@ -1096,9 +1504,9 @@
       r.stop = null;
       log(s, 'Scenario: driver leaves the planned route', 'scenario');
     },
-    X_STOP(s) {
-      const r = rideFor(s);
-      if (!r || r.state !== 'IN_TRIP' || r.atDest) return fail('Stops can only be simulated during a trip');
+    X_STOP(s, p, sid) {
+      const r = focusRide(s, sid, (x) => x.state === 'IN_TRIP' && !x.atDest);
+      if (!r) return fail('Stops can only be simulated during a trip');
       r.stop = { since: s.simT, checked: false };
       log(s, 'Scenario: vehicle stops unexpectedly (RideCheck after 2 sim-min)', 'scenario');
     },
@@ -1107,10 +1515,22 @@
       for (const dp of Object.values(s.driverPortals)) any = approvePortal(s, dp) || any;
       if (!any) return fail('Nothing is waiting for approval');
     },
+    // The Safety Team turns down a case the automated checks sent for review.
+    X_REJECT(s) {
+      let any = rejectRider(s, reviewReason(s.rider.verification));
+      for (const dp of Object.values(s.driverPortals)) {
+        const doc = dp.docs.identity;
+        if (doc.status !== 'review') continue;
+        doc.status = 'rejected';
+        doc.reason = 'The Safety Team could not confirm her identity';
+        log(s, (dp.profile ? dp.profile.name : 'Driver applicant') + ': identity rejected by the Safety Team', 'safety');
+        any = true;
+      }
+      if (!any) return fail('Nothing is waiting for a decision');
+    },
     X_SHUFFLE(s) {
-      const locked = s.ride && s.ride.driverId;
       for (const d of s.drivers) {
-        if (d.id === locked) continue;
+        if (lockedDriver(s, d.id)) continue;
         const p = jitterPos(d.home, d.wander);
         d.x = p.x; d.y = p.y; d.path = null;
       }
@@ -1119,7 +1539,7 @@
     X_TOGGLE_ONLINE(s, p) {
       const d = byId(s, p.id);
       if (!d) return fail('No such driver');
-      if (s.ride && s.ride.driverId === d.id && DRIVER_LOCKED.has(s.ride.state)) return fail('Driver is on this trip');
+      if (lockedDriver(s, d.id)) return fail('Driver is on a trip');
       d.online = !d.online;
       if (!d.online) d.path = null;
       log(s, d.name + ' is now ' + (d.online ? 'online' : 'offline'), 'scenario');
@@ -1127,22 +1547,32 @@
     X_TOGGLE_BUSY(s, p) {
       const d = byId(s, p.id);
       if (!d) return fail('No such driver');
-      if (s.ride && s.ride.driverId === d.id) return fail('Driver is on this trip');
+      if (rideOfDriver(s, d.id)) return fail('Driver is on a trip');
       d.busy = !d.busy;
       log(s, d.name + (d.busy ? ' started another trip (busy)' : ' finished her other trip (available)'), 'scenario');
     },
 
     // ---- rider: onboarding --------------------------------------------------
     R_GOTO(s, p) { s.rider.step = p.step; },
-    R_DEMO_LOGIN(s) {
+    // Sign in as one of the verified riders in the community (Ndeshi by default).
+    R_DEMO_LOGIN(s, p) {
+      const who = s.riders.find((x) => x.id === (p.riderId || 'r1'));
+      if (!who) return fail('Choose a rider');
+      if (s.bgRides.some((x) => x.riderId === who.id)) return fail(who.first + ' is on a ride right now. Pick someone else.');
       const r = s.rider;
-      r.profile = { name: 'Ndeshi Amutenya', contact: '+264 81 234 5678', photo: null };
-      r.verification = { id: true, selfie: true, status: 'verified', submittedAt: 0 };
+      r.id = who.id;
+      r.profile = { name: who.name, contact: who.phone, photo: null, avatar: who.avatar };
+      r.verification = { ...newVerification(), status: 'verified' };
+      r.rating = who.rating;
+      r.ratingCount = who.ratingCount;
+      r.priority = who.priority;
+      r.favourites = who.favourites;
+      r.pickup = { ...(who.id === 'r1' ? HOME : who.home), source: 'gps' };
       r.contacts = [{ name: 'Meme Selma (Mum)', phone: '+264 81 555 0142' }, { name: 'Taimi (sister)', phone: '+264 85 555 0199' }];
       r.consent = { sos: true, rideCheck: true, shareEta: true };
       r.onboarded = true;
       r.step = 'done';
-      log(s, 'Rider signed in with demo account (verified)', 'system');
+      log(s, who.name + ' (' + who.suburb + ') signed in on the rider phone (verified)', 'system');
     },
     R_SIGNUP(s, p) {
       if (!p.name || !p.contact) return fail('Name and phone/email are required');
@@ -1150,18 +1580,49 @@
       s.rider.step = 'verify';
       log(s, 'Rider account created: ' + s.rider.profile.name, 'system');
     },
+    // An ID or selfie: one of the samples, or a real photo (`image`, a small data URL).
     R_UPLOAD(s, p) {
-      if (p.doc !== 'id' && p.doc !== 'selfie') return fail('Unknown document');
-      s.rider.verification[p.doc] = true;
+      const v = s.rider.verification;
+      if (!['none', 'retake'].includes(v.status)) return fail('Your documents are already submitted');
+      const image = typeof p.image === 'string' && p.image.startsWith('data:image/') && p.image.length < 300000 ? p.image : null;
+      if (p.doc === 'id') {
+        if (v.status === 'retake') return fail('Only the selfie needs retaking');
+        if (image) v.id = { source: 'photo', image, docType: 'Namibian ID card', name: s.rider.profile.name, sex: '', dob: '', idNumber: '' };
+        else v.id = idFromSample(s, p.sample || 'valid', s.rider.profile.name);
+        if (!v.id) return fail('Unknown sample');
+      } else if (p.doc === 'selfie') {
+        if (image) v.selfie = { source: 'photo', image };
+        else {
+          const x = SELFIE_SAMPLES[p.sample || 'live'];
+          if (!x) return fail('Unknown sample');
+          v.selfie = { source: 'sample', sample: p.sample || 'live', live: x.live, match: x.match };
+        }
+      } else return fail('Unknown document');
+    },
+    // A real ID photo can't be read by the demo, so she types the details printed on it.
+    R_ID_DETAILS(s, p) {
+      const id = s.rider.verification.id;
+      if (!id || id.source !== 'photo') return fail('No ID photo to describe');
+      id.name = String(p.name || '').trim().slice(0, 60);
+      id.idNumber = String(p.idNumber || '').replace(/\s+/g, '').slice(0, 11);
+      id.dob = /^\d{4}-\d{2}-\d{2}$/.test(p.dob || '') ? p.dob : '';
+      id.sex = p.sex === 'F' || p.sex === 'M' ? p.sex : '';
     },
     R_SUBMIT_VERIFICATION(s) {
       const v = s.rider.verification;
-      if (!v.id || !v.selfie) return fail('Upload your ID and selfie first');
-      v.status = 'pending';
-      v.submittedAt = s.realT;
-      log(s, 'Rider submitted ID + selfie → pending verification', 'system');
+      if (!v.id || !v.selfie) return fail('Add your ID and a selfie first');
+      if (!['none', 'retake'].includes(v.status)) return fail('Already submitted');
+      if (v.id.source === 'photo' && (!v.id.name || !v.id.idNumber || !v.id.dob || !v.id.sex)) return fail('Enter the details exactly as printed on your ID');
+      startChecks(s, v, s.rider.profile.name, s.rider.id);
+      log(s, 'Rider submitted ID + selfie → automated women-only checks running', 'system');
+    },
+    R_VERIFY_RESET(s) {
+      const v = s.rider.verification;
+      if (!['rejected', 'retake'].includes(v.status)) return fail('Nothing to start again');
+      s.rider.verification = newVerification();
     },
     R_APPROVE(s) { if (!approveRider(s)) return fail('Nothing is waiting for approval'); },
+    R_REJECT(s) { if (!rejectRider(s, reviewReason(s.rider.verification))) return fail('Nothing is waiting for a decision'); },
     R_SAVE_CONTACTS(s, p) {
       const contacts = (p.contacts || []).filter((c) => c && c.name && c.phone).slice(0, 5);
       if (!contacts.length) return fail('Add at least one emergency contact');
@@ -1238,40 +1699,12 @@
     R_PAY_RATE(s, p) {
       const r = rideFor(s);
       if (!r || r.state !== 'COMPLETED' || r.riderRating) return fail('Nothing to rate');
-      const d = byId(s, r.driverId);
-      const stars = clamp(Math.round(p.stars || 5), 1, 5);
-      r.paid = true;
-      r.payment = p.method || r.payment;
-      if (r.payment === 'wallet') s.rider.wallet = r2(s.rider.wallet - r.fare.total);
-      r.riderRating = { stars, tags: p.tags || [], comment: String(p.comment || '').slice(0, 200) };
-      r.riderRatedAt = s.realT;
-      d.rating = r2((d.rating * d.ratingCount + stars) / (d.ratingCount + 1));
-      d.ratingCount++;
-      if (p.favourite && !s.rider.favourites.includes(d.id)) {
-        s.rider.favourites.push(d.id);
-        log(s, d.name + ' added to Favourite Drivers (+' + CFG.FAV_BONUS * 100 + ' match score next time)', 'match');
-      }
-      const h = s.rider.history.find((x) => x.id === r.id);
-      if (h) { h.rating = stars; h.payment = r.payment; }
-      const rec = d.stats.recent.find((x) => x.rideId === r.id);
-      if (rec) rec.ratingFromRider = stars;
-      notify(s, 'driver', firstName(s.rider.profile.name) + ' rated you ★' + stars, 'ok', d.id);
-      log(s, 'Rider paid N$' + r.fare.total.toFixed(2) + ' (' + r.payment + ') and rated driver ★' + stars, 'info');
-      if (r.driverRating || r.driverDone) setState(s, r, 'RATED');
+      payAndRate(s, r, p);
     },
     R_RIDECHECK(s, p) {
       const r = rideFor(s);
       if (!r || !r.rideCheck) return fail('No open RideCheck');
-      const rc = r.rideCheck;
-      rc.status = p.answer === 'help' ? 'help' : 'ok';
-      rc.answeredAt = s.realT;
-      r.rideChecks.push(rc);
-      r.rideCheck = null;
-      const d = byId(s, r.driverId);
-      if (rc.reason === 'deviation') r.planned = remainingPath(d.path, d.pathPos);
-      if (rc.reason === 'stop') r.stop = null;
-      if (rc.status === 'help') startSos(s, 'rider', 'RideCheck');
-      log(s, 'RideCheck answered: ' + (rc.status === 'ok' ? "\"Yes, I'm fine\"" : '"Call for help" → SOS escalated'), 'safety');
+      answerRideCheck(s, r, p.answer);
     },
     R_MESSAGE(s, p) {
       const r = rideFor(s);
@@ -1317,8 +1750,22 @@
       dp.step = 'docs';
     },
     D_UPLOAD_DOC(s, p, sid) {
-      const doc = portalOf(s, sid).docs[p.doc];
+      const dp = portalOf(s, sid);
+      const doc = dp.docs[p.doc];
       if (!doc) return fail('Unknown document');
+      if (p.doc === 'identity') {
+        if (!['none', 'rejected'].includes(doc.status)) return fail('Your ID is already submitted');
+        const name = dp.profile ? dp.profile.name : '';
+        // A real photo can't be read by the demo, so it goes to a person; samples are checked automatically.
+        const id = p.sample ? idFromSample(s, p.sample === 'male' ? 'male' : 'valid', name)
+          : { source: 'photo', docType: 'Namibian ID card', name, sex: 'F', dob: '1990-01-01', idNumber: '900101' + String(randInt(0, 99999)).padStart(5, '0') };
+        if (!id) return fail('Unknown sample');
+        const selfie = p.sample ? { source: 'sample', live: true, match: 0.95 } : { source: 'photo' };
+        dp.docs.identity = { status: 'none', id, selfie, idNumber: id.idNumber };
+        startChecks(s, dp.docs.identity, name, null);
+        log(s, (name || 'Driver applicant') + ': ID + selfie submitted → automated women-only checks running', 'system');
+        return;
+      }
       if (doc.status === 'none') doc.status = 'review';
     },
     D_APPROVE_DOC(s, p, sid) {
@@ -1330,6 +1777,8 @@
     D_DOCS_NEXT(s, p, sid) {
       const dp = portalOf(s, sid);
       if (!DRIVER_DOCS.every((k) => dp.docs[k].status !== 'none')) return fail('Upload every document first');
+      if (dp.docs.identity.status === 'checking') return fail('Wait for the identity checks to finish');
+      if (dp.docs.identity.status === 'rejected') return fail('Your identity check was declined: ' + dp.docs.identity.reason);
       dp.step = 'vehicle';
     },
     D_SAVE_VEHICLE(s, p, sid) {
@@ -1343,7 +1792,7 @@
     D_SIGN_OUT(s, p, sid) {
       const dp = s.driverPortals[portalKey(sid)];
       if (!dp) return;
-      if (s.ride && s.ride.driverId === dp.signedInId && DRIVER_LOCKED.has(s.ride.state)) return fail('Finish your trip first');
+      if (dp.signedInId && lockedDriver(s, dp.signedInId)) return fail('Finish your trip first');
       // Nobody is left to answer her requests, so she goes offline.
       const d = dp.signedInId && byId(s, dp.signedInId);
       if (d && d.online) { d.online = false; d.path = null; log(s, d.name + ' signed out and went offline', 'system'); }
@@ -1358,74 +1807,74 @@
     D_GO_OFFLINE(s, p) {
       const d = byId(s, p.driverId);
       if (!d) return fail('Not signed in');
-      if (s.ride && s.ride.driverId === d.id && DRIVER_LOCKED.has(s.ride.state)) return fail('Finish your trip first');
+      if (lockedDriver(s, d.id)) return fail('Finish your trip first');
       d.online = false;
       d.path = null;
       log(s, d.name + ' went offline', 'system');
     },
     D_RESPOND(s, p) {
-      const r = rideFor(s);
-      if (!r || !r.search.offer || r.search.offer.driverId !== p.driverId) return fail('This request is no longer available');
+      const r = allRides(s).find((x) => x.search.offer && x.search.offer.driverId === p.driverId);
+      if (!r) return fail('This request is no longer available');
       return resolveOffer(s, r, p.accept ? 'accepted' : 'declined');
     },
-    D_START_WAIT(s) {
-      const r = rideFor(s);
+    D_START_WAIT(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r || r.state !== 'DRIVER_ARRIVED') return fail('You must be at the pickup point');
       if (!r.wait) r.wait = { startedSim: s.simT };
-      notify(s, 'rider', 'Your driver is waiting at the pickup point — free waiting time 5 min', 'warn');
+      tellRider(s, r, 'Your driver is waiting at the pickup point — free waiting time 5 min', 'warn');
       log(s, 'Driver started the wait timer (5 sim-min free wait)', 'info');
     },
-    D_ENTER_PIN(s, p) {
-      const r = rideFor(s);
+    D_ENTER_PIN(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r) return fail('No trip');
       return verifyPin(s, r, p.pin);
     },
-    D_START_TRIP(s) {
-      const r = rideFor(s);
+    D_START_TRIP(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r || r.state !== 'PIN_VERIFIED') return fail('Verify the PIN first');
       startTrip(s, r, byId(s, r.driverId));
     },
-    D_CANCEL(s, p) {
-      const r = rideFor(s);
+    D_CANCEL(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r) return fail('No trip');
       return cancelByDriver(s, r, p.reason || 'Other');
     },
-    D_COMPLETE(s) {
-      const r = rideFor(s);
+    D_COMPLETE(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r || r.state !== 'IN_TRIP') return fail('No trip in progress');
       const d = byId(s, r.driverId);
       if (!r.atDest && dist(d, r.dest) > 250) return fail('You can complete the trip once you reach the destination');
       return completeTrip(s, r, d);
     },
-    D_RATE(s, p) {
-      const r = rideFor(s);
+    D_RATE(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r || !['COMPLETED', 'RATED'].includes(r.state)) return fail('Nothing to rate');
       return rateRider(s, r, p);
     },
-    D_FINISH(s) {
-      const r = rideFor(s);
+    D_FINISH(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r) return;
       r.driverDone = true;
       // Leaving without rating skips the rating instead of inventing one.
       if (r.state === 'COMPLETED' && !r.driverRating) {
-        log(s, 'Driver skipped rating the rider', 'info');
+        log(s, 'Driver skipped rating ' + (r.bot ? r.who.first : 'the rider'), 'info');
         if (r.riderRating) setState(s, r, 'RATED');
       }
     },
-    D_MESSAGE(s, p) {
-      const r = rideFor(s);
+    D_MESSAGE(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r || !r.driverId) return fail('No trip');
       r.messages.push({ from: 'driver', text: String(p.text).slice(0, 200), t: s.realT });
-      notify(s, 'rider', byId(s, r.driverId).first + ': ' + p.text, 'msg');
+      tellRider(s, r, byId(s, r.driverId).first + ': ' + p.text, 'msg');
     },
-    D_SHARE(s) {
-      const r = rideFor(s);
+    D_SHARE(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r) return fail('No trip');
       if (!r.driverShare) r.driverShare = { code: code(), at: s.realT };
       log(s, 'Driver shared route fuber.app/r/' + r.driverShare.code + ' with FUber Safety', 'safety');
     },
-    D_REPORT(s, p) {
-      const r = rideFor(s);
+    D_REPORT(s, p, sid) {
+      const r = tripOf(s, sid);
       if (!r) return fail('No trip');
       r.reports.push({ reason: p.reason, t: s.realT });
       notify(s, 'driver', 'Report submitted. The FUber Safety Team will review it within 24 h.', 'ok', r.driverId);
@@ -1460,6 +1909,7 @@
   return {
     Sim, WORLD, BOUNDS, ROADS, PLACES, SUBURBS, HOME, HOTSPOTS, OPTIONS, DEMAND, CFG, STATES, DRIVER_DOCS,
     DEMO_DRIVER_IDS: SEED_DRIVERS.map((d) => d.id), seedDriverPortal,
+    RIDERS_PER_DRIVER, ID_SAMPLES, SELFIE_SAMPLES, CHECK_STEP_MS, allRides, rideOfDriver,
     snap, route, roadDist, fromLatLng, toLatLng, searchPlaces, polyLen, pointAlong, remainingPath, distToPoly, nextTurn, dist, zoneOf, streetOf, addressOf, approxArea, nearestPlace,
     estimate, fareFor, rankDrivers, speedMs,
   };

@@ -1,7 +1,7 @@
 /* Driver portal */
 (function () {
   'use strict';
-  const { E, Store, esc, money, mins, km, arriveAt, mmss, firstName, range, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm } = Hera;
+  const { E, Store, esc, money, mins, km, arriveAt, mmss, firstName, range, ic, stars, avatar, carSVG, readImage, patch, bind, toast, statusBanner, emsConfirm, idChecks, checksShown } = Hera;
 
   const byId = (s, id) => s.drivers.find((d) => d.id === id);
   // This screen's own sign-in; other phones running the driver app have their own.
@@ -37,16 +37,17 @@
   }
 
   // The person being picked up: the passenger when the ride was booked for someone else.
-  function paxName(s) {
-    const p = s.ride && s.ride.passenger;
-    return firstName(p ? p.name : s.rider.profile.name);
+  function paxName(r) {
+    return firstName(r.passenger ? r.passenger.name : r.who.name);
   }
 
   const seatsLabel = (r) => (r.seats || 1) + ' passenger' + ((r.seats || 1) > 1 ? 's' : '');
   // A guest booked by someone else has no account: she is not ID-verified and has no rating of her own.
-  const riderBadge = (s, r) => (r && r.passenger
-    ? ic('user', 'ic-xs') + 'Guest · booked by ' + esc(firstName(s.rider.profile.name)) + ' (verified)'
-    : ic('star', 'star-ic', true) + s.rider.rating.toFixed(2) + ' · ' + ic('shieldCheck', 'ic-xs') + 'Verified');
+  const riderBadge = (r) => (r.passenger
+    ? ic('user', 'ic-xs') + 'Guest · booked by ' + esc(r.who.first) + ' (verified)'
+    : ic('star', 'star-ic', true) + r.who.rating.toFixed(2) + ' · ' + ic('shieldCheck', 'ic-xs') + 'Verified');
+  // The request offered to this driver right now, from the rider phone or any other rider.
+  const offerFor = (s, driverId) => E.allRides(s).find((r) => r.state === 'SEARCHING' && r.search.offer && r.search.offer.driverId === driverId) || null;
   // The fare is locked at request, so the driver's take is known before she accepts.
   const earnFor = (r) => r2(r.estimate.total * (1 - E.OPTIONS[r.option].serviceFee));
 
@@ -111,11 +112,12 @@
       this.s = s;
       const vid = this.viewId(s);
       this.vid = vid;
-      const rideKey = s.ride ? s.ride.id + s.ride.state : '';
+      const own = vid ? E.rideOfDriver(s, vid) : null;
+      const rideKey = own ? own.id + own.state : '';
       if (rideKey !== this.lastRideKey) {
         this.lastRideKey = rideKey;
         this.ui.pin = '';
-        if (s.ride && s.ride.state === 'COMPLETED') this.ui.rating = { stars: 0, tags: [] };
+        if (own && own.state === 'COMPLETED') this.ui.rating = { stars: 0, tags: [] };
         if (this.ui.modal === 'cancel' || this.ui.modal === 'report') this.ui.modal = null;
       }
       const scr = this.screen(s, vid);
@@ -135,8 +137,8 @@
     screen(s, vid) {
       const dp = portal(s);
       if (!vid || dp.step === 'approved') return this.onboarding(s);
-      const d = byId(s, vid), r = s.ride;
-      if (r && r.driverId === d.id && !r.driverDone) return this.rideScreen(s, r, d);
+      const d = byId(s, vid), r = E.rideOfDriver(s, d.id);
+      if (r) return this.rideScreen(s, r, d);
       if (this.ui.tab === 'earnings') return this.earnings(s, d);
       if (this.ui.tab === 'account') return this.account(s, d);
       return d.online ? this.market(s, d) : this.offline(s, d);
@@ -207,11 +209,29 @@
           };
         case 'docs': {
           const allUp = E.DRIVER_DOCS.every((k) => dp.docs[k].status !== 'none');
+          const idDoc = dp.docs.identity;
+          // ID + selfie go through the same automatic women-only checks as riders.
+          const identityTile = () => {
+            const st = idDoc.status;
+            const pickers = '<div class="sample-row"><span class="tiny muted">Samples:</span><button class="tag" data-a="idSample" data-v="valid">' + esc(E.ID_SAMPLES.valid.label) + ' + selfie</button>' +
+              '<button class="tag" data-a="idSample" data-v="male">' + esc(E.ID_SAMPLES.male.label) + ' + selfie</button></div>';
+            const state = st === 'checking' ? '<span class="ut-review"><span class="spinner xs"></span>Checking</span>'
+              : st === 'approved' ? '<span class="ut-ok">' + ic('check') + 'Verified</span>'
+                : st === 'review' ? '<div class="ut-actions"><span class="ut-review">' + ic('eye') + 'Safety Team</span><button class="btn btn-sm btn-link" data-a="approveDoc" data-v="identity">Approve</button></div>'
+                  : st === 'rejected' ? '<span class="ut-review" style="color:var(--red)">' + ic('x') + 'Declined</span>'
+                    : '<div class="ut-actions"><label class="btn btn-sm btn-soft">' + ic('upload') + 'Upload<input type="file" accept="image/*" data-doc="identity" hidden></label></div>';
+            return '<div class="upload-tile stack' + (st === 'approved' ? ' done' : '') + '"><div class="ut-row"><div class="ut-icon">' + ic(st === 'approved' ? 'check' : DOCS.identity.icon) + '</div>' +
+              '<div class="ut-main"><b>' + DOCS.identity.title + '</b><div class="tiny muted">' + DOCS.identity.sub + '</div></div>' + state + '</div>' +
+              (idDoc.checks && idDoc.checks.length && st !== 'none' ? idChecks(idDoc, s.realT) : '') +
+              (st === 'rejected' ? '<p class="tiny" style="color:var(--red);margin:0">' + esc(idDoc.reason) + '</p>' : '') +
+              (st === 'none' || st === 'rejected' ? pickers : '') + '</div>';
+          };
           return {
-            key: 'd-docs:' + E.DRIVER_DOCS.map((k) => dp.docs[k].status).join(),
+            key: 'd-docs:' + E.DRIVER_DOCS.map((k) => dp.docs[k].status).join() + ':' + checksShown(idDoc.checks ? idDoc : { status: 'none', checks: [] }, s.realT),
             html: () => '<div class="page">' + head('signup', 2) + '<h2 class="h2">Verification documents</h2>' +
-              '<p class="small muted">FUber is women-only. Every document is reviewed by our onboarding team. In this demo, tap Approve on a document in review.</p>' +
+              '<p class="small muted">FUber is women-only. Your ID and selfie are checked automatically; other documents are reviewed by our onboarding team. In this demo, tap Approve on a document in review.</p>' +
               E.DRIVER_DOCS.map((k) => {
+                if (k === 'identity') return identityTile();
                 const m = DOCS[k], st = dp.docs[k].status;
                 return '<div class="upload-tile' + (st === 'approved' ? ' done' : '') + '"><div class="ut-icon">' + ic(st === 'approved' ? 'check' : m.icon) + '</div><div class="ut-main"><b>' + m.title + '</b><div class="tiny muted">' + m.sub + '</div></div>' +
                   (st === 'none' ? '<div class="ut-actions"><label class="btn btn-sm btn-soft">' + ic('upload') + 'Upload<input type="file" accept="image/*,application/pdf" data-doc="' + k + '" hidden></label><button class="btn btn-sm btn-link" data-a="uploadDoc" data-v="' + k + '">Sample</button></div>'
@@ -277,14 +297,15 @@
     }
 
     market(s, d) {
-      const r = s.ride, u = this.ui;
-      const offer = r && r.state === 'SEARCHING' && r.search.offer;
-      const mine = offer && offer.driverId === d.id;
-      const other = r && r.state === 'SEARCHING' && !mine && E.dist(d, r.pickup) <= E.CFG.RADIUS * 1.2;
+      const u = this.ui;
+      const offered = offerFor(s, d.id);
+      const r = offered || E.allRides(s).find((x) => x.state === 'SEARCHING' && E.dist(d, x.pickup) <= E.CFG.RADIUS * 1.2);
+      const mine = !!offered;
+      const other = !!r && !mine;
+      const offer = mine && r.search.offer;
       const vals = {};
       let realCard = '';
-      if (r && (mine || other)) {
-        const rd = s.rider;
+      if (r) {
         const roadM = E.roadDist(d, r.pickup);
         const etaMin = roadM / E.speedMs(s) / 60;
         vals.reqDist = km(roadM) + ' · ' + mins(etaMin);
@@ -295,16 +316,17 @@
         realCard = '<div class="req-card' + (mine ? ' offer' : ' muted-card') + '">' +
           (mine ? '<div class="offer-top"><span class="eyebrow">New request · ' + esc(E.OPTIONS[r.option].short) + (r.wav ? ' · ' + ic('wheelchair') : '') + '</span><b class="offer-sec" data-b="offerSec"></b></div><div class="offer-timer"><div data-bw="offerPct"></div></div>'
             : '<div class="offer-top"><span class="eyebrow">Being offered to a better-matched driver</span></div>') +
-          '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><b>' + esc(paxName(s)) + '</b>' + (r.passenger ? '' : ' <span class="tiny">' + ic('star', 'star-ic', true) + rd.rating.toFixed(2) + '</span>') +
-          '<div class="tiny muted">' + ic('shieldCheck', 'ic-xs') + (r.passenger ? 'Booked by ' + esc(firstName(rd.profile.name)) + ' (verified)' : 'Verified rider') + ' · ' + seatsLabel(r) + '</div></div>' +
+          '<div class="req-rider"><span class="initial">' + esc(paxName(r)[0]) + '</span><div class="grow"><b>' + esc(paxName(r)) + '</b>' + (r.passenger ? '' : ' <span class="tiny">' + ic('star', 'star-ic', true) + r.who.rating.toFixed(2) + '</span>') +
+          '<div class="tiny muted">' + ic('shieldCheck', 'ic-xs') + (r.passenger ? 'Booked by ' + esc(r.who.first) + ' (verified)' : 'Verified rider') + ' · ' + seatsLabel(r) + '</div></div>' +
           '<div class="req-fare"><b>' + money(r.estimate.total) + '</b><div class="tiny muted">you earn ' + money(earnFor(r)) + '</div></div></div>' +
           '<div class="req-loc">' + ic('pin') + '<div><b>' + esc(r.pickup.near) + '</b><div class="tiny muted">Approximate pickup area</div></div></div>' +
           '<div class="req-grid"><div><span class="tiny muted">To pickup</span><b data-b="reqDist"></b></div><div><span class="tiny muted">Trip length</span><b>~' + mins(r.estimate.durMin) + '</b></div><div><span class="tiny muted">Destination</span><b>' + ic('lock', 'ic-xs') + 'Hidden</b></div></div>' +
           (mine ? '<div class="privacy-note">' + ic('lock') + 'Exact pickup is revealed within 50 m, destination after PIN check.</div>' +
             '<div class="row gap"><button class="btn btn-soft grow" data-a="respond" data-v="0">Decline</button><button class="btn btn-primary grow btn-lg" data-a="respond" data-v="1">Accept</button></div>' : '') + '</div>';
       }
-      const key = 'mkt:' + d.id + ':' + (mine ? 'offer' + r.search.offers.length : other ? 'other' : '') + ':' + s.settings.demand + ':' + u.collapsed;
-      const approx = r && (mine || other) ? r.approx : null;
+      const key = 'mkt:' + d.id + ':' + (r ? r.id + ':' : '') + (mine ? 'offer' + r.search.offers.length : other ? 'other' : '') + ':' + s.settings.demand + ':' + u.collapsed;
+      const approx = r ? r.approx : null;
+      const ridersNear = s.riders.filter((x) => E.dist(x.home, d) <= E.CFG.RADIUS).length;
       return {
         key,
         map: {
@@ -315,7 +337,7 @@
         html: () => this.sos() + this.topbar(s, d) +
           '<div class="sheet with-tabs market' + (u.collapsed ? ' collapsed' : '') + '">' +
           '<button class="sheet-grab" data-a="collapse">' + (u.collapsed ? 'Show requests' : 'Show map') + '</button>' +
-          '<div class="between"><div><div class="h3"><span class="live-dot"></span>You\'re online</div><div class="tiny muted">Requests near you · approximate areas only</div></div>' +
+          '<div class="between"><div><div class="h3"><span class="live-dot"></span>You\'re online</div><div class="tiny muted">' + ridersNear + ' verified riders live within 3 km · approximate areas only</div></div>' +
           (s.surge > 1 ? '<span class="badge-surge">' + ic('zap') + s.surge.toFixed(1) + '×</span>' : '<span class="chip">' + ic('flame') + 'Normal</span>') + '</div>' +
           realCard +
           (!realCard ? '<div class="empty small muted"><span class="spinner xs"></span>Looking for requests nearby…</div>' : '') +
@@ -326,9 +348,9 @@
     // ------------------------------------------------------------------------
     // Active trip
     // ------------------------------------------------------------------------
-    navBanner(d, title) {
+    navBanner(d, title, r) {
       const t = E.nextTurn(d.path, d.pathPos);
-      const txt = title || (t.dir === 'arrive' ? 'Continue to the ' + (this.s.ride.state === 'IN_TRIP' ? 'destination' : 'pickup area') : (t.dir === 'uturn' ? 'Make a U-turn onto ' : 'Turn ' + t.dir + ' onto ') + t.street);
+      const txt = title || (t.dir === 'arrive' ? 'Continue to the ' + (r && r.state === 'IN_TRIP' ? 'destination' : 'pickup area') : (t.dir === 'uturn' ? 'Make a U-turn onto ' : 'Turn ' + t.dir + ' onto ') + t.street);
       return { html: '<div class="nav-banner"><div class="nav-ic">' + ic(title ? 'flag' : TURN_ICON[t.dir] || 'straight') + '</div><div class="grow"><div class="nav-dist" data-b="navDist"></div><div class="nav-txt">' + esc(txt) + '</div>' + (t.current && !title ? '<div class="tiny nav-on">on ' + esc(t.current) + '</div>' : '') + '</div></div>', key: t.dir + t.street + (title || ''), dist: title ? '' : km(t.inM) };
     }
 
@@ -342,16 +364,15 @@
       }
     }
 
-    riderLine(s, label) {
-      const rd = s.rider;
-      return '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><div class="tiny muted">' + label + '</div><b>' + esc(paxName(s)) + '</b> <span class="tiny">' + riderBadge(s, s.ride) + ' · ' + seatsLabel(s.ride) + '</span></div>';
+    riderLine(r, label) {
+      return '<div class="req-rider"><span class="initial">' + esc(paxName(r)[0]) + '</span><div class="grow"><div class="tiny muted">' + label + '</div><b>' + esc(paxName(r)) + '</b> <span class="tiny">' + riderBadge(r) + ' · ' + seatsLabel(r) + '</span></div>';
     }
 
     toPickup(s, r, d) {
       const assigned = r.state === 'DRIVER_ASSIGNED';
       const full = assigned || !d.path ? E.route(d, r.pickup) : E.remainingPath(d.path, d.pathPos);
       const path = truncateToCircle(full, r.approx);
-      const nav = assigned ? { html: '<div class="nav-banner"><div class="nav-ic">' + ic('nav') + '</div><div class="grow"><div class="nav-txt">Calculating route to pickup area…</div></div></div>', key: 'calc' } : this.navBanner(d);
+      const nav = assigned ? { html: '<div class="nav-banner"><div class="nav-ic">' + ic('nav') + '</div><div class="grow"><div class="nav-txt">Calculating route to pickup area…</div></div></div>', key: 'calc' } : this.navBanner(d, null, r);
       const eta = r.eta || {};
       return {
         key: 'pick:' + r.id + ':' + r.state + ':' + nav.key,
@@ -359,7 +380,7 @@
         vals: { etaP: mins(eta.pickupMin), distP: eta.pickupM != null ? km(eta.pickupM) : '', navDist: nav.dist || '' },
         html: () => this.sos() + '<div class="top-stack">' + statusBanner(r.state, 'driver') + nav.html + '</div>' +
           '<div class="sheet ride-sheet">' +
-          '<div class="between">' + this.riderLine(s, 'Picking up') + '</div><div class="eta-pill"><b data-b="etaP"></b><span class="tiny" data-b="distP"></span></div></div>' +
+          '<div class="between">' + this.riderLine(r, 'Picking up') + '</div><div class="eta-pill"><b data-b="etaP"></b><span class="tiny" data-b="distP"></span></div></div>' +
           '<div class="loc-row locked">' + ic('pin') + '<div class="grow"><div class="tiny muted">Pickup area</div><b>' + esc(r.pickup.near) + '</b><div class="small">' + esc(r.pickup.street) + ' area · ' + esc(r.pickup.area) + '</div>' +
           '<div class="tiny lock-note">' + ic('lock', 'ic-xs') + 'Exact address unlocks within ' + E.CFG.ARRIVE_M + ' m</div></div></div>' +
           '<div class="loc-row locked">' + ic('flag') + '<div class="grow"><div class="tiny muted">Destination</div><b>' + ic('lock', 'ic-xs') + 'Hidden until PIN is verified</b><div class="tiny muted">Est. trip ~' + mins(r.estimate.durMin) + ' · ' + range(r.estimate.low, r.estimate.high) + '</div></div></div>' +
@@ -385,7 +406,7 @@
           '<div class="nav-banner arrived"><div class="nav-ic">' + ic('pin') + '</div><div class="grow"><div class="nav-txt">You\'ve arrived at the pickup</div><div class="tiny nav-on">Within ' + E.CFG.ARRIVE_M + ' m of the rider\'s pin</div></div></div></div>' +
           '<div class="sheet ride-sheet tall">' +
           '<div class="loc-row unlocked reveal">' + ic('unlock') + '<div class="grow"><div class="tiny">Exact pickup address — unlocked</div><b>' + esc(r.pickup.address) + '</b><div class="small">' + esc(r.pickup.area) + '</div></div></div>' +
-          '<div class="pin-entry-wrap"><div class="between"><b>Enter ' + esc(paxName(s)) + '\'s 4-digit PIN</b><span class="tiny muted">to start the trip</span></div>' +
+          '<div class="pin-entry-wrap"><div class="between"><b>Enter ' + esc(paxName(r)) + '\'s 4-digit PIN</b><span class="tiny muted">to start the trip</span></div>' +
           '<div class="pin-entry' + (u.pinShake ? ' shake' : '') + '">' + [0, 1, 2, 3].map((i) => '<span data-b="pin' + i + '"></span>').join('') + '</div>' +
           '<div class="pin-error" data-bshow="pinErr">' + ic('alert') + 'Incorrect PIN — ask the rider to read it again</div>' +
           '<div class="keypad">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].map((k) => '<button data-a="key" data-v="' + k + '">' + k + '</button>').join('') + '</div></div>' +
@@ -403,7 +424,7 @@
       const path = !verified && d.path ? E.remainingPath(d.path, d.pathPos) : E.route(r.pickup, r.dest);
       const remain = !verified && d.path ? d.pathLen - d.pathPos : E.polyLen(path);
       const nav = verified ? { html: '<div class="nav-banner unlocked"><div class="nav-ic">' + ic('unlock') + '</div><div class="grow"><div class="nav-txt">Destination unlocked</div><div class="tiny nav-on">Tap Start trip when the rider is in the car</div></div></div>', key: 'v' }
-        : r.atDest ? this.navBanner(d, 'You\'ve arrived at ' + r.dest.name) : r.stop ? { html: '<div class="nav-banner stopped"><div class="nav-ic">' + ic('alert') + '</div><div class="grow"><div class="nav-txt">Vehicle stopped</div><div class="tiny nav-on">Simulated unexpected stop</div></div></div>', key: 'stop' } : this.navBanner(d);
+        : r.atDest ? this.navBanner(d, 'You\'ve arrived at ' + r.dest.name, r) : r.stop ? { html: '<div class="nav-banner stopped"><div class="nav-ic">' + ic('alert') + '</div><div class="grow"><div class="nav-txt">Vehicle stopped</div><div class="tiny nav-on">Simulated unexpected stop</div></div></div>', key: 'stop' } : this.navBanner(d, null, r);
       const deviated = r.offRouteM > 40 || r.rideChecks.some((c) => c.reason === 'deviation');
       const eta = r.eta || {};
       const near = r.atDest || E.dist(d, r.dest) <= 250;
@@ -418,7 +439,7 @@
           '<div class="sheet ride-sheet">' +
           '<div class="loc-row unlocked' + (verified ? ' reveal' : '') + '">' + ic('flag') + '<div class="grow"><div class="tiny">Destination</div><b>' + esc(r.dest.name) + '</b><div class="small">' + esc(r.dest.address) + ' · ' + esc(r.dest.area) + '</div></div>' +
           '<div class="eta-pill"><b data-b="etaT"></b><span class="tiny" data-b="distT"></span></div></div>' +
-          this.riderLine(s, 'Rider on board') + '</div>' +
+          this.riderLine(r, 'Rider on board') + '</div>' +
           (r.rideCheck ? '<div class="note warn">' + ic('shieldCheck') + '<span><b>RideCheck in progress.</b> FUber is checking in with your rider (' + (r.rideCheck.reason === 'deviation' ? 'route deviation' : 'long stop') + ').</span></div>' : '') +
           '<div class="action-row">' +
           '<button class="action" data-a="share">' + ic('route') + '<span>Share my route</span></button>' +
@@ -441,12 +462,12 @@
           '<div class="card"><div class="eyebrow">Earnings</div><div class="fare-line"><span>Rider paid</span><span>' + money(f.total) + '</span></div>' +
           '<div class="fare-line"><span>FUber service fee (' + E.OPTIONS[r.option].serviceFee * 100 + '%)</span><span>−' + money(fee) + '</span></div>' +
           '<div class="fare-line total"><span>You earned</span><span>' + money(r.driverEarning) + '</span></div></div>' +
-          (r.driverRating ? '<div class="card"><div class="fare-line"><span>You rated ' + esc(paxName(s)) + '</span><span>' + stars(r.driverRating.stars) + '</span></div></div>'
-            : '<div class="card"><div class="eyebrow">Rate your rider</div><b>How was ' + esc(paxName(s)) + '?</b>' +
+          (r.driverRating ? '<div class="card"><div class="fare-line"><span>You rated ' + esc(paxName(r)) + '</span><span>' + stars(r.driverRating.stars) + '</span></div></div>'
+            : '<div class="card"><div class="eyebrow">Rate your rider</div><b>How was ' + esc(paxName(r)) + '?</b>' +
             '<div class="star-input">' + [1, 2, 3, 4, 5].map((n) => '<button data-a="star" data-v="' + n + '" class="' + (n <= u.rating.stars ? 'on' : '') + '">' + ic('star', '', true) + '</button>').join('') + '</div>' +
             '<div class="tag-list">' + RATE_TAGS.map((t) => '<button class="tag' + (u.rating.tags.includes(t) ? ' on' : '') + '" data-a="tag" data-v="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>' +
             '<button class="btn btn-primary btn-block" data-a="rate"' + (u.rating.stars ? '' : ' disabled') + '>Submit rating</button></div>') +
-          '<div class="card"><div class="fare-line"><span>' + esc(paxName(s)) + ' rated you</span><span>' + (r.riderRating ? stars(r.riderRating.stars) : '<span class="tiny muted">waiting for rider…</span>') + '</span></div>' +
+          '<div class="card"><div class="fare-line"><span>' + esc(paxName(r)) + ' rated you</span><span>' + (r.riderRating ? stars(r.riderRating.stars) : '<span class="tiny muted">waiting for rider…</span>') + '</span></div>' +
           (r.riderRating && r.riderRating.tags.length ? '<div class="tag-list">' + r.riderRating.tags.map((t) => '<span class="tag on">' + esc(t) + '</span>').join('') + '</div>' : '') + '</div>' +
           '<button class="btn btn-dark btn-block btn-lg" data-a="finish">Back to requests</button></div>',
       };
@@ -504,7 +525,7 @@
     // ------------------------------------------------------------------------
     renderOverlay(s, vid) {
       const sos = s.sos.driver && (!s.sos.driver.driverId || s.sos.driver.driverId === vid) ? s.sos.driver : null;
-      const u = this.ui, r = s.ride;
+      const u = this.ui, r = vid ? E.rideOfDriver(s, vid) : null;
       const d = vid && byId(s, vid);
       let key = '', html = () => '', vals = {};
       const sheet = (title, body) => '<div class="modal-back" data-a="closeModal" data-self><div class="modal sheet-modal"><div class="modal-head"><b>' + title + '</b><button class="icon-btn sm" data-a="closeModal">' + ic('x') + '</button></div>' + body + '</div></div>';
@@ -517,19 +538,19 @@
           '<button class="btn btn-light btn-block btn-lg" data-a="sosCancel">Cancel — I pressed by mistake</button></div></div>'
           : '<div class="modal-back sos-back"><div class="modal center-modal sos-modal sent"><div class="big-check">' + ic('check') + '</div><div class="h2">Alert sent</div>' +
           '<ul class="sos-list"><li>' + ic('shieldCheck') + '<span>FUber Safety Team alerted — an agent is calling you now</span></li><li>' + ic('users') + '<span>Your emergency contact has been notified</span></li>' +
-          '<li>' + ic('pin') + '<span>Live location' + (r && r.driverId === vid ? ' and trip ' + esc(r.id) : '') + ' shared</span></li></ul>' +
+          '<li>' + ic('pin') + '<span>Live location' + (r ? ' and trip ' + esc(r.id) : '') + ' shared</span></li></ul>' +
           (ems ? emsConfirm() : '<button class="btn btn-danger btn-block btn-lg" data-a="call911">' + ic('phone') + 'Call emergency services</button>') +
           '<button class="btn btn-light btn-block" data-a="sosCancel">I\'m safe — close alert</button></div></div>';
       } else if (u.modal && r && d) {
         if (u.modal === 'chat') {
           key = 'chat:' + r.messages.length;
-          html = () => sheet('Message ' + esc(paxName(s)), '<div class="chat">' + (r.messages.length ? r.messages.map((m) => '<div class="bubble ' + (m.from === 'driver' ? 'me' : '') + '">' + esc(m.text) + '</div>').join('') : '<div class="tiny muted center">Messages go through FUber — phone numbers stay private.</div>') + '</div>' +
+          html = () => sheet('Message ' + esc(paxName(r)), '<div class="chat">' + (r.messages.length ? r.messages.map((m) => '<div class="bubble ' + (m.from === 'driver' ? 'me' : '') + '">' + esc(m.text) + '</div>').join('') : '<div class="tiny muted center">Messages go through FUber — phone numbers stay private.</div>') + '</div>' +
             '<div class="quick-msgs">' + QUICK_MSGS.map((q) => '<button class="tag" data-a="quickMsg" data-v="' + esc(q) + '">' + esc(q) + '</button>').join('') + '</div>' +
             '<div class="row gap"><input class="input grow" placeholder="Type a message" data-m="chat" value="' + esc(u.chat) + '"><button class="btn btn-primary" data-a="sendMsg">Send</button></div>');
         } else if (u.modal === 'call') {
           key = 'call';
           vals = { callT: mmss(Date.now() - u.callStart) };
-          html = () => '<div class="modal-back"><div class="modal center-modal call-modal"><span class="initial xl">' + esc(paxName(s)[0]) + '</span><div class="h2">' + esc(paxName(s)) + '</div><div class="small muted">FUber secure line · <span data-b="callT"></span></div>' +
+          html = () => '<div class="modal-back"><div class="modal center-modal call-modal"><span class="initial xl">' + esc(paxName(r)[0]) + '</span><div class="h2">' + esc(paxName(r)) + '</div><div class="small muted">FUber secure line · <span data-b="callT"></span></div>' +
             '<div class="note">' + ic('lock') + '<span>Numbers are masked in both directions. You never see the rider\'s real number.</span></div><button class="btn btn-danger btn-block btn-lg" data-a="closeModal">' + ic('phone') + 'End call</button></div></div>';
         } else if (u.modal === 'cancel') {
           key = 'cancel';
@@ -618,7 +639,8 @@
           break;
         }
         case 'uploadDoc': this.act('D_UPLOAD_DOC', { doc: v }); break;
-        case 'allDocs': for (const k of E.DRIVER_DOCS) if (portal(s).docs[k].status === 'none') await Store.send('D_UPLOAD_DOC', { doc: k }); break;
+        case 'allDocs': for (const k of E.DRIVER_DOCS) if (portal(s).docs[k].status === 'none') await Store.send('D_UPLOAD_DOC', { doc: k, sample: k === 'identity' ? 'valid' : undefined }); break;
+        case 'idSample': this.act('D_UPLOAD_DOC', { doc: 'identity', sample: v }); break;
         case 'docsNext': this.act('D_DOCS_NEXT'); break;
         case 'vtype': u.vehicle.type = v; this.set({}); break;
         case 'demoDriver': { const d = byId(s, v); u.demoDriver = v; if (d) u.vehicle.type = d.vehicle.type; this.set({}); break; }
@@ -664,7 +686,7 @@
         case 'call': this.act('D_CALL'); this.set({ modal: 'call', callStart: Date.now() }); break;
         case 'share': this.act('D_SHARE'); this.set({ modal: 'share' }); break;
         case 'copyLink':
-          try { await navigator.clipboard.writeText('https://fuber.app/r/' + s.ride.driverShare.code); } catch (err) { /* clipboard may be blocked */ }
+          try { await navigator.clipboard.writeText('https://fuber.app/r/' + E.rideOfDriver(s, vid).driverShare.code); } catch (err) { /* clipboard may be blocked */ }
           toast(this.phone, 'Link copied', 'ok');
           break;
         case 'quickMsg': this.act('D_MESSAGE', { text: v }); break;
