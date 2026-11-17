@@ -236,5 +236,5 @@ Operations
 2. Engage a Namibian law firm: women-only opinion, Terms/Privacy review, Driver Agreement, transport permits.
 3. Open accounts (sandbox) with the shortlisted payment provider and two SMS providers.
 4. Hire / contract the designer; start design brief week 1.
-5. Create the new monorepo skeleton (Phase 0) on a branch; move `ride-hailing-backend/` and `rider_app/` to an `archive` branch.
+5. Create the new monorepo skeleton (Phase 0) on a branch; move `ride-hailing-backend/` and `rider_app/` to an `archive` branch (done 2026-11-17: `archive/legacy`).
 6. Book the penetration-test vendor for Phase 6 dates now (lead times are long).

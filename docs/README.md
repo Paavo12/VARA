@@ -31,4 +31,4 @@ These documents take VARA from the working demo (`demo/`) to a production app bu
 ## What happens to the existing folders
 
 - `demo/` — kept, frozen as the behavioural reference and for pitches.
-- `ride-hailing-backend/` (NestJS) and `rider_app/` (Flutter) — superseded by the Rust + Svelte stack. Archive them (move to an `archive/` branch) once the new skeleton exists, so nobody builds on them by mistake.
+- `ride-hailing-backend/` (NestJS) and `rider_app/` (Flutter) — superseded by the Rust + Svelte stack; removed from `main` on 2026-11-17 and kept on the `archive/legacy` branch.
