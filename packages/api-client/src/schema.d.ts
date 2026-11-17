@@ -783,7 +783,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["complete"];
+        post: operations["complete_trip"];
         delete?: never;
         options?: never;
         head?: never;
@@ -886,6 +886,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/rides/{id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/rides/{id}/retry": {
         parameters: {
             query?: never;
@@ -896,6 +912,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["share_trip"];
         delete?: never;
         options?: never;
         head?: never;
@@ -934,6 +966,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/safety/ridecheck/{id}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["respond"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/safety/sos": {
         parameters: {
             query?: never;
@@ -944,6 +992,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["sos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trip-shares/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["shared_trip"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1016,6 +1080,8 @@ export interface components {
              */
             upload_id: string;
         };
+        /** @enum {string} */
+        Answer: "fine" | "help";
         /**
          * @description Which app a session belongs to. One person can hold both (PRD A-9), with separate sessions.
          * @enum {string}
@@ -1377,10 +1443,14 @@ export interface components {
             /** Format: double */
             lon?: number | null;
             raised_by?: null | components["schemas"]["Person"];
+            report?: null | components["schemas"]["IncidentReport"];
             /** @description e.g. `VA-4123`. */
             ride_code?: string | null;
             /** Format: uuid */
             ride_id?: string | null;
+            /** @description RideCheck: `fine` or `help` when she answered after the desk was alerted. */
+            ridecheck_answer?: string | null;
+            rider?: null | components["schemas"]["Person"];
             /** @description `open`, `claimed` or `escalated`. */
             status: string;
         };
@@ -1397,6 +1467,25 @@ export interface components {
             /** Format: date-time */
             sent_at: string;
             /** @description Plain text: render it as text, never as HTML. */
+            text: string;
+        };
+        IncidentReport: {
+            category: string;
+            /** @description Plain text: render it as text, never as HTML. */
+            text: string;
+        };
+        /** @enum {string} */
+        IssueCategory: "harassment" | "unsafe_driving" | "wrong_person" | "wrong_vehicle" | "lost_item" | "fare" | "other";
+        IssueReceipt: {
+            /** Format: uuid */
+            id: string;
+            message: string;
+            /** @description The safety desk has it as an incident. */
+            safety: boolean;
+        };
+        IssueReport: {
+            category: components["schemas"]["IssueCategory"];
+            /** @description What happened, in her words (1–2000 characters, plain text). */
             text: string;
         };
         /**
@@ -1714,6 +1803,30 @@ export interface components {
             /** Format: int32 */
             year: number;
         };
+        RideCheckResponse: {
+            answer: components["schemas"]["Answer"];
+            location?: null | components["schemas"]["Point"];
+        };
+        RideCheckResult: {
+            /** @description The answer on record (the first one, if she answered before). */
+            answer: components["schemas"]["Answer"];
+            sos?: null | components["schemas"]["SosAlert"];
+        };
+        RideCheckView: {
+            /**
+             * Format: date-time
+             * @description After this the safety desk is alerted; she can still answer.
+             */
+            answer_by: string;
+            /** Format: date-time */
+            asked_at: string;
+            /** @description The safety desk has been alerted (no answer in time). */
+            escalated: boolean;
+            /** Format: uuid */
+            id: string;
+            /** @description `deviation` (off the planned route) or `stop` (stopped, or no position from the car). */
+            kind: string;
+        };
         RideRequest: {
             guest?: null | components["schemas"]["Guest"];
             /** Format: int64 */
@@ -1772,6 +1885,7 @@ export interface components {
             rated: boolean;
             /** Format: date-time */
             requested_at: string;
+            ride_check?: null | components["schemas"]["RideCheckView"];
             /** Format: date-time */
             scheduled_for?: string | null;
             /**
@@ -1836,6 +1950,55 @@ export interface components {
         SetTiers: {
             /** @description The full set of approved tiers; an empty list removes them all. */
             tiers: components["schemas"]["Tier"][];
+        };
+        ShareRequest: {
+            /** @description Also text the link to her emergency contacts (*Send to my emergency contacts*). */
+            send_to_contacts?: boolean;
+        };
+        /**
+         * @description Where the shared trip is, in words a contact understands.
+         * @enum {string}
+         */
+        ShareStatus: "driver_on_the_way" | "driver_arrived" | "in_trip" | "finding_driver" | "with_safety_team" | "ended";
+        SharedCar: {
+            colour: string;
+            make: string;
+            model: string;
+            plate: string;
+        };
+        SharedPosition: {
+            /** Format: date-time */
+            at: string;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
+        };
+        /** @description The public trip page's data. Nothing here identifies the rider beyond her first name. */
+        SharedTrip: {
+            car?: null | components["schemas"]["SharedCar"];
+            /** @description "Near Maerua Mall" or "Klein Windhoek area", never the address. */
+            destination_area: string;
+            /** @description The driver's first name. */
+            driver_first_name?: string | null;
+            /**
+             * Format: date-time
+             * @description Expected arrival at the pickup (before it) or at the destination (in the trip).
+             */
+            eta?: string | null;
+            /**
+             * Format: date-time
+             * @description When the link stops working, once the ride has ended.
+             */
+            expires_at?: string | null;
+            /** @example 10111 */
+            police_phone: string;
+            position?: null | components["schemas"]["SharedPosition"];
+            /** @description First name of whoever shared the link. */
+            shared_by: string;
+            /** @description `rider` or `driver`. */
+            shared_by_party: string;
+            status: components["schemas"]["ShareStatus"];
         };
         SignedIn: components["schemas"]["TokenPair"] & {
             /** @description True when this sign-in created the account: the app continues to "Your details". */
@@ -1903,6 +2066,14 @@ export interface components {
              */
             refresh_token: string;
             token_type: string;
+        };
+        TripShare: {
+            /** @description Emergency contacts being texted the link (0 unless asked for). */
+            contacts_texted: number;
+            /** @description The text for the share sheet. */
+            text: string;
+            /** @description The link to send, e.g. `https://vara.example/t/<token>`. */
+            url: string;
         };
         UpdateMe: {
             /**
@@ -3125,7 +3296,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Incidents not yet closed: SOS first, then newest first */
+            /** @description Incidents not yet closed: SOS and unanswered RideChecks first, then newest first */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3763,7 +3934,7 @@ export interface operations {
             };
         };
     };
-    complete: {
+    complete_trip: {
         parameters: {
             query?: never;
             header?: never;
@@ -4127,6 +4298,68 @@ export interface operations {
             };
         };
     };
+    report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueReport"];
+            };
+        };
+        responses: {
+            /** @description Recorded; safety categories also reach the safety desk */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueReceipt"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not her ride, or more than 30 days ago */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many reports today */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     retry: {
         parameters: {
             query?: never;
@@ -4157,6 +4390,77 @@ export interface operations {
             };
             /** @description `invalid_state`: only after *No drivers accepted* */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    share_trip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareRequest"];
+            };
+        };
+        responses: {
+            /** @description A new live link to her trip; each call makes another */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripShare"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The ride has no driver yet or has ended (`not_shareable`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many links */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4246,6 +4550,60 @@ export interface operations {
             };
         };
     };
+    respond: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The `ride_check.id` from her view of the ride */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RideCheckResponse"];
+            };
+        };
+        responses: {
+            /** @description Recorded; *help* also raised an SOS */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RideCheckResult"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such check on her rides */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     sos: {
         parameters: {
             query?: never;
@@ -4270,6 +4628,56 @@ export interface operations {
             };
             /** @description Not signed in */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    shared_trip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The token from the link */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The shared trip, live. Poll every 10 s */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedTrip"];
+                };
+            };
+            /** @description No such link, or it was stopped */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The link expired 30 minutes after the trip ended (`link_expired`) */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many lookups from this address */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -7,8 +7,10 @@
 //! - Daily document check: expire documents and send 30/7/1-day warnings (PRD A-5).
 //! - Hourly cleanup: OTP challenges, old sessions, abandoned uploads (retention, schema §12).
 //! - Every second: matching (see [`dispatch`]).
+//! - Every 10 s: RideCheck on trips in progress (see [`ridecheck`]).
 
 pub mod dispatch;
+pub mod ridecheck;
 
 use fuber_common::{
     crypto::{Hasher, Sealer},

@@ -21,6 +21,7 @@ const POLL: Duration = Duration::from_secs(2);
 /// Offers expire after 15 s; checking every second keeps the next driver's wait short.
 const DISPATCH: Duration = Duration::from_secs(1);
 const HOUR: Duration = Duration::from_secs(3600);
+const RIDECHECK: Duration = Duration::from_secs(10);
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -69,6 +70,8 @@ async fn main() -> ExitCode {
     let mut dispatch = tokio::time::interval(DISPATCH);
     dispatch.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut hourly = tokio::time::interval(HOUR);
+    let mut ridecheck = tokio::time::interval(RIDECHECK);
+    ridecheck.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut last_document_check = None;
     loop {
         tokio::select! {
@@ -80,6 +83,11 @@ async fn main() -> ExitCode {
             _ = dispatch.tick() => {
                 if let Err(e) = fuber_worker::dispatch::tick(&ctx).await {
                     tracing::warn!(error = %e, "matching tick failed");
+                }
+            }
+            _ = ridecheck.tick() => {
+                if let Err(e) = fuber_worker::ridecheck::tick(&ctx).await {
+                    tracing::warn!(error = %e, "RideCheck tick failed");
                 }
             }
             _ = hourly.tick() => {

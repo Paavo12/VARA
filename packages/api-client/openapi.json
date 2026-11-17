@@ -1486,7 +1486,7 @@
         "operationId": "incident_queue",
         "responses": {
           "200": {
-            "description": "Incidents not yet closed: SOS first, then newest first",
+            "description": "Incidents not yet closed: SOS and unanswered RideChecks first, then newest first",
             "content": {
               "application/json": {
                 "schema": {
@@ -2397,7 +2397,7 @@
         "tags": [
           "trip"
         ],
-        "operationId": "complete",
+        "operationId": "complete_trip",
         "parameters": [
           {
             "name": "id",
@@ -2910,6 +2910,92 @@
         ]
       }
     },
+    "/v1/rides/{id}/report": {
+      "post": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "report",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded; safety categories also reach the safety desk",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride, or more than 30 days ago",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many reports today",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/rides/{id}/retry": {
       "post": {
         "tags": [
@@ -2950,6 +3036,102 @@
           },
           "409": {
             "description": "`invalid_state`: only after *No drivers accepted*",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/share": {
+      "post": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "share_trip",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "A new live link to her trip; each call makes another",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripShare"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The ride has no driver yet or has ended (`not_shareable`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many links",
             "content": {
               "application/json": {
                 "schema": {
@@ -3078,6 +3260,83 @@
         ]
       }
     },
+    "/v1/safety/ridecheck/{id}/respond": {
+      "post": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "respond",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The `ride_check.id` from her view of the ride",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RideCheckResponse"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded; *help* also raised an SOS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideCheckResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such check on her rides",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/safety/sos": {
       "post": {
         "tags": [
@@ -3121,6 +3380,67 @@
             "bearer": []
           }
         ]
+      }
+    },
+    "/v1/trip-shares/{token}": {
+      "get": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "shared_trip",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "description": "The token from the link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The shared trip, live. Poll every 10 s",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedTrip"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such link, or it was stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The link expired 30 minutes after the trip ended (`link_expired`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many lookups from this address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/uploads": {
@@ -3319,6 +3639,13 @@
           }
         },
         "additionalProperties": false
+      },
+      "Answer": {
+        "type": "string",
+        "enum": [
+          "fine",
+          "help"
+        ]
       },
       "App": {
         "type": "string",
@@ -4501,7 +4828,18 @@
               },
               {
                 "$ref": "#/components/schemas/Person",
-                "description": "Who pressed SOS; absent for incidents the system raised."
+                "description": "Who pressed SOS or reported; absent for incidents the system raised (RideCheck)."
+              }
+            ]
+          },
+          "report": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncidentReport",
+                "description": "What she reported (`report` incidents)."
               }
             ]
           },
@@ -4518,6 +4856,24 @@
               "null"
             ],
             "format": "uuid"
+          },
+          "ridecheck_answer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "RideCheck: `fine` or `help` when she answered after the desk was alerted."
+          },
+          "rider": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Person",
+                "description": "The ride's rider, to call (RideCheck, or an SOS from the driver)."
+              }
+            ]
           },
           "status": {
             "type": "string",
@@ -4557,6 +4913,72 @@
             "description": "Plain text: render it as text, never as HTML."
           }
         }
+      },
+      "IncidentReport": {
+        "type": "object",
+        "required": [
+          "category",
+          "text"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "description": "Plain text: render it as text, never as HTML."
+          }
+        }
+      },
+      "IssueCategory": {
+        "type": "string",
+        "enum": [
+          "harassment",
+          "unsafe_driving",
+          "wrong_person",
+          "wrong_vehicle",
+          "lost_item",
+          "fare",
+          "other"
+        ]
+      },
+      "IssueReceipt": {
+        "type": "object",
+        "required": [
+          "id",
+          "safety",
+          "message"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "message": {
+            "type": "string"
+          },
+          "safety": {
+            "type": "boolean",
+            "description": "The safety desk has it as an incident."
+          }
+        }
+      },
+      "IssueReport": {
+        "type": "object",
+        "required": [
+          "category",
+          "text"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/IssueCategory"
+          },
+          "text": {
+            "type": "string",
+            "description": "What happened, in her words (1–2000 characters, plain text)."
+          }
+        },
+        "additionalProperties": false
       },
       "LatLng": {
         "type": "object",
@@ -5428,6 +5850,85 @@
           }
         }
       },
+      "RideCheckResponse": {
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/Answer"
+          },
+          "location": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Point",
+                "description": "Where the phone is, for the SOS when she asks for help."
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RideCheckResult": {
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/Answer",
+            "description": "The answer on record (the first one, if she answered before)."
+          },
+          "sos": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SosAlert",
+                "description": "The SOS raised by *Call for help*."
+              }
+            ]
+          }
+        }
+      },
+      "RideCheckView": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "asked_at",
+          "answer_by",
+          "escalated"
+        ],
+        "properties": {
+          "answer_by": {
+            "type": "string",
+            "format": "date-time",
+            "description": "After this the safety desk is alerted; she can still answer."
+          },
+          "asked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "escalated": {
+            "type": "boolean",
+            "description": "The safety desk has been alerted (no answer in time)."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`deviation` (off the planned route) or `stop` (stopped, or no position from the car)."
+          }
+        }
+      },
       "RideRequest": {
         "type": "object",
         "required": [
@@ -5611,6 +6112,17 @@
             "type": "string",
             "format": "date-time"
           },
+          "ride_check": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RideCheckView",
+                "description": "RideCheck's *Are you okay?*, while she hasn't answered (PRD S-3). Never in the driver's view."
+              }
+            ]
+          },
           "scheduled_for": {
             "type": [
               "string",
@@ -5790,6 +6302,149 @@
         },
         "additionalProperties": false
       },
+      "ShareRequest": {
+        "type": "object",
+        "properties": {
+          "send_to_contacts": {
+            "type": "boolean",
+            "description": "Also text the link to her emergency contacts (*Send to my emergency contacts*)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShareStatus": {
+        "type": "string",
+        "description": "Where the shared trip is, in words a contact understands.",
+        "enum": [
+          "driver_on_the_way",
+          "driver_arrived",
+          "in_trip",
+          "finding_driver",
+          "with_safety_team",
+          "ended"
+        ]
+      },
+      "SharedCar": {
+        "type": "object",
+        "required": [
+          "make",
+          "model",
+          "colour",
+          "plate"
+        ],
+        "properties": {
+          "colour": {
+            "type": "string"
+          },
+          "make": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "plate": {
+            "type": "string"
+          }
+        }
+      },
+      "SharedPosition": {
+        "type": "object",
+        "required": [
+          "lat",
+          "lon",
+          "at"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lon": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SharedTrip": {
+        "type": "object",
+        "description": "The public trip page's data. Nothing here identifies the rider beyond her first name.",
+        "required": [
+          "status",
+          "shared_by",
+          "shared_by_party",
+          "destination_area",
+          "police_phone"
+        ],
+        "properties": {
+          "car": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SharedCar"
+              }
+            ]
+          },
+          "destination_area": {
+            "type": "string",
+            "description": "\"Near Maerua Mall\" or \"Klein Windhoek area\", never the address."
+          },
+          "driver_first_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The driver's first name."
+          },
+          "eta": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Expected arrival at the pickup (before it) or at the destination (in the trip)."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the link stops working, once the ride has ended."
+          },
+          "police_phone": {
+            "type": "string",
+            "example": "10111"
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SharedPosition",
+                "description": "The car's last reported position; absent once the trip has ended."
+              }
+            ]
+          },
+          "shared_by": {
+            "type": "string",
+            "description": "First name of whoever shared the link."
+          },
+          "shared_by_party": {
+            "type": "string",
+            "description": "`rider` or `driver`."
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShareStatus"
+          }
+        }
+      },
       "SignedIn": {
         "allOf": [
           {
@@ -5966,6 +6621,29 @@
           },
           "token_type": {
             "type": "string"
+          }
+        }
+      },
+      "TripShare": {
+        "type": "object",
+        "required": [
+          "url",
+          "text",
+          "contacts_texted"
+        ],
+        "properties": {
+          "contacts_texted": {
+            "type": "integer",
+            "description": "Emergency contacts being texted the link (0 unless asked for).",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "description": "The text for the share sheet."
+          },
+          "url": {
+            "type": "string",
+            "description": "The link to send, e.g. `https://vara.example/t/<token>`."
           }
         }
       },
@@ -6316,7 +6994,7 @@
     },
     {
       "name": "safety",
-      "description": "SOS from either app"
+      "description": "SOS, Share trip, RideCheck and Report an issue; the public Share trip page"
     },
     {
       "name": "ops",

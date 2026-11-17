@@ -90,6 +90,12 @@ pub struct RateLimits {
     pub chat: Rule,
     /// WebSocket handshakes, per IP.
     pub ws_connect: Rule,
+    /// Public Share trip page lookups (`GET /trip-shares/{token}`), per IP (TRD §7.1).
+    pub trip_share: Rule,
+    /// `POST /rides/{id}/share` (new trip links), per user.
+    pub trip_share_create: Rule,
+    /// `POST /rides/{id}/report`, per user.
+    pub reports: Rule,
 }
 
 impl Default for RateLimits {
@@ -115,6 +121,9 @@ impl Default for RateLimits {
             location: Rule::per_minute(40),
             chat: Rule::per_minute(30),
             ws_connect: Rule::per_minute(30),
+            trip_share: Rule::per_minute(60),
+            trip_share_create: Rule::per_hour(20),
+            reports: Rule { limit: 10, window_s: 86_400 },
         }
     }
 }

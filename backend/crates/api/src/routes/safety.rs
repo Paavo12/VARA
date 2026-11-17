@@ -43,7 +43,7 @@ pub struct Point {
 }
 
 impl Point {
-    fn valid(self) -> Option<Point> {
+    pub(crate) fn valid(self) -> Option<Point> {
         ((-90.0..=90.0).contains(&self.lat) && (-180.0..=180.0).contains(&self.lon)).then_some(self)
     }
 }
@@ -70,17 +70,23 @@ pub struct SosAlert {
 )]
 pub async fn sos(State(s): State<AppState>, user: AuthUser, ValidJson(req): ValidJson<SosRequest>) -> Result<Json<SosAlert>, ApiError> {
     let ride_id = her_ride(&s, &user, req.ride_id).await?;
-    let location = req.location.and_then(Point::valid);
+    Ok(Json(raise(&s, user.user_id, ride_id, req.location).await?))
+}
+
+/// Opens (or repeats) her SOS and starts the texts. `ride_id` must already be checked as hers.
+/// A new SOS also answers "help" to a RideCheck waiting on her ride.
+pub(crate) async fn raise(s: &AppState, user_id: Uuid, ride_id: Option<Uuid>, location: Option<Point>) -> Result<SosAlert, ApiError> {
+    let location = location.and_then(Point::valid);
     let mut tx = s.db.begin().await?;
     // One SOS at a time per person, so a double tap can't open two incidents.
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('sos:' || $1::text, 0))").bind(user.user_id).execute(&mut *tx).await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended('sos:' || $1::text, 0))").bind(user_id).execute(&mut *tx).await?;
     let repeat: Option<Uuid> = sqlx::query_scalar(
         "SELECT id FROM safety_incidents
          WHERE raised_by = $1 AND kind = 'sos' AND status <> 'closed' AND ride_id IS NOT DISTINCT FROM $2
            AND created_at > now() - make_interval(secs => $3)
          ORDER BY created_at DESC LIMIT 1",
     )
-    .bind(user.user_id)
+    .bind(user_id)
     .bind(ride_id)
     .bind(SOS_REPEAT_S as f64)
     .fetch_optional(&mut *tx)
@@ -95,10 +101,10 @@ pub async fn sos(State(s): State<AppState>, user: AuthUser, ValidJson(req): Vali
                 .await?;
         }
         let contacts: i64 =
-            sqlx::query_scalar("SELECT count(*) FROM emergency_contacts WHERE user_id = $1").bind(user.user_id).fetch_one(&mut *tx).await?;
+            sqlx::query_scalar("SELECT count(*) FROM emergency_contacts WHERE user_id = $1").bind(user_id).fetch_one(&mut *tx).await?;
         tx.commit().await?;
-        tracing::warn!(security_event = "sos_repeat", incident_id = %id, user_id = %user.user_id, "SOS pressed again");
-        return Ok(Json(alert(id, ride_id, contacts as usize, "Your alert is already with VARA's safety team. They will call you.")));
+        tracing::warn!(security_event = "sos_repeat", incident_id = %id, user_id = %user_id, "SOS pressed again");
+        return Ok(alert(id, ride_id, contacts as usize, "Your alert is already with VARA's safety team. They will call you."));
     }
 
     let id: Uuid = sqlx::query_scalar(
@@ -110,7 +116,7 @@ pub async fn sos(State(s): State<AppState>, user: AuthUser, ValidJson(req): Vali
     .bind(location.map(|a| a.lat))
     .bind(location.map(|a| a.lon))
     .bind(ride_id)
-    .bind(user.user_id)
+    .bind(user_id)
     .fetch_one(&mut *tx)
     .await?;
     let texts = safety::sos_texts(&mut tx, &s.keys.sealer, &s.keys.hasher, &s.config.trip_link_base, id, None).await;
@@ -120,7 +126,21 @@ pub async fn sos(State(s): State<AppState>, user: AuthUser, ValidJson(req): Vali
         vec![]
     });
     tx.commit().await?;
-    tracing::warn!(security_event = "sos", incident_id = %id, user_id = %user.user_id, ride_id = ?ride_id, contacts = texts.len(), "SOS raised");
+    tracing::warn!(security_event = "sos", incident_id = %id, user_id = %user_id, ride_id = ?ride_id, contacts = texts.len(), "SOS raised");
+    // Her SOS answers a RideCheck waiting on the ride. Best effort: the alert is already saved.
+    if let Some(ride_id) = ride_id {
+        let answered = sqlx::query(
+            "UPDATE ride_checks c SET answer = 'help', answered_at = now() FROM rides r
+             WHERE c.ride_id = $1 AND c.answered_at IS NULL AND r.id = c.ride_id AND r.rider_id = $2",
+        )
+        .bind(ride_id)
+        .bind(user_id)
+        .execute(&s.db)
+        .await;
+        if let Err(e) = answered {
+            tracing::warn!(error = %e, %ride_id, "RideCheck not marked answered by the SOS");
+        }
+    }
 
     let n = texts.len();
     let state = s.clone();
@@ -130,7 +150,7 @@ pub async fn sos(State(s): State<AppState>, user: AuthUser, ValidJson(req): Vali
         1 => "VARA's safety team has your alert and will call you. We're texting your emergency contact.".to_owned(),
         n => format!("VARA's safety team has your alert and will call you. We're texting your {n} emergency contacts."),
     };
-    Ok(Json(alert(id, ride_id, n, &message)))
+    Ok(alert(id, ride_id, n, &message))
 }
 
 fn alert(incident_id: Uuid, ride_id: Option<Uuid>, contacts_alerted: usize, message: &str) -> SosAlert {

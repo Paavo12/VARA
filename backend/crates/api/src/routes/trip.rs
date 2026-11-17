@@ -269,7 +269,7 @@ pub async fn start(State(s): State<AppState>, DriverUser(user): DriverUser, Path
 }
 
 #[utoipa::path(
-    post, path = "/v1/rides/{id}/complete", tag = "trip", security(("bearer" = [])),
+    post, path = "/v1/rides/{id}/complete", operation_id = "complete_trip", tag = "trip", security(("bearer" = [])),
     params(("id" = Uuid, Path)),
     responses(
         (status = 200, description = "Completed. Cash: collect the locked fare", body = DriverRide),

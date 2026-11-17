@@ -30,7 +30,8 @@ use crate::{ops, routes};
         routes::ratings::rate, routes::ratings::skip, routes::ratings::favourites, routes::ratings::remove_favourite,
         routes::history::rider_trips, routes::history::driver_trips,
         routes::chat::thread, routes::chat::send,
-        routes::safety::sos,
+        routes::safety::sos, routes::share::create, routes::share::view, routes::ridecheck::respond,
+        routes::report::report,
         ops::auth::login, ops::auth::logout,
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
         ops::drivers::queue, ops::drivers::detail, ops::drivers::set_tiers, ops::drivers::decide,
@@ -53,7 +54,7 @@ use crate::{ops, routes};
         (name = "ratings", description = "Ratings and favourite drivers"),
         (name = "history", description = "Trip history for riders and drivers"),
         (name = "chat", description = "Chat between the rider and the driver on a trip"),
-        (name = "safety", description = "SOS from either app"),
+        (name = "safety", description = "SOS, Share trip, RideCheck and Report an issue; the public Share trip page"),
         (name = "ops", description = "Staff: verification and driver review, the safety desk's incident queue"),
     )
 )]
