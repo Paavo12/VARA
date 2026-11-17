@@ -582,6 +582,54 @@
         ]
       }
     },
+    "/v1/driver/statements": {
+      "get": {
+        "tags": [
+          "earnings"
+        ],
+        "operationId": "statements",
+        "responses": {
+          "200": {
+            "description": "Her weekly statements, newest first (the last 26 weeks)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Statement"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Driver app only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/driver/status": {
       "get": {
         "tags": [
@@ -1618,6 +1666,749 @@
           },
           "404": {
             "description": "No such incident",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/metrics": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "metrics",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Days to count back from now, 1–90 (default 7).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts for the period and right now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "days outside 1–90",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/reports": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "report_queue",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "`open` (default), `in_progress` or `resolved`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reported issues, oldest first (open) or newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SupportReport"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/reports/{id}/status": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "set_report_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportStatus"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Updated"
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/settings": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "settings_list",
+        "responses": {
+          "200": {
+            "description": "Every editable parameter with its bounds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Setting"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/settings/{key}": {
+      "put": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "setting_update",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "e.g. `dispatch.radius_m`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingValue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Saved; matching and RideCheck use it from their next run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Setting"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not an editable setting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Outside the allowed range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/settlements": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "settlement_queue",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "`pending` (default) or `settled`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weekly statements: pending (oldest first) or the last 200 settled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettlementItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/settlements/{id}/settle": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "settle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded as settled; her balance is reduced by the amount",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementItem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such statement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already settled (`already_settled`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "user_search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "A phone number (`+264…` or `081…`), or part of a name (at least 2 characters).",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Up to 50 matches: the exact phone number, or names containing the text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Search text too short",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "user_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The person, her last trips and her reports (the view is audited)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}/priority": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "adjust_priority",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriorityAdjustment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Adjusted (clamped to 0–150) and recorded in the priority ledger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriorityBalance"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such rider or driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}/reinstate": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "reinstate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Reinstated: active again if verified, else back to pending"
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not suspended (`not_suspended`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}/suspend": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "suspend",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Suspended: signed out of every request from now on; a driver is taken offline"
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already suspended, or deleted (`not_active`)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5179,6 +5970,114 @@
           }
         }
       },
+      "Metrics": {
+        "type": "object",
+        "required": [
+          "days",
+          "requested",
+          "completed",
+          "cancelled_by_rider",
+          "cancelled_by_driver",
+          "no_drivers",
+          "sos",
+          "ridechecks_asked",
+          "ridechecks_unanswered",
+          "pin_lockouts",
+          "safety_reports",
+          "other_reports",
+          "drivers_online_now",
+          "trips_in_progress_now",
+          "incidents_open_now"
+        ],
+        "properties": {
+          "cancelled_by_driver": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancelled_by_rider": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "completion_rate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Completed ÷ requested, 0–1 (absent with no requests)."
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "drivers_online_now": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "incidents_open_now": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "median_match_min": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Median minutes from request to a driver accepting."
+          },
+          "median_verification_h": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Median hours from a rider submitting her ID to the decision."
+          },
+          "no_drivers": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Requests that found no driver at least once."
+          },
+          "other_reports": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pin_lockouts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "requested": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Rides requested in the period (scheduled ones by their request time)."
+          },
+          "ridechecks_asked": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ridechecks_unanswered": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "safety_reports": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sos": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trips_in_progress_now": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "OfferCard": {
         "type": "object",
         "description": "The request card (PRD D-4). No destination, no exact pickup.",
@@ -5527,6 +6426,40 @@
           }
         }
       },
+      "PriorityAdjustment": {
+        "type": "object",
+        "required": [
+          "role",
+          "delta",
+          "reason"
+        ],
+        "properties": {
+          "delta": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Points to add (negative to remove), −50 to 50. The balance stays within 0–150."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Side"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PriorityBalance": {
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "QueueItem": {
         "type": "object",
         "required": [
@@ -5740,6 +6673,19 @@
         },
         "additionalProperties": false
       },
+      "Reason": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Why, for the audit log and (for a suspension) the user's record."
+          }
+        },
+        "additionalProperties": false
+      },
       "RefreshRequest": {
         "type": "object",
         "required": [
@@ -5748,6 +6694,26 @@
         "properties": {
           "refresh_token": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReportStatus": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What was done, for the audit log."
+          },
+          "status": {
+            "type": "string",
+            "description": "`in_progress` or `resolved`."
           }
         },
         "additionalProperties": false
@@ -6302,6 +7268,136 @@
         },
         "additionalProperties": false
       },
+      "Setting": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "min",
+          "max"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "max": {
+            "type": "number",
+            "format": "double"
+          },
+          "min": {
+            "type": "number",
+            "format": "double"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The stored value; absent when the default is used."
+          }
+        }
+      },
+      "SettingValue": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Settle": {
+        "type": "object",
+        "required": [
+          "reference"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "The bank transfer or deposit slip reference.",
+            "example": "FNB 4471 2026-11-17"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SettlementItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "driver_id",
+          "period_start",
+          "period_end",
+          "amount",
+          "status"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Positive: VARA pays her. Negative: she pays VARA (service fees on cash trips)."
+          },
+          "driver_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "driver_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "driver_phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "description": "Monday to Sunday, Windhoek time."
+          },
+          "reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "`pending`, `sent` (VARA paid her) or `received` (she paid VARA)."
+          }
+        }
+      },
       "ShareRequest": {
         "type": "object",
         "properties": {
@@ -6445,6 +7541,13 @@
           }
         }
       },
+      "Side": {
+        "type": "string",
+        "enum": [
+          "rider",
+          "driver"
+        ]
+      },
       "SignedIn": {
         "allOf": [
           {
@@ -6553,6 +7656,46 @@
           }
         }
       },
+      "Statement": {
+        "type": "object",
+        "required": [
+          "id",
+          "period_start",
+          "period_end",
+          "amount",
+          "status"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Positive: VARA pays her. Negative: she pays VARA (service fees on cash trips)."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "description": "Monday to Sunday, Windhoek time."
+          },
+          "settled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "`pending`, `sent` (VARA paid her) or `received` (VARA received her payment)."
+          }
+        }
+      },
       "Stop": {
         "type": "object",
         "required": [
@@ -6571,6 +7714,73 @@
           "lon": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "SupportReport": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "text",
+          "status",
+          "reporter_id",
+          "created_at"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "incident_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The safety desk has it too."
+          },
+          "reporter_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reporter_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reporter_phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ride_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ride_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
           }
         }
       },
@@ -6734,6 +7944,183 @@
             "format": "uuid"
           },
           "url": {
+            "type": "string"
+          }
+        }
+      },
+      "UserDetail": {
+        "type": "object",
+        "required": [
+          "user",
+          "verification",
+          "trips",
+          "reports"
+        ],
+        "properties": {
+          "driver_priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserReport"
+            },
+            "description": "Reports she made, newest first."
+          },
+          "rider_priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "suspended_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trips": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserTrip"
+            },
+            "description": "The last 20 trips on either side."
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserItem"
+          },
+          "verification": {
+            "type": "string"
+          }
+        }
+      },
+      "UserItem": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "status",
+          "is_rider",
+          "is_driver",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_driver": {
+            "type": "boolean"
+          },
+          "is_rider": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "`pending`, `active`, `suspended` or `deleted`."
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "UserReport": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "text",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ride_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "UserTrip": {
+        "type": "object",
+        "required": [
+          "ride_id",
+          "code",
+          "as_party",
+          "state",
+          "pickup_address",
+          "dropoff_address",
+          "fare",
+          "requested_at"
+        ],
+        "properties": {
+          "as_party": {
+            "type": "string",
+            "description": "`rider` or `driver`: her side of this trip."
+          },
+          "code": {
+            "type": "string"
+          },
+          "dropoff_address": {
+            "type": "string"
+          },
+          "fare": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "pickup_address": {
+            "type": "string"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ride_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
             "type": "string"
           }
         }
@@ -6978,7 +8365,7 @@
     },
     {
       "name": "earnings",
-      "description": "Cash confirmation and the driver's earnings (driver app)"
+      "description": "Cash confirmation, the driver's earnings and weekly statements (driver app)"
     },
     {
       "name": "ratings",
@@ -6998,7 +8385,7 @@
     },
     {
       "name": "ops",
-      "description": "Staff: verification and driver review, the safety desk's incident queue"
+      "description": "Staff: verification and driver review, the safety desk's incident queue, weekly settlements, support (users, suspensions, priority, reports)"
     }
   ]
 }

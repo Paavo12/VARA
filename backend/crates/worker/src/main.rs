@@ -94,6 +94,11 @@ async fn main() -> ExitCode {
                 if let Err(e) = fuber_worker::cleanup(&ctx).await {
                     tracing::warn!(error = %e, "cleanup failed");
                 }
+                // Windhoek is UTC+2 all year.
+                let windhoek = OffsetDateTime::now_utc().to_offset(time::UtcOffset::from_hms(2, 0, 0).expect("valid offset")).date();
+                if let Err(e) = fuber_worker::settlement::settle_week(&ctx.db, fuber_worker::settlement::last_week_start(windhoek)).await {
+                    tracing::warn!(error = %e, "weekly settlement failed");
+                }
                 // Once per calendar day (UTC+2 is close enough: checks are by date, not hour).
                 let today = OffsetDateTime::now_utc().date();
                 if last_document_check != Some(today) {

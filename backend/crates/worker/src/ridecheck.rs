@@ -4,18 +4,20 @@
 //!    estimate). Until it is there, only stops are checked.
 //! 2. **Ask**: the car is more than 150 m off the planned route on its last two samples, or it
 //!    has not moved more than 30 m for 2 minutes away from the destination, or no position has
-//!    arrived for 2 minutes. The rider's app shows *Are you okay?* (`ride_check` on her view of
-//!    the ride). The driver is never told. The same kind is not asked again within 5 minutes.
+//!    arrived for 2 minutes (150 m and 2 minutes are ops settings, PRD D-6). The rider's app
+//!    shows *Are you okay?* (`ride_check` on her view of the ride). The driver is never told.
+//!    The same kind is not asked again within 5 minutes.
 //! 3. **Escalate**: no answer within 60 s opens a `ridecheck_deviation` / `ridecheck_stop`
 //!    incident for the safety desk with the car's position.
 //!
 //! Her answer is `POST /v1/safety/ridecheck/{id}/respond` (API); *Call for help* raises an SOS.
 
 use fuber_common::validate::LatLng;
-use fuber_db::sqlx::{self, PgPool};
-use fuber_domain::safety::{
-    RIDECHECK_AGAIN_S, RIDECHECK_ANSWER_S, RIDECHECK_NEAR_DESTINATION_M, RIDECHECK_OFF_ROUTE_M, RIDECHECK_STOP_RADIUS_M, RIDECHECK_STOP_S,
+use fuber_db::{
+    settings::RideCheckLimits,
+    sqlx::{self, PgPool},
 };
+use fuber_domain::safety::{RIDECHECK_AGAIN_S, RIDECHECK_ANSWER_S, RIDECHECK_NEAR_DESTINATION_M, RIDECHECK_STOP_RADIUS_M};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -107,6 +109,8 @@ async fn escalate(db: &PgPool) -> Result<usize, sqlx::Error> {
 type Signals = (Uuid, bool, bool, bool);
 
 async fn ask(db: &PgPool) -> Result<usize, sqlx::Error> {
+    // 150 m and 2 minutes unless ops changed them (`safety.deviation_m`, `safety.unexpected_stop_s`).
+    let limits = RideCheckLimits::load(db).await?;
     let trips: Vec<Signals> = sqlx::query_as(
         "WITH trips AS (
            SELECT r.id, r.started_at, r.planned_route, r.dropoff FROM rides r
@@ -132,9 +136,9 @@ async fn ask(db: &PgPool) -> Result<usize, sqlx::Error> {
            WHERE p.ride_id = t.id AND p.at >= t.started_at AND p.at >= now() - make_interval(secs => $3 + $4)
          ) w ON true",
     )
-    .bind(RIDECHECK_OFF_ROUTE_M)
+    .bind(limits.off_route_m)
     .bind(FRESH_S)
-    .bind(RIDECHECK_STOP_S as f64)
+    .bind(limits.stop_s as f64)
     .bind(SAMPLE_SLACK_S as f64)
     .bind(RIDECHECK_STOP_RADIUS_M)
     .bind(RIDECHECK_NEAR_DESTINATION_M)

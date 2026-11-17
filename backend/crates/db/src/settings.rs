@@ -1,4 +1,4 @@
-//! Matching and booking parameters editable by ops without a release (PRD D-6). Missing or
+//! Matching, booking and RideCheck parameters editable by ops without a release (PRD D-6). Missing or
 //! malformed values fall back to the launch defaults, so a bad edit never stops dispatch.
 
 use sqlx::PgExecutor;
@@ -62,5 +62,40 @@ impl Dispatch {
             }
         }
         Ok(d)
+    }
+}
+
+/// RideCheck's limits (PRD S-3) from `safety.deviation_m` and `safety.unexpected_stop_s`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RideCheckLimits {
+    pub off_route_m: f64,
+    pub stop_s: i64,
+}
+
+impl Default for RideCheckLimits {
+    fn default() -> Self {
+        RideCheckLimits { off_route_m: fuber_domain::safety::RIDECHECK_OFF_ROUTE_M, stop_s: fuber_domain::safety::RIDECHECK_STOP_S }
+    }
+}
+
+impl RideCheckLimits {
+    pub async fn load<'e>(db: impl PgExecutor<'e>) -> Result<RideCheckLimits, sqlx::Error> {
+        let rows: Vec<(String, serde_json::Value)> =
+            sqlx::query_as("SELECT key, value FROM settings WHERE key IN ('safety.deviation_m', 'safety.unexpected_stop_s')")
+                .fetch_all(db)
+                .await?;
+        let mut l = RideCheckLimits::default();
+        for (key, value) in rows {
+            let Some(n) = value.as_f64().filter(|n| n.is_finite() && *n > 0.0) else {
+                tracing::warn!(%key, "setting is not a positive number; using the default");
+                continue;
+            };
+            match key.as_str() {
+                "safety.deviation_m" => l.off_route_m = n,
+                "safety.unexpected_stop_s" => l.stop_s = n as i64,
+                _ => {}
+            }
+        }
+        Ok(l)
     }
 }

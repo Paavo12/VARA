@@ -11,6 +11,7 @@
 
 	type Earnings = components['schemas']['Earnings'];
 	type DriverTrip = components['schemas']['DriverTrip'];
+	type Statement = components['schemas']['Statement'];
 
 	interface Props {
 		onback: () => void;
@@ -25,6 +26,14 @@
 	let more = $state(true);
 	let busy = $state(false);
 	let error = $state<string | null>(null);
+	let statements = $state<Statement[]>([]);
+
+	async function loadStatements() {
+		const { data } = await session.api
+			.GET('/v1/driver/statements')
+			.catch(() => ({ data: undefined }));
+		if (data) statements = data;
+	}
 
 	async function loadEarnings(p: 'today' | 'week') {
 		const { data, error: err } = await session.api
@@ -49,7 +58,10 @@
 	$effect(() => {
 		void loadEarnings(period);
 	});
-	onMount(() => void loadTrips());
+	onMount(() => {
+		void loadTrips();
+		void loadStatements();
+	});
 
 	const STATES: Record<string, string> = {
 		COMPLETED: 'Completed',
@@ -64,6 +76,9 @@
 			hour: '2-digit',
 			minute: '2-digit'
 		});
+	/** A calendar date such as `2026-11-09`, without a time. */
+	const date = (ymd: string) =>
+		new Date(`${ymd}T12:00:00`).toLocaleDateString('en-NA', { day: 'numeric', month: 'short' });
 </script>
 
 <Screen title="Earnings" lead="What you earned after VARA’s service fee.">
@@ -105,6 +120,31 @@
 						: 'Nothing owed either way.'}
 			</p>
 		</Notice>
+	{/if}
+
+	{#if statements.length > 0}
+		<h2>Weekly statements</h2>
+		<ul class="trips">
+			{#each statements as st (st.id)}
+				<li>
+					<div>
+						<strong>{date(st.period_start)} – {date(st.period_end)}</strong>
+						<small
+							>{st.status === 'pending'
+								? st.amount < 0
+									? 'To pay VARA'
+									: 'To be paid to you'
+								: st.status === 'received'
+									? 'Paid. Thank you'
+									: 'Paid to you'}</small
+						>
+					</div>
+					<div class="right">
+						<strong>{formatNad(Math.abs(st.amount))}</strong>
+					</div>
+				</li>
+			{/each}
+		</ul>
 	{/if}
 
 	<h2>Your trips</h2>

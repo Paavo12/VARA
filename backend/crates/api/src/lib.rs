@@ -27,6 +27,7 @@ mod routes {
     pub mod ridecheck;
     pub mod rides;
     pub mod safety;
+    pub mod settlements;
     pub mod share;
     pub mod storage;
     pub mod trip;
@@ -172,6 +173,7 @@ pub fn router(state: AppState) -> Router {
         .route("/me/favourite-drivers/{driver_id}", delete(routes::ratings::remove_favourite))
         .route("/driver/trips", get(routes::history::driver_trips))
         .route("/driver/earnings", get(routes::earnings::earnings))
+        .route("/driver/statements", get(routes::settlements::statements))
         // Chat (either app)
         .route("/rides/{id}/messages", get(routes::chat::thread).post(routes::chat::send))
         // Safety (either app; never rate-limited, see rate_limit::enforce)

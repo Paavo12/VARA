@@ -15,6 +15,12 @@ export type VerificationQueueItem = components['schemas']['QueueItem'];
 export type VerificationDetail = components['schemas']['VerificationDetail'];
 export type Tier = components['schemas']['Tier'];
 export type IncidentItem = components['schemas']['IncidentItem'];
+export type SettlementItem = components['schemas']['SettlementItem'];
+export type UserItem = components['schemas']['UserItem'];
+export type UserDetail = components['schemas']['UserDetail'];
+export type SupportReport = components['schemas']['SupportReport'];
+export type Setting = components['schemas']['Setting'];
+export type Metrics = components['schemas']['Metrics'];
 export type IncidentMessage = components['schemas']['IncidentMessage'];
 
 /** The API base URL. Set VITE_API_URL at build time. */
@@ -31,6 +37,14 @@ export const staff = {
 	},
 	get canHandleIncidents() {
 		return !!session?.roles.some((r) => r === 'ops_safety' || r === 'ops_admin');
+	},
+	/** Users, suspensions, priority points and reported issues. */
+	get canSupport() {
+		return !!session?.roles.some((r) => r === 'ops_support' || r === 'ops_admin');
+	},
+	/** Weekly settlements: money, admins only. */
+	get canSettle() {
+		return !!session?.roles.includes('ops_admin');
 	}
 };
 
