@@ -5,10 +5,12 @@
 //! Staff authenticate with email + password (argon2id) + TOTP and receive an opaque 8-hour
 //! bearer token. Phase 5 moves the console to an `HttpOnly` cookie with CSRF protection.
 
+pub mod audit_log;
 pub mod auth;
 pub mod drivers;
 pub mod incidents;
 pub mod metrics;
+pub mod pricing;
 pub mod settings;
 pub mod settlements;
 pub mod support;
@@ -54,6 +56,10 @@ pub fn router(_: &AppState) -> Router<AppState> {
         .route("/settings", get(settings::list))
         .route("/settings/{key}", put(settings::set))
         .route("/metrics", get(metrics::metrics))
+        .route("/pricing", get(pricing::list).post(pricing::add))
+        .route("/surge-zones", get(pricing::zones))
+        .route("/surge-zones/{id}", put(pricing::update_zone))
+        .route("/audit", get(audit_log::list))
 }
 
 /// A signed-in staff member.

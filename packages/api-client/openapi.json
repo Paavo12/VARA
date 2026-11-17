@@ -1215,6 +1215,110 @@
         ]
       }
     },
+    "/v1/ops/audit": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "audit_log",
+        "parameters": [
+          {
+            "name": "staff_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "description": "The person the action concerns.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "description": "An action (`user.suspend`) or a prefix ending in a dot (`user.`).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Entries older than this id (the last `id` of the previous page).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Up to 100 entries, newest first; page with `before`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntry"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A filter is too long",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
     "/v1/ops/auth/login": {
       "post": {
         "tags": [
@@ -1729,6 +1833,107 @@
         ]
       }
     },
+    "/v1/ops/pricing": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "pricing_list",
+        "responses": {
+          "200": {
+            "description": "The rates in force for each ride type, and any that start later",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TierRates"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "pricing_add",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRates"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "New rates added; quotes use them from `effective_from`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TierRates"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Rates already start at that moment for this ride type (`duplicate_start`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Outside the allowed ranges",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
     "/v1/ops/reports": {
       "get": {
         "tags": [
@@ -2080,6 +2285,120 @@
           },
           "422": {
             "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/surge-zones": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "surge_zones",
+        "responses": {
+          "200": {
+            "description": "Surge zones by name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SurgeZone"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/surge-zones/{id}": {
+      "put": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "surge_zone_update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurgeUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Saved; new quotes in the zone use it at once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SurgeZone"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such zone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Outside the allowed range",
             "content": {
               "application/json": {
                 "schema": {
@@ -4614,6 +4933,67 @@
           }
         }
       },
+      "AuditEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "action",
+          "target_type",
+          "target_id"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "detail": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ip": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "staff_email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "staff_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "CashConfirmed": {
         "type": "object",
         "required": [
@@ -6078,6 +6458,52 @@
           }
         }
       },
+      "NewRates": {
+        "type": "object",
+        "required": [
+          "tier",
+          "base_cents",
+          "per_km_cents",
+          "per_min_cents",
+          "minimum_cents",
+          "service_fee_bp"
+        ],
+        "properties": {
+          "base_cents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "effective_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the rates start; now when absent. Never in the past."
+          },
+          "minimum_cents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_km_cents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "per_min_cents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "service_fee_bp": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1500–1800 (15–18 %)."
+          },
+          "tier": {
+            "$ref": "#/components/schemas/RideType"
+          }
+        },
+        "additionalProperties": false
+      },
       "OfferCard": {
         "type": "object",
         "description": "The request card (PRD D-4). No destination, no exact pickup.",
@@ -6946,6 +7372,14 @@
         },
         "additionalProperties": false
       },
+      "RideType": {
+        "type": "string",
+        "enum": [
+          "classic",
+          "comfort",
+          "softlife"
+        ]
+      },
       "RideVehicle": {
         "type": "object",
         "description": "The assigned car as the rider sees it.",
@@ -7784,6 +8218,57 @@
           }
         }
       },
+      "SurgeUpdate": {
+        "type": "object",
+        "required": [
+          "multiplier",
+          "demand_level"
+        ],
+        "properties": {
+          "demand_level": {
+            "type": "string",
+            "description": "`normal`, `high` or `peak`."
+          },
+          "multiplier": {
+            "type": "number",
+            "format": "double",
+            "description": "1.00–3.00, two decimals."
+          }
+        },
+        "additionalProperties": false
+      },
+      "SurgeZone": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "multiplier",
+          "demand_level",
+          "updated_at"
+        ],
+        "properties": {
+          "demand_level": {
+            "type": "string",
+            "description": "`normal`, `high` or `peak` (sets the traffic factor on trip times)."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "multiplier": {
+            "type": "number",
+            "format": "double",
+            "description": "1.00–3.00."
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "Tier": {
         "type": "string",
         "description": "Ride types, cheapest first. The order is significant: a higher tier charges more.",
@@ -7805,6 +8290,55 @@
           },
           "tier": {
             "$ref": "#/components/schemas/Tier"
+          }
+        }
+      },
+      "TierRates": {
+        "type": "object",
+        "required": [
+          "id",
+          "tier",
+          "base",
+          "per_km",
+          "per_min",
+          "minimum",
+          "service_fee_bp",
+          "effective_from",
+          "current"
+        ],
+        "properties": {
+          "base": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "current": {
+            "type": "boolean",
+            "description": "In force now (the latest started row of its tier)."
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minimum": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "per_km": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "per_min": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "service_fee_bp": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Basis points: 1650 = 16.5 %."
+          },
+          "tier": {
+            "type": "string",
+            "description": "`classic`, `comfort` or `softlife`."
           }
         }
       },

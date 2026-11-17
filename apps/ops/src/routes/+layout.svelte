@@ -26,7 +26,9 @@
 		{#if staff.canSupport}<a class="link" href={resolve('/users')}>Users</a>
 			<a class="link" href={resolve('/reports')}>Reports</a>{/if}
 		{#if staff.canSettle}<a class="link" href={resolve('/settlements')}>Settlements</a>
-			<a class="link" href={resolve('/settings')}>Settings</a>{/if}
+			<a class="link" href={resolve('/settings')}>Settings</a>
+			<a class="link" href={resolve('/pricing')}>Pricing</a>
+			<a class="link" href={resolve('/audit')}>Audit log</a>{/if}
 		<span class="who">{staff.session.roles.join(', ').replaceAll('ops_', '')}</span>
 		<button type="button" class="link" onclick={signOut}>Sign out</button>
 	{/if}
