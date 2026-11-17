@@ -405,6 +405,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["audit_log"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/auth/login": {
         parameters: {
             query?: never;
@@ -581,6 +597,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pricing_list"];
+        put?: never;
+        post: operations["pricing_add"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/reports": {
         parameters: {
             query?: never;
@@ -671,6 +703,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/surge-zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surge_zones"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/surge-zones/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["surge_zone_update"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1348,6 +1412,22 @@ export interface components {
             rating_count: number;
             vehicle: components["schemas"]["RideVehicle"];
         };
+        AuditEntry: {
+            action: string;
+            /** Format: date-time */
+            at: string;
+            detail?: Record<string, never> | null;
+            /** Format: int64 */
+            id: number;
+            ip?: string | null;
+            staff_email?: string | null;
+            /** Format: uuid */
+            staff_id?: string | null;
+            target_id: string;
+            target_type: string;
+            /** Format: uuid */
+            user_id?: string | null;
+        };
         CashConfirmed: {
             /** @description Her balance after this trip: negative means she owes VARA. */
             balance: components["schemas"]["Cents"];
@@ -1817,6 +1897,27 @@ export interface components {
             /** Format: int64 */
             trips_in_progress_now: number;
         };
+        NewRates: {
+            /** Format: int64 */
+            base_cents: number;
+            /**
+             * Format: date-time
+             * @description When the rates start; now when absent. Never in the past.
+             */
+            effective_from?: string | null;
+            /** Format: int64 */
+            minimum_cents: number;
+            /** Format: int64 */
+            per_km_cents: number;
+            /** Format: int64 */
+            per_min_cents: number;
+            /**
+             * Format: int32
+             * @description 1500–1800 (15–18 %).
+             */
+            service_fee_bp: number;
+            tier: components["schemas"]["RideType"];
+        };
         /** @description The request card (PRD D-4). No destination, no exact pickup. */
         OfferCard: {
             /**
@@ -2127,6 +2228,8 @@ export interface components {
             /** @description Only wheelchair-accessible vehicles (PRD B-4). */
             wheelchair?: boolean;
         };
+        /** @enum {string} */
+        RideType: "classic" | "comfort" | "softlife";
         /** @description The assigned car as the rider sees it. */
         RideVehicle: {
             colour: string;
@@ -2418,6 +2521,29 @@ export interface components {
             status: string;
             text: string;
         };
+        SurgeUpdate: {
+            /** @description `normal`, `high` or `peak`. */
+            demand_level: string;
+            /**
+             * Format: double
+             * @description 1.00–3.00, two decimals.
+             */
+            multiplier: number;
+        };
+        SurgeZone: {
+            /** @description `normal`, `high` or `peak` (sets the traffic factor on trip times). */
+            demand_level: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: double
+             * @description 1.00–3.00.
+             */
+            multiplier: number;
+            name: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         /**
          * @description Ride types, cheapest first. The order is significant: a higher tier charges more.
          * @enum {string}
@@ -2426,6 +2552,25 @@ export interface components {
         TierEstimate: {
             fare: components["schemas"]["Fare"];
             tier: components["schemas"]["Tier"];
+        };
+        TierRates: {
+            base: components["schemas"]["Cents"];
+            /** @description In force now (the latest started row of its tier). */
+            current: boolean;
+            /** Format: date-time */
+            effective_from: string;
+            /** Format: uuid */
+            id: string;
+            minimum: components["schemas"]["Cents"];
+            per_km: components["schemas"]["Cents"];
+            per_min: components["schemas"]["Cents"];
+            /**
+             * Format: int32
+             * @description Basis points: 1650 = 16.5 %.
+             */
+            service_fee_bp: number;
+            /** @description `classic`, `comfort` or `softlife`. */
+            tier: string;
         };
         TokenPair: {
             /** @description Send as `Authorization: Bearer <access_token>`. Valid for `expires_in` seconds. */
@@ -3538,6 +3683,54 @@ export interface operations {
             };
         };
     };
+    audit_log: {
+        parameters: {
+            query?: {
+                staff_id?: string;
+                /** @description The person the action concerns. */
+                user_id?: string;
+                /** @description An action (`user.suspend`) or a prefix ending in a dot (`user.`). */
+                action?: string;
+                target_type?: string;
+                target_id?: string;
+                /** @description Entries older than this id (the last `id` of the previous page). */
+                before?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 100 entries, newest first; page with `before` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEntry"][];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description A filter is too long */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     login: {
         parameters: {
             query?: never;
@@ -3890,6 +4083,86 @@ export interface operations {
             };
         };
     };
+    pricing_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rates in force for each ride type, and any that start later */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TierRates"][];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    pricing_add: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewRates"];
+            };
+        };
+        responses: {
+            /** @description New rates added; quotes use them from `effective_from` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TierRates"];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Rates already start at that moment for this ride type (`duplicate_start`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Outside the allowed ranges */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     report_queue: {
         parameters: {
             query?: {
@@ -4140,6 +4413,88 @@ export interface operations {
                 };
             };
             /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    surge_zones: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Surge zones by name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurgeZone"][];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    surge_zone_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurgeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved; new quotes in the zone use it at once */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurgeZone"];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such zone */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Outside the allowed range */
             422: {
                 headers: {
                     [name: string]: unknown;

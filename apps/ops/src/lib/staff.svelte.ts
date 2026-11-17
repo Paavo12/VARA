@@ -21,6 +21,9 @@ export type UserDetail = components['schemas']['UserDetail'];
 export type SupportReport = components['schemas']['SupportReport'];
 export type Setting = components['schemas']['Setting'];
 export type Metrics = components['schemas']['Metrics'];
+export type TierRates = components['schemas']['TierRates'];
+export type SurgeZone = components['schemas']['SurgeZone'];
+export type AuditEntry = components['schemas']['AuditEntry'];
 export type IncidentMessage = components['schemas']['IncidentMessage'];
 
 /** The API base URL. Set VITE_API_URL at build time. */
