@@ -243,6 +243,8 @@ sequenceDiagram
 
 Trigger (server-side): > 150 m off planned route, or stopped > 2 min outside traffic signals/destination. → push + full-screen *Are you okay?* on rider app → *Yes, I'm fine* closes it; *Call for help* = SOS; no answer in 60 s → incident for safety desk.
 
+As built (2026-11-17): the worker checks every 10 s. *Off route* = the last two 10 s samples more than 150 m from the planned road route (OSRM, filled when the trip starts). *Stopped* = no movement beyond 30 m for 2 minutes, more than 150 m from the destination; there is no traffic-signal data yet, so a long red light can ask. A car that sends **no position for 2 minutes** mid-trip is treated as stopped (a phone switched off looks the same to her contacts). The same kind is not asked again on a ride for 5 minutes. The driver is never told. Until push notifications exist, the question reaches the rider only while her app is open.
+
 ### 6.3 Share trip
 
 Rider (or driver) taps **Share trip** → token created → native share sheet / *Send to my emergency contacts*. The web page `vara.example/t/<token>` shows live map, first name, car, plate, destination area, ETA, and *Call 10111*. Expires 30 min after the trip ends.

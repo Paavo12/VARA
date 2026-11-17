@@ -196,6 +196,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/driver/statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["statements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/driver/status": {
         parameters: {
             query?: never;
@@ -549,6 +565,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["metrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["report_queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/reports/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["set_report_status"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["settings_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/settings/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["setting_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["settlement_queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/settlements/{id}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["user_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["user_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/users/{id}/priority": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["adjust_priority"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/users/{id}/reinstate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reinstate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/users/{id}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suspend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/vehicles/{id}/decision": {
         parameters: {
             query?: never;
@@ -783,7 +991,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["complete"];
+        post: operations["complete_trip"];
         delete?: never;
         options?: never;
         head?: never;
@@ -886,6 +1094,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/rides/{id}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/rides/{id}/retry": {
         parameters: {
             query?: never;
@@ -896,6 +1120,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/rides/{id}/share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["share_trip"];
         delete?: never;
         options?: never;
         head?: never;
@@ -934,6 +1174,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/safety/ridecheck/{id}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["respond"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/safety/sos": {
         parameters: {
             query?: never;
@@ -944,6 +1200,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["sos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trip-shares/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["shared_trip"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1016,6 +1288,8 @@ export interface components {
              */
             upload_id: string;
         };
+        /** @enum {string} */
+        Answer: "fine" | "help";
         /**
          * @description Which app a session belongs to. One person can hold both (PRD A-9), with separate sessions.
          * @enum {string}
@@ -1377,10 +1651,14 @@ export interface components {
             /** Format: double */
             lon?: number | null;
             raised_by?: null | components["schemas"]["Person"];
+            report?: null | components["schemas"]["IncidentReport"];
             /** @description e.g. `VA-4123`. */
             ride_code?: string | null;
             /** Format: uuid */
             ride_id?: string | null;
+            /** @description RideCheck: `fine` or `help` when she answered after the desk was alerted. */
+            ridecheck_answer?: string | null;
+            rider?: null | components["schemas"]["Person"];
             /** @description `open`, `claimed` or `escalated`. */
             status: string;
         };
@@ -1397,6 +1675,25 @@ export interface components {
             /** Format: date-time */
             sent_at: string;
             /** @description Plain text: render it as text, never as HTML. */
+            text: string;
+        };
+        IncidentReport: {
+            category: string;
+            /** @description Plain text: render it as text, never as HTML. */
+            text: string;
+        };
+        /** @enum {string} */
+        IssueCategory: "harassment" | "unsafe_driving" | "wrong_person" | "wrong_vehicle" | "lost_item" | "fare" | "other";
+        IssueReceipt: {
+            /** Format: uuid */
+            id: string;
+            message: string;
+            /** @description The safety desk has it as an incident. */
+            safety: boolean;
+        };
+        IssueReport: {
+            category: components["schemas"]["IssueCategory"];
+            /** @description What happened, in her words (1–2000 characters, plain text). */
             text: string;
         };
         /**
@@ -1466,6 +1763,59 @@ export interface components {
             /** @description Rider identity verification: `not_started`, `pending`, `approved` or `rejected`. */
             verification: string;
             verification_reject_reason?: string | null;
+        };
+        Metrics: {
+            /** Format: int64 */
+            cancelled_by_driver: number;
+            /** Format: int64 */
+            cancelled_by_rider: number;
+            /** Format: int64 */
+            completed: number;
+            /**
+             * Format: double
+             * @description Completed ÷ requested, 0–1 (absent with no requests).
+             */
+            completion_rate?: number | null;
+            /** Format: int32 */
+            days: number;
+            /** Format: int64 */
+            drivers_online_now: number;
+            /** Format: int64 */
+            incidents_open_now: number;
+            /**
+             * Format: double
+             * @description Median minutes from request to a driver accepting.
+             */
+            median_match_min?: number | null;
+            /**
+             * Format: double
+             * @description Median hours from a rider submitting her ID to the decision.
+             */
+            median_verification_h?: number | null;
+            /**
+             * Format: int64
+             * @description Requests that found no driver at least once.
+             */
+            no_drivers: number;
+            /** Format: int64 */
+            other_reports: number;
+            /** Format: int64 */
+            pin_lockouts: number;
+            /**
+             * Format: int64
+             * @description Rides requested in the period (scheduled ones by their request time).
+             */
+            requested: number;
+            /** Format: int64 */
+            ridechecks_asked: number;
+            /** Format: int64 */
+            ridechecks_unanswered: number;
+            /** Format: int64 */
+            safety_reports: number;
+            /** Format: int64 */
+            sos: number;
+            /** Format: int64 */
+            trips_in_progress_now: number;
         };
         /** @description The request card (PRD D-4). No destination, no exact pickup. */
         OfferCard: {
@@ -1607,6 +1957,19 @@ export interface components {
             reject_reason?: string | null;
             status: string;
         };
+        PriorityAdjustment: {
+            /**
+             * Format: int32
+             * @description Points to add (negative to remove), −50 to 50. The balance stays within 0–150.
+             */
+            delta: number;
+            reason: string;
+            role: components["schemas"]["Side"];
+        };
+        PriorityBalance: {
+            /** Format: int32 */
+            points: number;
+        };
         QueueItem: {
             display_name?: string | null;
             /** Format: uuid */
@@ -1684,8 +2047,18 @@ export interface components {
             /** Format: int64 */
             stars: number;
         };
+        Reason: {
+            /** @description Why, for the audit log and (for a suspension) the user's record. */
+            reason: string;
+        };
         RefreshRequest: {
             refresh_token: string;
+        };
+        ReportStatus: {
+            /** @description What was done, for the audit log. */
+            note?: string | null;
+            /** @description `in_progress` or `resolved`. */
+            status: string;
         };
         ReviewDocument: {
             /** Format: date */
@@ -1713,6 +2086,30 @@ export interface components {
             wheelchair_accessible: boolean;
             /** Format: int32 */
             year: number;
+        };
+        RideCheckResponse: {
+            answer: components["schemas"]["Answer"];
+            location?: null | components["schemas"]["Point"];
+        };
+        RideCheckResult: {
+            /** @description The answer on record (the first one, if she answered before). */
+            answer: components["schemas"]["Answer"];
+            sos?: null | components["schemas"]["SosAlert"];
+        };
+        RideCheckView: {
+            /**
+             * Format: date-time
+             * @description After this the safety desk is alerted; she can still answer.
+             */
+            answer_by: string;
+            /** Format: date-time */
+            asked_at: string;
+            /** @description The safety desk has been alerted (no answer in time). */
+            escalated: boolean;
+            /** Format: uuid */
+            id: string;
+            /** @description `deviation` (off the planned route) or `stop` (stopped, or no position from the car). */
+            kind: string;
         };
         RideRequest: {
             guest?: null | components["schemas"]["Guest"];
@@ -1772,6 +2169,7 @@ export interface components {
             rated: boolean;
             /** Format: date-time */
             requested_at: string;
+            ride_check?: null | components["schemas"]["RideCheckView"];
             /** Format: date-time */
             scheduled_for?: string | null;
             /**
@@ -1837,6 +2235,105 @@ export interface components {
             /** @description The full set of approved tiers; an empty list removes them all. */
             tiers: components["schemas"]["Tier"][];
         };
+        Setting: {
+            key: string;
+            label: string;
+            /** Format: double */
+            max: number;
+            /** Format: double */
+            min: number;
+            /** Format: date-time */
+            updated_at?: string | null;
+            /**
+             * Format: double
+             * @description The stored value; absent when the default is used.
+             */
+            value?: number | null;
+        };
+        SettingValue: {
+            /** Format: double */
+            value: number;
+        };
+        Settle: {
+            /**
+             * @description The bank transfer or deposit slip reference.
+             * @example FNB 4471 2026-11-17
+             */
+            reference: string;
+        };
+        SettlementItem: {
+            /** @description Positive: VARA pays her. Negative: she pays VARA (service fees on cash trips). */
+            amount: components["schemas"]["Cents"];
+            /** Format: uuid */
+            driver_id: string;
+            driver_name?: string | null;
+            driver_phone?: string | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            period_end: string;
+            /**
+             * Format: date
+             * @description Monday to Sunday, Windhoek time.
+             */
+            period_start: string;
+            reference?: string | null;
+            /** Format: date-time */
+            settled_at?: string | null;
+            /** @description `pending`, `sent` (VARA paid her) or `received` (she paid VARA). */
+            status: string;
+        };
+        ShareRequest: {
+            /** @description Also text the link to her emergency contacts (*Send to my emergency contacts*). */
+            send_to_contacts?: boolean;
+        };
+        /**
+         * @description Where the shared trip is, in words a contact understands.
+         * @enum {string}
+         */
+        ShareStatus: "driver_on_the_way" | "driver_arrived" | "in_trip" | "finding_driver" | "with_safety_team" | "ended";
+        SharedCar: {
+            colour: string;
+            make: string;
+            model: string;
+            plate: string;
+        };
+        SharedPosition: {
+            /** Format: date-time */
+            at: string;
+            /** Format: double */
+            lat: number;
+            /** Format: double */
+            lon: number;
+        };
+        /** @description The public trip page's data. Nothing here identifies the rider beyond her first name. */
+        SharedTrip: {
+            car?: null | components["schemas"]["SharedCar"];
+            /** @description "Near Maerua Mall" or "Klein Windhoek area", never the address. */
+            destination_area: string;
+            /** @description The driver's first name. */
+            driver_first_name?: string | null;
+            /**
+             * Format: date-time
+             * @description Expected arrival at the pickup (before it) or at the destination (in the trip).
+             */
+            eta?: string | null;
+            /**
+             * Format: date-time
+             * @description When the link stops working, once the ride has ended.
+             */
+            expires_at?: string | null;
+            /** @example 10111 */
+            police_phone: string;
+            position?: null | components["schemas"]["SharedPosition"];
+            /** @description First name of whoever shared the link. */
+            shared_by: string;
+            /** @description `rider` or `driver`. */
+            shared_by_party: string;
+            status: components["schemas"]["ShareStatus"];
+        };
+        /** @enum {string} */
+        Side: "rider" | "driver";
         SignedIn: components["schemas"]["TokenPair"] & {
             /** @description True when this sign-in created the account: the app continues to "Your details". */
             new_user: boolean;
@@ -1876,12 +2373,50 @@ export interface components {
             /** @description Send as `Authorization: Bearer <token>` to `/v1/ops/*`. */
             token: string;
         };
+        Statement: {
+            /** @description Positive: VARA pays her. Negative: she pays VARA (service fees on cash trips). */
+            amount: components["schemas"]["Cents"];
+            /** Format: uuid */
+            id: string;
+            /** Format: date */
+            period_end: string;
+            /**
+             * Format: date
+             * @description Monday to Sunday, Windhoek time.
+             */
+            period_start: string;
+            /** Format: date-time */
+            settled_at?: string | null;
+            /** @description `pending`, `sent` (VARA paid her) or `received` (VARA received her payment). */
+            status: string;
+        };
         Stop: {
             address: string;
             /** Format: double */
             lat: number;
             /** Format: double */
             lon: number;
+        };
+        SupportReport: {
+            category: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description The safety desk has it too.
+             */
+            incident_id?: string | null;
+            /** Format: uuid */
+            reporter_id: string;
+            reporter_name?: string | null;
+            reporter_phone?: string | null;
+            ride_code?: string | null;
+            /** Format: uuid */
+            ride_id?: string | null;
+            status: string;
+            text: string;
         };
         /**
          * @description Ride types, cheapest first. The order is significant: a higher tier charges more.
@@ -1903,6 +2438,14 @@ export interface components {
              */
             refresh_token: string;
             token_type: string;
+        };
+        TripShare: {
+            /** @description Emergency contacts being texted the link (0 unless asked for). */
+            contacts_texted: number;
+            /** @description The text for the share sheet. */
+            text: string;
+            /** @description The link to send, e.g. `https://vara.example/t/<token>`. */
+            url: string;
         };
         UpdateMe: {
             /**
@@ -1934,6 +2477,56 @@ export interface components {
             /** Format: uuid */
             upload_id: string;
             url: string;
+        };
+        UserDetail: {
+            /** Format: int32 */
+            driver_priority?: number | null;
+            /** @description Reports she made, newest first. */
+            reports: components["schemas"]["UserReport"][];
+            /** Format: int32 */
+            rider_priority?: number | null;
+            suspended_reason?: string | null;
+            /** @description The last 20 trips on either side. */
+            trips: components["schemas"]["UserTrip"][];
+            user: components["schemas"]["UserItem"];
+            verification: string;
+        };
+        UserItem: {
+            /** Format: date-time */
+            created_at: string;
+            display_name?: string | null;
+            full_name?: string | null;
+            is_driver: boolean;
+            is_rider: boolean;
+            phone?: string | null;
+            /** @description `pending`, `active`, `suspended` or `deleted`. */
+            status: string;
+            /** Format: uuid */
+            user_id: string;
+        };
+        UserReport: {
+            category: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            ride_id?: string | null;
+            status: string;
+            text: string;
+        };
+        UserTrip: {
+            /** @description `rider` or `driver`: her side of this trip. */
+            as_party: string;
+            code: string;
+            dropoff_address: string;
+            fare: components["schemas"]["Cents"];
+            pickup_address: string;
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: uuid */
+            ride_id: string;
+            state: string;
         };
         Vehicle: {
             /** @example Silver */
@@ -2450,6 +3043,44 @@ export interface operations {
             };
             /** @description Position outside the service area */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    statements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Her weekly statements, newest first (the last 26 weeks) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Statement"][];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Driver app only */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3125,7 +3756,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Incidents not yet closed: SOS first, then newest first */
+            /** @description Incidents not yet closed: SOS and unanswered RideChecks first, then newest first */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3218,6 +3849,534 @@ export interface operations {
             };
             /** @description No such incident */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    metrics: {
+        parameters: {
+            query?: {
+                /** @description Days to count back from now, 1–90 (default 7). */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts for the period and right now */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Metrics"];
+                };
+            };
+            /** @description days outside 1–90 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    report_queue: {
+        parameters: {
+            query?: {
+                /** @description `open` (default), `in_progress` or `resolved`. */
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reported issues, oldest first (open) or newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportReport"][];
+                };
+            };
+            /** @description Support and admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_report_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportStatus"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Support and admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such report */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    settings_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every editable parameter with its bounds */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Setting"][];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    setting_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description e.g. `dispatch.radius_m` */
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingValue"];
+            };
+        };
+        responses: {
+            /** @description Saved; matching and RideCheck use it from their next run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Setting"];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an editable setting */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Outside the allowed range */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    settlement_queue: {
+        parameters: {
+            query?: {
+                /** @description `pending` (default) or `settled`. */
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Weekly statements: pending (oldest first) or the last 200 settled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementItem"][];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    settle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Settle"];
+            };
+        };
+        responses: {
+            /** @description Recorded as settled; her balance is reduced by the amount */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementItem"];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such statement */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Already settled (`already_settled`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    user_search: {
+        parameters: {
+            query: {
+                /** @description A phone number (`+264…` or `081…`), or part of a name (at least 2 characters). */
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Up to 50 matches: the exact phone number, or names containing the text */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserItem"][];
+                };
+            };
+            /** @description Support and admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Search text too short */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    user_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person, her last trips and her reports (the view is audited) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetail"];
+                };
+            };
+            /** @description Support and admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    adjust_priority: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriorityAdjustment"];
+            };
+        };
+        responses: {
+            /** @description Adjusted (clamped to 0–150) and recorded in the priority ledger */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriorityBalance"];
+                };
+            };
+            /** @description Support and admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such rider or driver */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reinstate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description Reinstated: active again if verified, else back to pending */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Support and admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not suspended (`not_suspended`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    suspend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description Suspended: signed out of every request from now on; a driver is taken offline */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Support and admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Already suspended, or deleted (`not_active`) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3763,7 +4922,7 @@ export interface operations {
             };
         };
     };
-    complete: {
+    complete_trip: {
         parameters: {
             query?: never;
             header?: never;
@@ -4127,6 +5286,68 @@ export interface operations {
             };
         };
     };
+    report: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueReport"];
+            };
+        };
+        responses: {
+            /** @description Recorded; safety categories also reach the safety desk */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssueReceipt"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not her ride, or more than 30 days ago */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many reports today */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     retry: {
         parameters: {
             query?: never;
@@ -4157,6 +5378,77 @@ export interface operations {
             };
             /** @description `invalid_state`: only after *No drivers accepted* */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    share_trip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareRequest"];
+            };
+        };
+        responses: {
+            /** @description A new live link to her trip; each call makes another */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripShare"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not her ride */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The ride has no driver yet or has ended (`not_shareable`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many links */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4246,6 +5538,60 @@ export interface operations {
             };
         };
     };
+    respond: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The `ride_check.id` from her view of the ride */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RideCheckResponse"];
+            };
+        };
+        responses: {
+            /** @description Recorded; *help* also raised an SOS */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RideCheckResult"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such check on her rides */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     sos: {
         parameters: {
             query?: never;
@@ -4270,6 +5616,56 @@ export interface operations {
             };
             /** @description Not signed in */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    shared_trip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The token from the link */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The shared trip, live. Poll every 10 s */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedTrip"];
+                };
+            };
+            /** @description No such link, or it was stopped */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The link expired 30 minutes after the trip ended (`link_expired`) */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many lookups from this address */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

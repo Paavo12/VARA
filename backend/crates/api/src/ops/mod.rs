@@ -8,6 +8,10 @@
 pub mod auth;
 pub mod drivers;
 pub mod incidents;
+pub mod metrics;
+pub mod settings;
+pub mod settlements;
+pub mod support;
 pub mod verifications;
 
 use axum::{
@@ -38,6 +42,18 @@ pub fn router(_: &AppState) -> Router<AppState> {
         .route("/drivers/{id}/decision", post(drivers::decide))
         .route("/documents/{id}/decision", post(drivers::decide_document))
         .route("/vehicles/{id}/decision", post(drivers::decide_vehicle))
+        .route("/settlements", get(settlements::queue))
+        .route("/settlements/{id}/settle", post(settlements::settle))
+        .route("/users", get(support::search))
+        .route("/users/{id}", get(support::detail))
+        .route("/users/{id}/suspend", post(support::suspend))
+        .route("/users/{id}/reinstate", post(support::reinstate))
+        .route("/users/{id}/priority", post(support::adjust_priority))
+        .route("/reports", get(support::reports))
+        .route("/reports/{id}/status", post(support::set_report_status))
+        .route("/settings", get(settings::list))
+        .route("/settings/{key}", put(settings::set))
+        .route("/metrics", get(metrics::metrics))
 }
 
 /// A signed-in staff member.
@@ -56,6 +72,20 @@ impl Staff {
         } else {
             Err(ApiError::forbidden("forbidden", "Your role can't do this."))
         }
+    }
+
+    /// Support: users, suspensions, priority points and reported issues. Support agents and admins.
+    pub fn require_support(&self) -> Result<(), ApiError> {
+        if self.roles.iter().any(|r| r == "ops_support" || r == "ops_admin") {
+            Ok(())
+        } else {
+            Err(ApiError::forbidden("forbidden", "Your role can't do this."))
+        }
+    }
+
+    /// Money: weekly settlements. Admins only.
+    pub fn require_admin(&self) -> Result<(), ApiError> {
+        if self.roles.iter().any(|r| r == "ops_admin") { Ok(()) } else { Err(ApiError::forbidden("forbidden", "Your role can't do this.")) }
     }
 
     /// The safety desk: safety agents and admins.

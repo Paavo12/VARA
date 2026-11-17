@@ -582,6 +582,54 @@
         ]
       }
     },
+    "/v1/driver/statements": {
+      "get": {
+        "tags": [
+          "earnings"
+        ],
+        "operationId": "statements",
+        "responses": {
+          "200": {
+            "description": "Her weekly statements, newest first (the last 26 weeks)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Statement"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Driver app only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/driver/status": {
       "get": {
         "tags": [
@@ -1486,7 +1534,7 @@
         "operationId": "incident_queue",
         "responses": {
           "200": {
-            "description": "Incidents not yet closed: SOS first, then newest first",
+            "description": "Incidents not yet closed: SOS and unanswered RideChecks first, then newest first",
             "content": {
               "application/json": {
                 "schema": {
@@ -1618,6 +1666,749 @@
           },
           "404": {
             "description": "No such incident",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/metrics": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "metrics",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Days to count back from now, 1–90 (default 7).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts for the period and right now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "days outside 1–90",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/reports": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "report_queue",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "`open` (default), `in_progress` or `resolved`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reported issues, oldest first (open) or newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SupportReport"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/reports/{id}/status": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "set_report_status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportStatus"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Updated"
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/settings": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "settings_list",
+        "responses": {
+          "200": {
+            "description": "Every editable parameter with its bounds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Setting"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/settings/{key}": {
+      "put": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "setting_update",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "e.g. `dispatch.radius_m`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingValue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Saved; matching and RideCheck use it from their next run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Setting"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not an editable setting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Outside the allowed range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/settlements": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "settlement_queue",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "`pending` (default) or `settled`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weekly statements: pending (oldest first) or the last 200 settled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SettlementItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/settlements/{id}/settle": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "settle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded as settled; her balance is reduced by the amount",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementItem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such statement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already settled (`already_settled`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "user_search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "A phone number (`+264…` or `081…`), or part of a name (at least 2 characters).",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Up to 50 matches: the exact phone number, or names containing the text",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Search text too short",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "user_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The person, her last trips and her reports (the view is audited)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}/priority": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "adjust_priority",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriorityAdjustment"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Adjusted (clamped to 0–150) and recorded in the priority ledger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriorityBalance"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such rider or driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}/reinstate": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "reinstate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Reinstated: active again if verified, else back to pending"
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Not suspended (`not_suspended`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}/suspend": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "suspend",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Suspended: signed out of every request from now on; a driver is taken offline"
+          },
+          "403": {
+            "description": "Support and admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already suspended, or deleted (`not_active`)",
             "content": {
               "application/json": {
                 "schema": {
@@ -2397,7 +3188,7 @@
         "tags": [
           "trip"
         ],
-        "operationId": "complete",
+        "operationId": "complete_trip",
         "parameters": [
           {
             "name": "id",
@@ -2910,6 +3701,92 @@
         ]
       }
     },
+    "/v1/rides/{id}/report": {
+      "post": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "report",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded; safety categories also reach the safety desk",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssueReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride, or more than 30 days ago",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many reports today",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/rides/{id}/retry": {
       "post": {
         "tags": [
@@ -2950,6 +3827,102 @@
           },
           "409": {
             "description": "`invalid_state`: only after *No drivers accepted*",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/rides/{id}/share": {
+      "post": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "share_trip",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "A new live link to her trip; each call makes another",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripShare"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not her ride",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The ride has no driver yet or has ended (`not_shareable`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many links",
             "content": {
               "application/json": {
                 "schema": {
@@ -3078,6 +4051,83 @@
         ]
       }
     },
+    "/v1/safety/ridecheck/{id}/respond": {
+      "post": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "respond",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The `ride_check.id` from her view of the ride",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RideCheckResponse"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded; *help* also raised an SOS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RideCheckResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such check on her rides",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/safety/sos": {
       "post": {
         "tags": [
@@ -3121,6 +4171,67 @@
             "bearer": []
           }
         ]
+      }
+    },
+    "/v1/trip-shares/{token}": {
+      "get": {
+        "tags": [
+          "safety"
+        ],
+        "operationId": "shared_trip",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "description": "The token from the link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The shared trip, live. Poll every 10 s",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedTrip"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such link, or it was stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The link expired 30 minutes after the trip ended (`link_expired`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many lookups from this address",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/uploads": {
@@ -3319,6 +4430,13 @@
           }
         },
         "additionalProperties": false
+      },
+      "Answer": {
+        "type": "string",
+        "enum": [
+          "fine",
+          "help"
+        ]
       },
       "App": {
         "type": "string",
@@ -4501,7 +5619,18 @@
               },
               {
                 "$ref": "#/components/schemas/Person",
-                "description": "Who pressed SOS; absent for incidents the system raised."
+                "description": "Who pressed SOS or reported; absent for incidents the system raised (RideCheck)."
+              }
+            ]
+          },
+          "report": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IncidentReport",
+                "description": "What she reported (`report` incidents)."
               }
             ]
           },
@@ -4518,6 +5647,24 @@
               "null"
             ],
             "format": "uuid"
+          },
+          "ridecheck_answer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "RideCheck: `fine` or `help` when she answered after the desk was alerted."
+          },
+          "rider": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Person",
+                "description": "The ride's rider, to call (RideCheck, or an SOS from the driver)."
+              }
+            ]
           },
           "status": {
             "type": "string",
@@ -4557,6 +5704,72 @@
             "description": "Plain text: render it as text, never as HTML."
           }
         }
+      },
+      "IncidentReport": {
+        "type": "object",
+        "required": [
+          "category",
+          "text"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "description": "Plain text: render it as text, never as HTML."
+          }
+        }
+      },
+      "IssueCategory": {
+        "type": "string",
+        "enum": [
+          "harassment",
+          "unsafe_driving",
+          "wrong_person",
+          "wrong_vehicle",
+          "lost_item",
+          "fare",
+          "other"
+        ]
+      },
+      "IssueReceipt": {
+        "type": "object",
+        "required": [
+          "id",
+          "safety",
+          "message"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "message": {
+            "type": "string"
+          },
+          "safety": {
+            "type": "boolean",
+            "description": "The safety desk has it as an incident."
+          }
+        }
+      },
+      "IssueReport": {
+        "type": "object",
+        "required": [
+          "category",
+          "text"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/IssueCategory"
+          },
+          "text": {
+            "type": "string",
+            "description": "What happened, in her words (1–2000 characters, plain text)."
+          }
+        },
+        "additionalProperties": false
       },
       "LatLng": {
         "type": "object",
@@ -4754,6 +5967,114 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "Metrics": {
+        "type": "object",
+        "required": [
+          "days",
+          "requested",
+          "completed",
+          "cancelled_by_rider",
+          "cancelled_by_driver",
+          "no_drivers",
+          "sos",
+          "ridechecks_asked",
+          "ridechecks_unanswered",
+          "pin_lockouts",
+          "safety_reports",
+          "other_reports",
+          "drivers_online_now",
+          "trips_in_progress_now",
+          "incidents_open_now"
+        ],
+        "properties": {
+          "cancelled_by_driver": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cancelled_by_rider": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "completed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "completion_rate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Completed ÷ requested, 0–1 (absent with no requests)."
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "drivers_online_now": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "incidents_open_now": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "median_match_min": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Median minutes from request to a driver accepting."
+          },
+          "median_verification_h": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Median hours from a rider submitting her ID to the decision."
+          },
+          "no_drivers": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Requests that found no driver at least once."
+          },
+          "other_reports": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "pin_lockouts": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "requested": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Rides requested in the period (scheduled ones by their request time)."
+          },
+          "ridechecks_asked": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ridechecks_unanswered": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "safety_reports": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sos": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "trips_in_progress_now": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -5105,6 +6426,40 @@
           }
         }
       },
+      "PriorityAdjustment": {
+        "type": "object",
+        "required": [
+          "role",
+          "delta",
+          "reason"
+        ],
+        "properties": {
+          "delta": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Points to add (negative to remove), −50 to 50. The balance stays within 0–150."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Side"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PriorityBalance": {
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "QueueItem": {
         "type": "object",
         "required": [
@@ -5318,6 +6673,19 @@
         },
         "additionalProperties": false
       },
+      "Reason": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Why, for the audit log and (for a suspension) the user's record."
+          }
+        },
+        "additionalProperties": false
+      },
       "RefreshRequest": {
         "type": "object",
         "required": [
@@ -5326,6 +6694,26 @@
         "properties": {
           "refresh_token": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReportStatus": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What was done, for the audit log."
+          },
+          "status": {
+            "type": "string",
+            "description": "`in_progress` or `resolved`."
           }
         },
         "additionalProperties": false
@@ -5425,6 +6813,85 @@
           "year": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "RideCheckResponse": {
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/Answer"
+          },
+          "location": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Point",
+                "description": "Where the phone is, for the SOS when she asks for help."
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "RideCheckResult": {
+        "type": "object",
+        "required": [
+          "answer"
+        ],
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/Answer",
+            "description": "The answer on record (the first one, if she answered before)."
+          },
+          "sos": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SosAlert",
+                "description": "The SOS raised by *Call for help*."
+              }
+            ]
+          }
+        }
+      },
+      "RideCheckView": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "asked_at",
+          "answer_by",
+          "escalated"
+        ],
+        "properties": {
+          "answer_by": {
+            "type": "string",
+            "format": "date-time",
+            "description": "After this the safety desk is alerted; she can still answer."
+          },
+          "asked_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "escalated": {
+            "type": "boolean",
+            "description": "The safety desk has been alerted (no answer in time)."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`deviation` (off the planned route) or `stop` (stopped, or no position from the car)."
           }
         }
       },
@@ -5611,6 +7078,17 @@
             "type": "string",
             "format": "date-time"
           },
+          "ride_check": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RideCheckView",
+                "description": "RideCheck's *Are you okay?*, while she hasn't answered (PRD S-3). Never in the driver's view."
+              }
+            ]
+          },
           "scheduled_for": {
             "type": [
               "string",
@@ -5790,6 +7268,286 @@
         },
         "additionalProperties": false
       },
+      "Setting": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "min",
+          "max"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "max": {
+            "type": "number",
+            "format": "double"
+          },
+          "min": {
+            "type": "number",
+            "format": "double"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "The stored value; absent when the default is used."
+          }
+        }
+      },
+      "SettingValue": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "properties": {
+          "value": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Settle": {
+        "type": "object",
+        "required": [
+          "reference"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "The bank transfer or deposit slip reference.",
+            "example": "FNB 4471 2026-11-17"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SettlementItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "driver_id",
+          "period_start",
+          "period_end",
+          "amount",
+          "status"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Positive: VARA pays her. Negative: she pays VARA (service fees on cash trips)."
+          },
+          "driver_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "driver_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "driver_phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "description": "Monday to Sunday, Windhoek time."
+          },
+          "reference": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "`pending`, `sent` (VARA paid her) or `received` (she paid VARA)."
+          }
+        }
+      },
+      "ShareRequest": {
+        "type": "object",
+        "properties": {
+          "send_to_contacts": {
+            "type": "boolean",
+            "description": "Also text the link to her emergency contacts (*Send to my emergency contacts*)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ShareStatus": {
+        "type": "string",
+        "description": "Where the shared trip is, in words a contact understands.",
+        "enum": [
+          "driver_on_the_way",
+          "driver_arrived",
+          "in_trip",
+          "finding_driver",
+          "with_safety_team",
+          "ended"
+        ]
+      },
+      "SharedCar": {
+        "type": "object",
+        "required": [
+          "make",
+          "model",
+          "colour",
+          "plate"
+        ],
+        "properties": {
+          "colour": {
+            "type": "string"
+          },
+          "make": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "plate": {
+            "type": "string"
+          }
+        }
+      },
+      "SharedPosition": {
+        "type": "object",
+        "required": [
+          "lat",
+          "lon",
+          "at"
+        ],
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lat": {
+            "type": "number",
+            "format": "double"
+          },
+          "lon": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SharedTrip": {
+        "type": "object",
+        "description": "The public trip page's data. Nothing here identifies the rider beyond her first name.",
+        "required": [
+          "status",
+          "shared_by",
+          "shared_by_party",
+          "destination_area",
+          "police_phone"
+        ],
+        "properties": {
+          "car": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SharedCar"
+              }
+            ]
+          },
+          "destination_area": {
+            "type": "string",
+            "description": "\"Near Maerua Mall\" or \"Klein Windhoek area\", never the address."
+          },
+          "driver_first_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The driver's first name."
+          },
+          "eta": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Expected arrival at the pickup (before it) or at the destination (in the trip)."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the link stops working, once the ride has ended."
+          },
+          "police_phone": {
+            "type": "string",
+            "example": "10111"
+          },
+          "position": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SharedPosition",
+                "description": "The car's last reported position; absent once the trip has ended."
+              }
+            ]
+          },
+          "shared_by": {
+            "type": "string",
+            "description": "First name of whoever shared the link."
+          },
+          "shared_by_party": {
+            "type": "string",
+            "description": "`rider` or `driver`."
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShareStatus"
+          }
+        }
+      },
+      "Side": {
+        "type": "string",
+        "enum": [
+          "rider",
+          "driver"
+        ]
+      },
       "SignedIn": {
         "allOf": [
           {
@@ -5898,6 +7656,46 @@
           }
         }
       },
+      "Statement": {
+        "type": "object",
+        "required": [
+          "id",
+          "period_start",
+          "period_end",
+          "amount",
+          "status"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Positive: VARA pays her. Negative: she pays VARA (service fees on cash trips)."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "description": "Monday to Sunday, Windhoek time."
+          },
+          "settled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "`pending`, `sent` (VARA paid her) or `received` (VARA received her payment)."
+          }
+        }
+      },
       "Stop": {
         "type": "object",
         "required": [
@@ -5916,6 +7714,73 @@
           "lon": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "SupportReport": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "text",
+          "status",
+          "reporter_id",
+          "created_at"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "incident_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The safety desk has it too."
+          },
+          "reporter_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reporter_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reporter_phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ride_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ride_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
           }
         }
       },
@@ -5966,6 +7831,29 @@
           },
           "token_type": {
             "type": "string"
+          }
+        }
+      },
+      "TripShare": {
+        "type": "object",
+        "required": [
+          "url",
+          "text",
+          "contacts_texted"
+        ],
+        "properties": {
+          "contacts_texted": {
+            "type": "integer",
+            "description": "Emergency contacts being texted the link (0 unless asked for).",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string",
+            "description": "The text for the share sheet."
+          },
+          "url": {
+            "type": "string",
+            "description": "The link to send, e.g. `https://vara.example/t/<token>`."
           }
         }
       },
@@ -6056,6 +7944,183 @@
             "format": "uuid"
           },
           "url": {
+            "type": "string"
+          }
+        }
+      },
+      "UserDetail": {
+        "type": "object",
+        "required": [
+          "user",
+          "verification",
+          "trips",
+          "reports"
+        ],
+        "properties": {
+          "driver_priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "reports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserReport"
+            },
+            "description": "Reports she made, newest first."
+          },
+          "rider_priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "suspended_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trips": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserTrip"
+            },
+            "description": "The last 20 trips on either side."
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserItem"
+          },
+          "verification": {
+            "type": "string"
+          }
+        }
+      },
+      "UserItem": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "status",
+          "is_rider",
+          "is_driver",
+          "created_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "display_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "full_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_driver": {
+            "type": "boolean"
+          },
+          "is_rider": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "description": "`pending`, `active`, `suspended` or `deleted`."
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "UserReport": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "text",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ride_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "UserTrip": {
+        "type": "object",
+        "required": [
+          "ride_id",
+          "code",
+          "as_party",
+          "state",
+          "pickup_address",
+          "dropoff_address",
+          "fare",
+          "requested_at"
+        ],
+        "properties": {
+          "as_party": {
+            "type": "string",
+            "description": "`rider` or `driver`: her side of this trip."
+          },
+          "code": {
+            "type": "string"
+          },
+          "dropoff_address": {
+            "type": "string"
+          },
+          "fare": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "pickup_address": {
+            "type": "string"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ride_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
             "type": "string"
           }
         }
@@ -6300,7 +8365,7 @@
     },
     {
       "name": "earnings",
-      "description": "Cash confirmation and the driver's earnings (driver app)"
+      "description": "Cash confirmation, the driver's earnings and weekly statements (driver app)"
     },
     {
       "name": "ratings",
@@ -6316,11 +8381,11 @@
     },
     {
       "name": "safety",
-      "description": "SOS from either app"
+      "description": "SOS, Share trip, RideCheck and Report an issue; the public Share trip page"
     },
     {
       "name": "ops",
-      "description": "Staff: verification and driver review, the safety desk's incident queue"
+      "description": "Staff: verification and driver review, the safety desk's incident queue, weekly settlements, support (users, suspensions, priority, reports)"
     }
   ]
 }

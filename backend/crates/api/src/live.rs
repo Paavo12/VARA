@@ -195,6 +195,15 @@ async fn try_deliver(db: &PgPool, hub: &Hub, e: Event) -> Result<(), sqlx::Error
                 None => {}
             }
         }
+        "ridecheck" => {
+            // The rider only: the driver must never learn that she is being asked.
+            if let (Some(rider), Some(ride_id)) = (e.rider_id, e.ride_id)
+                && hub.connected(rider, App::Rider)
+                && let Some(view) = views::rider_ride(db, rider, ride_id).await?
+            {
+                hub.send(rider, App::Rider, "ride.updated", json!(view));
+            }
+        }
         "location" => {
             if let (Some(rider), Some(ride_id), Some(lat), Some(lon)) = (e.rider_id, e.ride_id, e.lat, e.lon) {
                 hub.send(rider, App::Rider, "driver.location", json!({ "ride_id": ride_id, "lat": lat, "lon": lon, "heading": e.heading }));

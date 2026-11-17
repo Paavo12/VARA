@@ -106,6 +106,44 @@ pub struct RiderRide {
     pub started_at: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub completed_at: Option<OffsetDateTime>,
+    /// RideCheck's *Are you okay?*, while she hasn't answered (PRD S-3). Never in the driver's view.
+    pub ride_check: Option<RideCheckView>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct RideCheckView {
+    pub id: Uuid,
+    /// `deviation` (off the planned route) or `stop` (stopped, or no position from the car).
+    pub kind: String,
+    #[serde(with = "time::serde::rfc3339")]
+    pub asked_at: OffsetDateTime,
+    /// After this the safety desk is alerted; she can still answer.
+    #[serde(with = "time::serde::rfc3339")]
+    pub answer_by: OffsetDateTime,
+    /// The safety desk has been alerted (no answer in time).
+    pub escalated: bool,
+}
+
+/// An unanswered RideCheck stays on her screen this long, even after the trip.
+const RIDE_CHECK_SHOWN_S: f64 = 15.0 * 60.0;
+
+async fn open_ride_check(db: &PgPool, ride_id: Uuid) -> Result<Option<RideCheckView>, sqlx::Error> {
+    let row: Option<(Uuid, String, OffsetDateTime, bool)> = sqlx::query_as(
+        "SELECT id, kind, asked_at, incident_id IS NOT NULL FROM ride_checks
+         WHERE ride_id = $1 AND answered_at IS NULL AND asked_at > now() - make_interval(secs => $2)
+         ORDER BY asked_at DESC LIMIT 1",
+    )
+    .bind(ride_id)
+    .bind(RIDE_CHECK_SHOWN_S)
+    .fetch_optional(db)
+    .await?;
+    Ok(row.map(|(id, kind, asked_at, escalated)| RideCheckView {
+        id,
+        kind,
+        asked_at,
+        answer_by: asked_at + time::Duration::seconds(fuber_domain::safety::RIDECHECK_ANSWER_S),
+        escalated,
+    }))
 }
 
 /// Timestamps of a ride, in order.
@@ -276,6 +314,7 @@ pub async fn rider_ride(db: &PgPool, rider_id: Uuid, ride_id: Uuid) -> Result<Op
         wait_started_at: times.4,
         started_at: times.5,
         completed_at: times.6,
+        ride_check: open_ride_check(db, id).await?,
     }))
 }
 

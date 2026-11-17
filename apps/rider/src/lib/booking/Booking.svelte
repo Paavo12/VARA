@@ -11,12 +11,13 @@
 		type Me,
 		type RiderRide
 	} from '@fuber/api-client';
-	import { Chat, Sos, useSession } from '@fuber/account';
+	import { Chat, ShareTrip, Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
 	import { SAFETY_DESK_PHONE } from '../session';
 	import Options from './Options.svelte';
 	import History from './History.svelte';
+	import RideCheck from './RideCheck.svelte';
 	import RideStatus from './RideStatus.svelte';
 	import Search from './Search.svelte';
 	import { DEV_LOCATION, inServiceArea, type Stop } from './types';
@@ -192,10 +193,16 @@
 	{/key}
 {:else if stage === 'ride' && ride}
 	<RideStatus {ride} onchange={(r) => (ride = r)} ondone={done} />
+	{#if ride.ride_check}
+		<!-- RideCheck (PRD S-3): asked by the server, shown over everything until she answers. -->
+		<RideCheck check={ride.ride_check} />
+	{/if}
 	{#if WITH_DRIVER.includes(ride.state) || sosActive}
 		<Sos rideId={ride.id} safetyDeskPhone={SAFETY_DESK_PHONE} bind:active={sosActive} />
 	{/if}
 	{#if CHAT_OPEN.includes(ride.state) && ride.driver}
+		<!-- Shareable for as long as chat is open: from acceptance to drop-off (PRD S-2). -->
+		<ShareTrip rideId={ride.id} />
 		<Chat bind:this={chat} rideId={ride.id} party="rider" name={ride.driver.first_name} />
 	{/if}
 {/if}

@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
 	import type { DriverRide } from '@fuber/api-client';
-	import { messageOf, useSession } from '@fuber/account';
+	import { messageOf, ReportIssue, useSession } from '@fuber/account';
 	import { Button, Notice, Screen, Stars, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
 
@@ -329,6 +329,7 @@
 			{/if}
 		{/if}
 		{#if error}<Notice tone="attention"><p>{error}</p></Notice>{/if}
+		<ReportIssue rideId={ride.id} party="driver" />
 		{#snippet footer()}
 			{#if ride.payment_method === 'cash' && ride.payment_status === 'pending'}
 				<Button size="driver" onclick={cashReceived} loading={busy}>Cash received</Button>

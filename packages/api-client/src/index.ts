@@ -18,6 +18,8 @@ export type DriverStatus = components['schemas']['DriverStatus'];
 export type OfferCard = components['schemas']['OfferCard'];
 export type Fare = components['schemas']['Fare'];
 export type ChatMessage = components['schemas']['ChatMessage'];
+export type RideCheckView = components['schemas']['RideCheckView'];
+export type IssueCategory = components['schemas']['IssueCategory'];
 
 export {
 	createSession,

@@ -545,11 +545,25 @@ CREATE TABLE incident_notes (
 CREATE TABLE trip_shares (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   ride_id     uuid NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
-  token_hash  bytea NOT NULL UNIQUE,          -- SHA-256 of the 128-bit URL token
+  token_hash  bytea NOT NULL UNIQUE,          -- HMAC-SHA256 of the 256-bit URL token
   created_by  party NOT NULL CHECK (created_by IN ('rider', 'driver')),
-  expires_at  timestamptz,                    -- set to completed_at + 30 min
+  driver_id   uuid REFERENCES driver_profiles(user_id), -- the ride's driver when made (0012)
+  expires_at  timestamptz,                    -- optional early end; links also expire 30 min after the ride ends
   revoked_at  timestamptz,
   created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- RideCheck (0013): the worker's "Are you okay?" questions. rides.planned_route
+-- (geography LineString) is filled by the worker when the trip starts.
+CREATE TABLE ride_checks (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ride_id     uuid NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
+  kind        text NOT NULL CHECK (kind IN ('deviation', 'stop')),
+  location    geography(Point, 4326),
+  asked_at    timestamptz NOT NULL DEFAULT now(),
+  answer      text CHECK (answer IN ('fine', 'help')),
+  answered_at timestamptz,
+  incident_id uuid REFERENCES safety_incidents(id)   -- set when 60 s passed without an answer
 );
 
 CREATE TABLE issue_reports (
@@ -670,9 +684,9 @@ All under `https://api.vara.example/v1`, JSON, documented by OpenAPI (generated 
 | `POST /rides/{id}/retry` | rider | from NO_DRIVERS |
 | `POST /rides/{id}/messages` · `GET …/messages` | rider/driver | text or quick reply, `Idempotency-Key`; sending open from accept until the trip ends or is blocked; one conversation per driver |
 | `POST /rides/{id}/call` | rider/driver | → masked-call session |
-| `POST /rides/{id}/share` | rider/driver | → share token URL |
+| `POST /rides/{id}/share` | rider/driver | from acceptance to drop-off; → live link (and text to her emergency contacts if asked); 20 / h per user |
 | `POST /rides/{id}/rating` · `POST /rides/{id}/rating/skip` | rider/driver · driver | stars 1–5, reasons below 3, rider may add a favourite; `RATED` once both done |
-| `POST /rides/{id}/report` | rider/driver | |
+| `POST /rides/{id}/report` | rider/driver | category + text (≤ 2000), up to 30 days after the ride; harassment, unsafe driving, wrong person or wrong vehicle also open a `report` incident for the safety desk; 10 / day per user |
 | `GET /driver/application` · `PUT /driver/application` · `POST /driver/application/submit` | driver | draft (vehicle, tiers, payout) then submit |
 | `POST /driver/documents` | driver | |
 | `POST /driver/online` · `POST /driver/offline` | driver | validates documents, opens/closes shift |
@@ -686,8 +700,8 @@ All under `https://api.vara.example/v1`, JSON, documented by OpenAPI (generated 
 | `POST /rides/{id}/cash-received` | driver | books the service fee against her in `driver_ledger`; idempotent |
 | `GET /driver/earnings?period=` | driver | `today` or `week` (Windhoek time); balance from `driver_ledger` |
 | `POST /safety/sos` | rider/driver | never rate-limited |
-| `POST /safety/ridecheck/{id}/respond` | rider | ok / help |
-| `GET /t/{token}` | public | trip-share data (website) |
+| `POST /safety/ridecheck/{id}/respond` | rider | `fine` / `help` (help = SOS); the open check is `ride_check` on her view of the ride, never on the driver's; first answer stands |
+| `GET /trip-shares/{token}` | public | Share trip page data for the website's `/t/{token}`: status, sharer's first name, driver's first name, car, plate, position, destination area, ETA; never addresses, PIN or numbers. 404 unknown/stopped (or a driver's link after she cancelled), 410 30 min after the ride ends; 60 / min per IP, `no-store` |
 | `GET /legal/{kind}/latest` | public | |
 | `POST /webhooks/{provider}` | provider | signature-verified |
 | `WS /ws` | rider/driver | §5 of the TRD |

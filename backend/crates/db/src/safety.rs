@@ -63,6 +63,24 @@ pub async fn sos_texts(
         .collect()
 }
 
+/// Her emergency contacts' numbers, opened. One that can't be read is logged and skipped.
+pub async fn contact_phones(conn: &mut PgConnection, sealer: &Sealer, user_id: Uuid) -> Result<Vec<PhoneE164>, sqlx::Error> {
+    let rows: Vec<(i16, Vec<u8>)> = sqlx::query_as("SELECT position, phone FROM emergency_contacts WHERE user_id = $1 ORDER BY position")
+        .bind(user_id)
+        .fetch_all(&mut *conn)
+        .await?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|(position, sealed)| {
+            let phone = sealer.open_str(CONTACT_PHONE_AAD, &sealed).ok().and_then(|p| PhoneE164::parse(&p).ok());
+            if phone.is_none() {
+                tracing::error!(%user_id, position, "emergency contact can't be read");
+            }
+            phone
+        })
+        .collect())
+}
+
 /// How a trip-link token is stored (the website looks links up by this).
 pub fn share_hash(hasher: &Hasher, token: &str) -> Vec<u8> {
     hasher.hash("trip-share", token.as_bytes()).to_vec()
@@ -108,13 +126,17 @@ pub async fn sos_context(conn: &mut PgConnection, incident_id: Uuid) -> Result<O
     }))
 }
 
-/// Records a trip link; only the token's hash is stored.
+/// Records a trip link; only the token's hash is stored. The link belongs to the ride's
+/// current driver too, so it dies if the ride moves to another (migration 0012).
 pub async fn create_share(conn: &mut PgConnection, ride_id: Uuid, token_hash: &[u8], party: &str) -> Result<(), sqlx::Error> {
-    sqlx::query("INSERT INTO trip_shares (ride_id, token_hash, created_by) VALUES ($1, $2, $3::party)")
-        .bind(ride_id)
-        .bind(token_hash)
-        .bind(party)
-        .execute(&mut *conn)
-        .await
-        .map(|_| ())
+    sqlx::query(
+        "INSERT INTO trip_shares (ride_id, token_hash, created_by, driver_id)
+         SELECT id, $2, $3::party, driver_id FROM rides WHERE id = $1",
+    )
+    .bind(ride_id)
+    .bind(token_hash)
+    .bind(party)
+    .execute(&mut *conn)
+    .await
+    .map(|_| ())
 }

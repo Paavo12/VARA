@@ -21,6 +21,7 @@ const POLL: Duration = Duration::from_secs(2);
 /// Offers expire after 15 s; checking every second keeps the next driver's wait short.
 const DISPATCH: Duration = Duration::from_secs(1);
 const HOUR: Duration = Duration::from_secs(3600);
+const RIDECHECK: Duration = Duration::from_secs(10);
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -69,6 +70,8 @@ async fn main() -> ExitCode {
     let mut dispatch = tokio::time::interval(DISPATCH);
     dispatch.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut hourly = tokio::time::interval(HOUR);
+    let mut ridecheck = tokio::time::interval(RIDECHECK);
+    ridecheck.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut last_document_check = None;
     loop {
         tokio::select! {
@@ -82,9 +85,19 @@ async fn main() -> ExitCode {
                     tracing::warn!(error = %e, "matching tick failed");
                 }
             }
+            _ = ridecheck.tick() => {
+                if let Err(e) = fuber_worker::ridecheck::tick(&ctx).await {
+                    tracing::warn!(error = %e, "RideCheck tick failed");
+                }
+            }
             _ = hourly.tick() => {
                 if let Err(e) = fuber_worker::cleanup(&ctx).await {
                     tracing::warn!(error = %e, "cleanup failed");
+                }
+                // Windhoek is UTC+2 all year.
+                let windhoek = OffsetDateTime::now_utc().to_offset(time::UtcOffset::from_hms(2, 0, 0).expect("valid offset")).date();
+                if let Err(e) = fuber_worker::settlement::settle_week(&ctx.db, fuber_worker::settlement::last_week_start(windhoek)).await {
+                    tracing::warn!(error = %e, "weekly settlement failed");
                 }
                 // Once per calendar day (UTC+2 is close enough: checks are by date, not hour).
                 let today = OffsetDateTime::now_utc().date();

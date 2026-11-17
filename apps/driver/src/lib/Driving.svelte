@@ -15,7 +15,7 @@
 		type LiveMessage,
 		type OfferCard
 	} from '@fuber/api-client';
-	import { Chat, messageOf, Sos, useSession } from '@fuber/account';
+	import { Chat, messageOf, ShareTrip, Sos, useSession } from '@fuber/account';
 	import { Button, Notice, Screen, formatDistance, formatMinutes, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
 	import Earnings from './Earnings.svelte';
@@ -242,6 +242,8 @@
 	<Sos rideId={ride?.id ?? null} safetyDeskPhone={SAFETY_DESK_PHONE} bind:active={sosActive} />
 {/if}
 {#if ride && CHAT_OPEN.includes(ride.state)}
+	<!-- Shareable for as long as chat is open: from acceptance to drop-off (PRD S-2). -->
+	<ShareTrip rideId={ride.id} />
 	<Chat bind:this={chat} rideId={ride.id} party="driver" name={ride.passenger.name} />
 {/if}
 

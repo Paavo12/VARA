@@ -1,5 +1,6 @@
 <!--
-	Safety desk (PRD S-1, T-3): incidents not yet closed. Closing a PIN lockout needs an outcome,
+	Safety desk (PRD S-1, S-3, S-5, T-3): incidents not yet closed, SOS and unanswered RideChecks
+	first. Refreshes every 15 s and beeps when a new SOS or RideCheck arrives. Closing a PIN lockout needs an outcome,
 	cancels the blocked trip and is the only thing that lets the driver get requests again. The
 	trip's chat loads only when asked for, because each view goes in the audit log.
 -->
@@ -15,6 +16,15 @@
 		ridecheck_stop: 'RideCheck: stop',
 		report: 'Report'
 	};
+	const URGENT = ['sos', 'ridecheck_deviation', 'ridecheck_stop'];
+	const CATEGORIES: Record<string, string> = {
+		harassment: 'Harassment or threats',
+		unsafe_driving: 'Unsafe driving or behaviour',
+		wrong_person: 'Wrong person',
+		wrong_vehicle: 'Wrong car or plate'
+	};
+	const REFRESH_MS = 15_000;
+	let seen = new Set<string>();
 
 	let incidents = $state<IncidentItem[] | null>(null);
 	let closing = $state<string | null>(null);
@@ -38,8 +48,28 @@
 		const { data, error: err } = await api
 			.GET('/v1/ops/incidents')
 			.catch(() => ({ data: undefined, error: undefined }));
-		incidents = data ?? null;
-		if (!data) error = messageOf(err, 'The incidents didn’t load.');
+		if (!data) {
+			error = messageOf(err, 'The incidents didn’t load.');
+			return;
+		}
+		const fresh = data.filter((i) => URGENT.includes(i.kind) && !seen.has(i.id));
+		if (incidents !== null && fresh.length > 0) beep();
+		seen = new Set(data.map((i) => i.id));
+		incidents = data;
+	}
+
+	/** A short alarm tone (O-4: audible alerts), without an audio file. */
+	function beep() {
+		try {
+			const ctx = new AudioContext();
+			const osc = ctx.createOscillator();
+			osc.frequency.value = 880;
+			osc.connect(ctx.destination);
+			osc.start();
+			osc.stop(ctx.currentTime + 0.6);
+		} catch {
+			// No audio (browser policy until the page is clicked once): the list still updates.
+		}
 	}
 
 	async function close(incident: IncidentItem) {
@@ -64,7 +94,12 @@
 	}
 
 	$effect(() => {
-		if (staff.canHandleIncidents) load();
+		if (!staff.canHandleIncidents) return;
+		load();
+		const t = setInterval(() => {
+			if (closing === null) load();
+		}, REFRESH_MS);
+		return () => clearInterval(t);
 	});
 </script>
 
@@ -101,6 +136,33 @@
 					{/if}
 					{#if i.raised_by}
 						<p>Raised by: {i.raised_by.display_name ?? 'Name not given'}, {i.raised_by.phone}</p>
+					{/if}
+					{#if i.rider && i.rider.user_id !== i.raised_by?.user_id}
+						<p>Rider: {i.rider.display_name ?? 'Name not given'}, {i.rider.phone}</p>
+					{/if}
+					{#if i.kind.startsWith('ridecheck_')}
+						<p>
+							{i.ridecheck_answer === 'fine'
+								? 'The rider answered later: she is fine.'
+								: i.ridecheck_answer === 'help'
+									? 'The rider asked for help (an SOS was raised).'
+									: 'The rider did not answer “Are you okay?”. Call her.'}
+						</p>
+					{/if}
+					{#if i.report}
+						<p><strong>{CATEGORIES[i.report.category] ?? i.report.category}:</strong></p>
+						<p class="report">{i.report.text}</p>
+					{/if}
+					{#if i.lat != null && i.lon != null}
+						<!-- An external map, not a route of the console. -->
+						<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+						<a
+							href="https://www.openstreetmap.org/?mlat={i.lat.toFixed(5)}&mlon={i.lon.toFixed(
+								5
+							)}#map=17/{i.lat.toFixed(5)}/{i.lon.toFixed(5)}"
+							target="_blank"
+							rel="noopener noreferrer">Position on the map</a
+						>
 					{/if}
 					{#if chats[i.id]}
 						<ol class="chat" aria-label="Chat on this trip">
@@ -140,6 +202,9 @@
 {/if}
 
 <style>
+	.report {
+		white-space: pre-wrap;
+	}
 	.top {
 		display: flex;
 		align-items: baseline;

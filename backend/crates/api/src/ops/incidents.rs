@@ -34,10 +34,16 @@ pub struct IncidentItem {
     pub ride_id: Option<Uuid>,
     /// e.g. `VA-4123`.
     pub ride_code: Option<String>,
-    /// Who pressed SOS; absent for incidents the system raised.
+    /// Who pressed SOS or reported; absent for incidents the system raised (RideCheck).
     pub raised_by: Option<Person>,
+    /// The ride's rider, to call (RideCheck, or an SOS from the driver).
+    pub rider: Option<Person>,
     /// The ride's driver: for a PIN lockout, who is held until this incident is closed.
     pub driver: Option<Person>,
+    /// What she reported (`report` incidents).
+    pub report: Option<IncidentReport>,
+    /// RideCheck: `fine` or `help` when she answered after the desk was alerted.
+    pub ridecheck_answer: Option<String>,
     pub lat: Option<f64>,
     pub lon: Option<f64>,
     #[serde(with = "time::serde::rfc3339")]
@@ -51,70 +57,84 @@ pub struct Person {
     pub phone: String,
 }
 
-type Row = (
-    Uuid,
-    String,
-    String,
-    Option<Uuid>,
-    Option<String>,
-    Option<Uuid>,
-    Option<String>,
-    Option<String>,
-    Option<Uuid>,
-    Option<String>,
-    Option<String>,
-    Option<f64>,
-    Option<f64>,
-    OffsetDateTime,
-);
+#[derive(Debug, Serialize, ToSchema)]
+pub struct IncidentReport {
+    pub category: String,
+    /// Plain text: render it as text, never as HTML.
+    pub text: String,
+}
+
+#[derive(sqlx::FromRow)]
+struct Row {
+    id: Uuid,
+    kind: String,
+    status: String,
+    ride_id: Option<Uuid>,
+    ride_code: Option<String>,
+    raised_id: Option<Uuid>,
+    raised_name: Option<String>,
+    raised_phone: Option<String>,
+    rider_id: Option<Uuid>,
+    rider_name: Option<String>,
+    rider_phone: Option<String>,
+    driver_id: Option<Uuid>,
+    driver_name: Option<String>,
+    driver_phone: Option<String>,
+    report_category: Option<String>,
+    report_text: Option<String>,
+    ridecheck_answer: Option<String>,
+    lat: Option<f64>,
+    lon: Option<f64>,
+    created_at: OffsetDateTime,
+}
+
+fn person(id: Option<Uuid>, name: Option<String>, phone: Option<String>) -> Option<Person> {
+    id.zip(phone).map(|(user_id, phone)| Person { user_id, display_name: name, phone })
+}
 
 #[utoipa::path(
     get, path = "/v1/ops/incidents", operation_id = "incident_queue", tag = "ops", security(("staff" = [])),
-    responses((status = 200, description = "Incidents not yet closed: SOS first, then newest first", body = Vec<IncidentItem>))
+    responses((status = 200, description = "Incidents not yet closed: SOS and unanswered RideChecks first, then newest first", body = Vec<IncidentItem>))
 )]
 pub async fn queue(State(s): State<AppState>, staff: Staff) -> Result<Json<Vec<IncidentItem>>, ApiError> {
     staff.require_safety()?;
     let rows: Vec<Row> = sqlx::query_as(
-        "SELECT i.id, i.kind::text, i.status::text, i.ride_id, r.code, u.id, u.display_name, u.phone_e164,
-                d.id, d.display_name, d.phone_e164,
-                ST_Y(i.location::geometry), ST_X(i.location::geometry), i.created_at
-         FROM safety_incidents i LEFT JOIN rides r ON r.id = i.ride_id LEFT JOIN users u ON u.id = i.raised_by LEFT JOIN users d ON d.id = r.driver_id
+        "SELECT i.id, i.kind::text AS kind, i.status::text AS status, i.ride_id, r.code AS ride_code,
+                u.id AS raised_id, u.display_name AS raised_name, u.phone_e164 AS raised_phone,
+                ru.id AS rider_id, ru.display_name AS rider_name, ru.phone_e164 AS rider_phone,
+                d.id AS driver_id, d.display_name AS driver_name, d.phone_e164 AS driver_phone,
+                ir.category AS report_category, ir.body AS report_text, rc.answer AS ridecheck_answer,
+                ST_Y(i.location::geometry) AS lat, ST_X(i.location::geometry) AS lon, i.created_at
+         FROM safety_incidents i
+         LEFT JOIN rides r ON r.id = i.ride_id
+         LEFT JOIN users u ON u.id = i.raised_by
+         LEFT JOIN users ru ON ru.id = r.rider_id
+         LEFT JOIN users d ON d.id = r.driver_id
+         LEFT JOIN issue_reports ir ON ir.incident_id = i.id
+         LEFT JOIN ride_checks rc ON rc.incident_id = i.id
          WHERE i.status <> 'closed'
-         ORDER BY (i.kind = 'sos') DESC, i.created_at DESC LIMIT 200",
+         -- SOS and unanswered RideChecks first: someone may be in danger now.
+         ORDER BY (i.kind IN ('sos', 'ridecheck_deviation', 'ridecheck_stop')) DESC, i.created_at DESC LIMIT 200",
     )
     .fetch_all(&s.db)
     .await?;
     Ok(Json(
         rows.into_iter()
-            .map(
-                |(
-                    id,
-                    kind,
-                    status,
-                    ride_id,
-                    ride_code,
-                    user_id,
-                    display_name,
-                    phone,
-                    driver_id,
-                    driver_name,
-                    driver_phone,
-                    lat,
-                    lon,
-                    created_at,
-                )| IncidentItem {
-                    id,
-                    kind,
-                    status,
-                    ride_id,
-                    ride_code,
-                    raised_by: user_id.zip(phone).map(|(user_id, phone)| Person { user_id, display_name, phone }),
-                    driver: driver_id.zip(driver_phone).map(|(user_id, phone)| Person { user_id, display_name: driver_name, phone }),
-                    lat,
-                    lon,
-                    created_at,
-                },
-            )
+            .map(|r| IncidentItem {
+                id: r.id,
+                kind: r.kind,
+                status: r.status,
+                ride_id: r.ride_id,
+                ride_code: r.ride_code,
+                raised_by: person(r.raised_id, r.raised_name, r.raised_phone),
+                rider: person(r.rider_id, r.rider_name, r.rider_phone),
+                driver: person(r.driver_id, r.driver_name, r.driver_phone),
+                report: r.report_category.zip(r.report_text).map(|(category, text)| IncidentReport { category, text }),
+                ridecheck_answer: r.ridecheck_answer,
+                lat: r.lat,
+                lon: r.lon,
+                created_at: r.created_at,
+            })
             .collect(),
     ))
 }

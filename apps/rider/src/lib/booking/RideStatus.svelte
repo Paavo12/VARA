@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
 	import type { RiderRide } from '@fuber/api-client';
-	import { messageOf, useSession } from '@fuber/account';
+	import { messageOf, ReportIssue, useSession } from '@fuber/account';
 	import { Button, Notice, Plate, Screen, Stars, formatMinutes, formatNad } from '@fuber/ui';
 
 	interface Props {
@@ -273,6 +273,7 @@
 			<Notice tone="info"><p>Thanks for rating your trip.</p></Notice>
 		{/if}
 		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
+		<ReportIssue rideId={ride.id} party="rider" />
 		{#snippet footer()}
 			{#if !ride.rated && ride.driver}
 				<Button

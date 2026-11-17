@@ -23,8 +23,12 @@ mod routes {
     pub mod me;
     pub mod places;
     pub mod ratings;
+    pub mod report;
+    pub mod ridecheck;
     pub mod rides;
     pub mod safety;
+    pub mod settlements;
+    pub mod share;
     pub mod storage;
     pub mod trip;
     pub mod uploads;
@@ -169,10 +173,16 @@ pub fn router(state: AppState) -> Router {
         .route("/me/favourite-drivers/{driver_id}", delete(routes::ratings::remove_favourite))
         .route("/driver/trips", get(routes::history::driver_trips))
         .route("/driver/earnings", get(routes::earnings::earnings))
+        .route("/driver/statements", get(routes::settlements::statements))
         // Chat (either app)
         .route("/rides/{id}/messages", get(routes::chat::thread).post(routes::chat::send))
         // Safety (either app; never rate-limited, see rate_limit::enforce)
         .route("/safety/sos", post(routes::safety::sos))
+        .route("/safety/ridecheck/{id}/respond", post(routes::ridecheck::respond))
+        .route("/rides/{id}/report", post(routes::report::report))
+        // Share trip: a link from either app, and the public page's data (website /t/{token})
+        .route("/rides/{id}/share", post(routes::share::create))
+        .route("/trip-shares/{token}", get(routes::share::view).route_layer(limit("trip_share", l.trip_share)))
         // Real-time updates
         .route("/ws", get(live::upgrade))
         // Ops (staff)

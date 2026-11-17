@@ -205,7 +205,7 @@ Every HTTP route and the WebSocket handshake pass through a Redis-backed sliding
 | `POST /rides/{id}/pin` | 5 attempts per ride | 5th failure blocks trip + safety alert (PRD T-3) |
 | `POST /safety/sos` | Never rejected (logged instead) | Safety must not be throttled |
 | Uploads | 20 / hour per user | |
-| Public trip-share `GET /t/{token}` | 60 / min per IP | Token is 128-bit random |
+| Public trip-share `GET /v1/trip-shares/{token}` (website `/t/{token}`) | 60 / min per IP | Token is 256-bit random |
 | Driver application (website) | 5 / day per IP | CAPTCHA |
 | WebSocket messages | 2 msg/s per connection (location), burst 10 | Disconnect on abuse |
 | Ops console login | 5 / 15 min per account + IP | Lockout + alert |

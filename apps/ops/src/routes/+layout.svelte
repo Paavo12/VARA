@@ -22,6 +22,11 @@
 	<a class="brand" href={resolve('/')}>VARA Ops</a>
 	{#if staff.session}
 		{#if staff.canHandleIncidents}<a class="link" href={resolve('/incidents')}>Safety desk</a>{/if}
+		<a class="link" href={resolve('/metrics')}>Numbers</a>
+		{#if staff.canSupport}<a class="link" href={resolve('/users')}>Users</a>
+			<a class="link" href={resolve('/reports')}>Reports</a>{/if}
+		{#if staff.canSettle}<a class="link" href={resolve('/settlements')}>Settlements</a>
+			<a class="link" href={resolve('/settings')}>Settings</a>{/if}
 		<span class="who">{staff.session.roles.join(', ').replaceAll('ops_', '')}</span>
 		<button type="button" class="link" onclick={signOut}>Sign out</button>
 	{/if}

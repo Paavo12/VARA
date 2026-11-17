@@ -66,6 +66,28 @@ impl Routing {
         }
     }
 
+    /// The fastest road route from `a` to `b` as a line (RideCheck's planned route). The
+    /// estimate is the straight line.
+    pub async fn route_line(&self, a: LatLng, b: LatLng) -> Result<Vec<LatLng>, RoutingError> {
+        match self {
+            Routing::Estimate => Ok(vec![a, b]),
+            Routing::Osrm { base_url, http } => {
+                let url = format!(
+                    "{base_url}/route/v1/driving/{};{}?overview=full&geometries=geojson&alternatives=false&steps=false",
+                    coord(a),
+                    coord(b)
+                );
+                let r: LineResponse = get(http, &url).await?;
+                let route = r.routes.into_iter().next().ok_or(RoutingError::NoRoute)?;
+                let line: Vec<LatLng> = route.geometry.coordinates.into_iter().map(|[lon, lat]| LatLng { lat, lon }).collect();
+                if line.len() < 2 {
+                    return Err(RoutingError::NoRoute);
+                }
+                Ok(line)
+            }
+        }
+    }
+
     /// Road legs from each source to one destination (driver positions → pickup), in order.
     /// `None` where OSRM finds no route (e.g. a driver on a road cut off from the pickup).
     pub async fn to_one(&self, sources: &[LatLng], dest: LatLng) -> Result<Vec<Option<Leg>>, RoutingError> {
@@ -136,6 +158,22 @@ struct RouteResponse {
 struct Route {
     distance: f64,
     duration: f64,
+}
+
+#[derive(Deserialize)]
+struct LineResponse {
+    routes: Vec<LineRoute>,
+}
+
+#[derive(Deserialize)]
+struct LineRoute {
+    geometry: Geometry,
+}
+
+/// GeoJSON LineString: `[lon, lat]` pairs.
+#[derive(Deserialize)]
+struct Geometry {
+    coordinates: Vec<[f64; 2]>,
 }
 
 #[derive(Deserialize)]
