@@ -63,7 +63,8 @@ export function headline(t: SharedTrip): string {
 				? `${who} is at the pickup`
 				: `${who}'s driver has arrived`;
 		case 'in_trip':
-			return `${who} is on her way to ${t.destination_area}`;
+			// The area line below says where ("Going to: Near Maerua Mall").
+			return `${who} is on her way`;
 		case 'finding_driver':
 			return `VARA is finding ${who} a new driver`;
 		case 'with_safety_team':
