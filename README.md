@@ -7,8 +7,13 @@ VARA is a women-only ride-hailing app for Windhoek, Namibia: every rider and eve
 | Folder | What it is | Status |
 | --- | --- | --- |
 | [`demo/`](demo/) | The working prototype: a Rider app, a Driver app and a presentation panel on one live simulation, set on Windhoek's real road network. Also an Android wrapper (`demo/android/`). | **Use this.** Runs with Node.js 16+ and nothing else. |
-| [`rider_app/`](rider_app/) | A Flutter project for a future native rider app. | Not started: still the default Flutter template. |
-| [`ride-hailing-backend/`](ride-hailing-backend/) | A NestJS + PostgreSQL API for a future production backend (`docker-compose.yml` starts Postgres and Redis for it). | Early stub: create and list rides only. Not used by the demo. |
+| [`backend/`](backend/) | The production API, worker and migrations (Rust). | In development: Phases 0–3 done, see [`docs/06`](docs/06-implementation-plan.md). |
+| [`apps/`](apps/) | Rider and driver apps (Svelte + Capacitor), the ops console and the website. | In development. |
+| [`packages/`](packages/) | Shared Svelte UI, account screens and the generated API client. | In development. |
+| [`infra/`](infra/) | Local Docker Compose (PostGIS, Redis) and Terraform for Google Cloud. | Staging written; see `infra/terraform/README.md`. |
+| [`docs/`](docs/README.md) | Requirements, design brief, schema, plan and draft legal texts. | |
+
+The earlier NestJS stub (`ride-hailing-backend/`) and Flutter template (`rider_app/`) were removed on 2026-11-17; they are kept on the `archive/legacy` branch.
 
 ## Production development
 

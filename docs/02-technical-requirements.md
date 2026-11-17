@@ -240,7 +240,7 @@ Rate-limit settings are config, not code, and are covered by integration tests.
 - Rotation: JWT signing keys rotated every 90 days with `kid` overlap; third-party keys every 180 days or immediately on staff departure/suspected leak. Runbook in `infra/runbooks/rotate-secrets.md`.
 - Least privilege: API, worker and migration job run as separate Google service accounts; only the API can sign URLs for the documents bucket (signBlob on its own identity, no key file), and its code never reads objects itself (a V4 signed URL needs the signer to hold the object permission, so the API's account has create and view on the bucket); the worker reads and rewrites objects but cannot sign; ops staff never hold production DB credentials (break-glass account with alert).
 - Incoming webhooks (payments, SMS delivery, ID vendor) are verified by signature (HMAC) and timestamp (±5 min), and are idempotent.
-- Existing repo hygiene: the demo's `docker-compose.yml` password and `demo/android/debug.keystore` are dev-only; production signing keys live in the CI secret store / Play App Signing, never in the repo.
+- Existing repo hygiene: `demo/android/debug.keystore` and the local passwords in `infra/docker-compose.yml` are dev-only; production signing keys live in the CI secret store / Play App Signing, never in the repo.
 
 ### 7.4 Authentication, sessions and authorisation
 
