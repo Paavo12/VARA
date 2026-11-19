@@ -49,6 +49,17 @@ pub struct Fare {
     pub driver_earning: Cents,
 }
 
+/// The flat service fee for a Map Expert, on every tier (1500 = 15 %).
+pub const MAP_EXPERT_FEE_BP: u32 = 1500;
+
+/// The service fee and the driver's earning on a fare of `total`: the tier's fee, or the Map
+/// Expert fee when she is one and it is lower.
+pub fn split(total: Cents, tier_fee_bp: u32, map_expert: bool) -> (Cents, Cents) {
+    let bp = if map_expert { tier_fee_bp.min(MAP_EXPERT_FEE_BP) } else { tier_fee_bp };
+    let fee = total.mul_bp(bp);
+    (fee, total - fee)
+}
+
 /// `rate × n / d`, rounded half up, for non-negative inputs.
 fn prorate(rate: Cents, n: u64, d: u64) -> Cents {
     let p = rate.0 as i128 * n as i128;
@@ -124,6 +135,17 @@ mod tests {
             let fee_on_100 = Cents(10_000).mul_bp(r.service_fee_bp);
             assert_eq!((fee_on_100, Cents(10_000) - fee_on_100), (Cents(fee), Cents(kept)), "{tier:?}");
         }
+    }
+
+    #[test]
+    fn a_map_expert_pays_15_percent_on_every_tier() {
+        for tier in Tier::ALL {
+            let r = Rates::default_for(tier);
+            assert_eq!(split(Cents(10_000), r.service_fee_bp, true), (Cents(1500), Cents(8500)), "{tier:?}");
+            assert_eq!(split(Cents(10_000), r.service_fee_bp, false).0, Cents(10_000).mul_bp(r.service_fee_bp));
+        }
+        // Never more than the tier's own fee.
+        assert_eq!(split(Cents(10_000), 1200, true).0, Cents(1200));
     }
 
     #[test]

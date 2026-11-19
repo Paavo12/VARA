@@ -773,6 +773,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/users/{id}/map-expert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["grant_map_expert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/users/{id}/map-expert/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["end_map_expert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/users/{id}/priority": {
         parameters: {
             query?: never;
@@ -1817,6 +1849,15 @@ export interface components {
              */
             totp: string;
         };
+        MapExpertGrant: {
+            /** @description Why (the zones she maps, who asked), for the audit log. */
+            reason: string;
+            /**
+             * Format: date-time
+             * @description The status lapses at this time; at most a year ahead.
+             */
+            until: string;
+        };
         Me: {
             /** Format: date */
             date_of_birth?: string | null;
@@ -2629,6 +2670,11 @@ export interface components {
         UserDetail: {
             /** Format: int32 */
             driver_priority?: number | null;
+            /**
+             * Format: date-time
+             * @description A driver's Map Expert status (flat 15 % fee) ends then; in the past means it lapsed.
+             */
+            map_expert_until?: string | null;
             /** @description Reports she made, newest first. */
             reports: components["schemas"]["UserReport"][];
             /** Format: int32 */
@@ -4580,6 +4626,108 @@ export interface operations {
             };
             /** @description No such user */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    grant_map_expert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MapExpertGrant"];
+            };
+        };
+        responses: {
+            /** @description Rides she accepts until then pay the flat 15 % Map Expert fee; granting again moves the date */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such driver */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The date is not in the future, or more than a year ahead */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    end_map_expert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description Ended now: rides she accepts from now on pay the tier's fee */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such driver */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description She is not a Map Expert (`not_map_expert`) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

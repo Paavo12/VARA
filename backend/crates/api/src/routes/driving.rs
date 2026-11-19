@@ -227,6 +227,28 @@ pub async fn accept(State(s): State<AppState>, DriverUser(user): DriverUser, Pat
         }
         Err(e) => return Err(e.into()),
     }
+    // Her fee: the tier's, or the flat Map Expert fee. Set on every accept, so a ride another
+    // driver gave up gets this driver's split, as her offer showed.
+    let (fare, fee_bp, map_expert): (i64, i32, bool) = sqlx::query_as(
+        "SELECT r.fare_cents, p.service_fee_bp,
+                coalesce((SELECT map_expert_until > now() FROM driver_profiles WHERE user_id = $2), false)
+         FROM rides r JOIN pricing_tiers p ON p.id = r.pricing_tier_id WHERE r.id = $1",
+    )
+    .bind(ride_id)
+    .bind(user.user_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    let (fee, earning) = fuber_domain::pricing::split(fuber_domain::Cents(fare), fee_bp as u32, map_expert);
+    sqlx::query(
+        "UPDATE rides SET service_fee_cents = $2, driver_earning_cents = $3,
+                fare_breakdown = fare_breakdown || jsonb_build_object('service_fee', $2, 'driver_earning', $3)
+         WHERE id = $1",
+    )
+    .bind(ride_id)
+    .bind(fee.0)
+    .bind(earning.0)
+    .execute(&mut *tx)
+    .await?;
     rides::transition(&mut tx, ride_id, RideEvent::DriverAccepted, Party::Driver, Some(user.user_id), Some(json!({ "offer_id": id })))
         .await
         .map_err(ride_error)?;

@@ -1,13 +1,14 @@
 <!--
 	One user (PRD O-2, O-6): status, priority points, last trips and reports. Support can suspend
-	or reinstate with a reason and adjust priority points. Opening this page is audited.
+	or reinstate with a reason and adjust priority points. Admins grant a driver Map Expert status
+	(flat 15 % fee) until a date. Opening this page is audited.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { Button, Notice, TextField, formatNad } from '@fuber/ui';
 	import { formatWhen, messageOf } from '#lib/format.ts';
-	import { api, type UserDetail } from '#lib/staff.svelte.ts';
+	import { api, staff, type UserDetail } from '#lib/staff.svelte.ts';
 
 	const id = $derived(page.params.id ?? '');
 	let user = $state<UserDetail | null>(null);
@@ -18,6 +19,13 @@
 	let role = $state<'rider' | 'driver'>('rider');
 	let delta = $state(10);
 	let pointsReason = $state('');
+	let expertUntil = $state('');
+	let expertReason = $state('');
+
+	const today = new Date().toISOString().slice(0, 10);
+	const expertActive = $derived(
+		!!user?.map_expert_until && new Date(user.map_expert_until).getTime() > Date.now()
+	);
 
 	async function load() {
 		error = null;
@@ -63,6 +71,33 @@
 		} else error = messageOf(err);
 	}
 
+	async function mapExpert(action: 'grant' | 'end') {
+		error = notice = null;
+		busy = true;
+		const reason = expertReason.trim();
+		const { response, error: err } = await (
+			action === 'grant'
+				? // The end of that day in Windhoek (UTC+2 all year).
+					api.POST('/v1/ops/users/{id}/map-expert', {
+						params: { path: { id } },
+						body: { until: `${expertUntil}T23:59:59+02:00`, reason }
+					})
+				: api.POST('/v1/ops/users/{id}/map-expert/end', {
+						params: { path: { id } },
+						body: { reason }
+					})
+		).catch(() => ({ response: undefined, error: undefined }));
+		busy = false;
+		if (response?.ok) {
+			notice =
+				action === 'grant'
+					? `Map Expert until ${expertUntil}: rides she accepts pay a 15 % fee.`
+					: 'Map Expert ended: rides she accepts pay the tier’s fee.';
+			expertReason = '';
+			await load();
+		} else error = messageOf(err);
+	}
+
 	$effect(() => {
 		if (id) void load();
 	});
@@ -96,6 +131,10 @@
 		{#if user.driver_priority != null}<div>
 				<dt>Driver priority</dt>
 				<dd>{user.driver_priority}</dd>
+			</div>{/if}
+		{#if user.driver_priority != null}<div>
+				<dt>Map Expert</dt>
+				<dd>{expertActive ? `until ${formatWhen(user.map_expert_until!)}` : 'No'}</dd>
 			</div>{/if}
 	</dl>
 
@@ -135,6 +174,35 @@
 				loading={busy}
 				disabled={!pointsReason.trim() || !delta}>Adjust points</Button
 			>
+		</section>
+	{/if}
+
+	{#if user.driver_priority != null && staff.canSettle}
+		<section class="box" aria-labelledby="expert">
+			<h2 id="expert">Map Expert</h2>
+			<p class="muted">
+				A flat 15 % service fee on every tier for drivers who map unmapped or new zones. It applies
+				to rides she accepts while it lasts.
+			</p>
+			<label>Until <input type="date" min={today} bind:value={expertUntil} /></label>
+			<TextField label="Reason (kept in the audit log)" bind:value={expertReason} maxlength={500} />
+			<div class="row">
+				<Button
+					variant="secondary"
+					onclick={() => mapExpert('grant')}
+					loading={busy}
+					disabled={!expertUntil || !expertReason.trim()}
+					>{expertActive ? 'Change end date' : 'Make Map Expert'}</Button
+				>
+				{#if expertActive}
+					<Button
+						variant="secondary"
+						onclick={() => mapExpert('end')}
+						loading={busy}
+						disabled={!expertReason.trim()}>End now</Button
+					>
+				{/if}
+			</div>
 		</section>
 	{/if}
 
@@ -199,6 +267,11 @@
 	}
 	.box h2 {
 		margin: 0;
+	}
+	.row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
 	}
 	.list {
 		list-style: none;

@@ -5,6 +5,8 @@
 //! Every view of a person and every change is in the audit log. A suspension takes effect on
 //! the next request (sessions are checked each time) and takes a driver offline; a trip already
 //! in progress is left to finish, because stopping a car mid-trip is less safe.
+//!
+//! Admins also grant Map Expert status (a flat 15 % fee on every tier) to a driver until a date.
 
 use axum::{
     Json,
@@ -154,6 +156,9 @@ pub struct UserDetail {
     pub verification: String,
     pub rider_priority: Option<i32>,
     pub driver_priority: Option<i32>,
+    /// A driver's Map Expert status (flat 15 % fee) ends then; in the past means it lapsed.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub map_expert_until: Option<OffsetDateTime>,
     /// The last 20 trips on either side.
     pub trips: Vec<UserTrip>,
     /// Reports she made, newest first.
@@ -178,16 +183,17 @@ pub async fn detail(
     staff.require_support()?;
     let row: Option<UserRow> = sqlx::query_as(&format!("{SELECT_USER} WHERE u.id = $1")).bind(id).fetch_optional(&s.db).await?;
     let user = row.map(user_item).ok_or_else(ApiError::not_found)?;
-    let (suspended_reason, verification, rider_priority, driver_priority): (Option<String>, String, Option<i32>, Option<i32>) =
-        sqlx::query_as(
-            "SELECT u.suspended_reason, u.verification::text,
+    type Extra = (Option<String>, String, Option<i32>, Option<i32>, Option<OffsetDateTime>);
+    let (suspended_reason, verification, rider_priority, driver_priority, map_expert_until): Extra = sqlx::query_as(
+        "SELECT u.suspended_reason, u.verification::text,
                 (SELECT priority_points FROM rider_profiles WHERE user_id = u.id),
-                (SELECT priority_points FROM driver_profiles WHERE user_id = u.id)
+                (SELECT priority_points FROM driver_profiles WHERE user_id = u.id),
+                (SELECT map_expert_until FROM driver_profiles WHERE user_id = u.id)
          FROM users u WHERE u.id = $1",
-        )
-        .bind(id)
-        .fetch_one(&s.db)
-        .await?;
+    )
+    .bind(id)
+    .fetch_one(&s.db)
+    .await?;
     let trips: Vec<TripRow> = sqlx::query_as(
         "SELECT id, code, CASE WHEN rider_id = $1 THEN 'rider' ELSE 'driver' END, state::text, pickup_address, dropoff_address,
                 fare_cents, requested_at
@@ -221,6 +227,7 @@ pub async fn detail(
         verification,
         rider_priority,
         driver_priority,
+        map_expert_until,
         trips: trips
             .into_iter()
             .map(|(ride_id, code, as_party, state, pickup_address, dropoff_address, fare, requested_at)| UserTrip {
@@ -343,6 +350,117 @@ pub async fn reinstate(
             staff_id: Some(staff.id),
             user_id: Some(id),
             action: "user.reinstate",
+            target_type: "user",
+            target_id: id.to_string(),
+            detail: Some(json!({ "reason": body.reason.as_str() })),
+            ip: Some(ip),
+        },
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MapExpertGrant {
+    /// The status lapses at this time; at most a year ahead.
+    #[serde(with = "time::serde::rfc3339")]
+    pub until: OffsetDateTime,
+    /// Why (the zones she maps, who asked), for the audit log.
+    #[schema(value_type = String)]
+    pub reason: PlainText<500>,
+}
+
+#[utoipa::path(
+    post, path = "/v1/ops/users/{id}/map-expert", operation_id = "grant_map_expert", tag = "ops", security(("staff" = [])),
+    params(("id" = Uuid, Path)),
+    request_body = MapExpertGrant,
+    responses(
+        (status = 204, description = "Rides she accepts until then pay the flat 15 % Map Expert fee; granting again moves the date"),
+        (status = 403, description = "Admins only", body = ErrorBody),
+        (status = 404, description = "No such driver", body = ErrorBody),
+        (status = 422, description = "The date is not in the future, or more than a year ahead", body = ErrorBody),
+    )
+)]
+pub async fn grant_map_expert(
+    State(s): State<AppState>,
+    staff: Staff,
+    ClientIp(ip): ClientIp,
+    Path(id): Path<Uuid>,
+    ValidJson(body): ValidJson<MapExpertGrant>,
+) -> Result<StatusCode, ApiError> {
+    staff.require_admin()?;
+    let now = OffsetDateTime::now_utc();
+    if body.until <= now || body.until > now + time::Duration::days(366) {
+        return Err(ApiError::invalid("The end date must be in the future and at most a year ahead."));
+    }
+    let mut tx = s.db.begin().await?;
+    let before: Option<Option<OffsetDateTime>> =
+        sqlx::query_scalar("SELECT map_expert_until FROM driver_profiles WHERE user_id = $1 FOR UPDATE")
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let Some(before) = before else { return Err(ApiError::not_found()) };
+    sqlx::query("UPDATE driver_profiles SET map_expert_until = $2 WHERE user_id = $1").bind(id).bind(body.until).execute(&mut *tx).await?;
+    audit::record(
+        &mut *tx,
+        audit::Entry {
+            staff_id: Some(staff.id),
+            user_id: Some(id),
+            action: "driver.map_expert_grant",
+            target_type: "user",
+            target_id: id.to_string(),
+            detail: Some(json!({
+                "until": body.until.unix_timestamp(),
+                "before": before.map(|t| t.unix_timestamp()),
+                "reason": body.reason.as_str(),
+            })),
+            ip: Some(ip),
+        },
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    post, path = "/v1/ops/users/{id}/map-expert/end", operation_id = "end_map_expert", tag = "ops", security(("staff" = [])),
+    params(("id" = Uuid, Path)),
+    request_body = Reason,
+    responses(
+        (status = 204, description = "Ended now: rides she accepts from now on pay the tier's fee"),
+        (status = 403, description = "Admins only", body = ErrorBody),
+        (status = 404, description = "No such driver", body = ErrorBody),
+        (status = 409, description = "She is not a Map Expert (`not_map_expert`)", body = ErrorBody),
+    )
+)]
+pub async fn end_map_expert(
+    State(s): State<AppState>,
+    staff: Staff,
+    ClientIp(ip): ClientIp,
+    Path(id): Path<Uuid>,
+    ValidJson(body): ValidJson<Reason>,
+) -> Result<StatusCode, ApiError> {
+    staff.require_admin()?;
+    let mut tx = s.db.begin().await?;
+    let active: Option<bool> =
+        sqlx::query_scalar("SELECT coalesce(map_expert_until > now(), false) FROM driver_profiles WHERE user_id = $1 FOR UPDATE")
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    match active {
+        None => return Err(ApiError::not_found()),
+        Some(false) => return Err(ApiError::conflict("not_map_expert", "This driver is not a Map Expert.")),
+        Some(true) => {}
+    }
+    sqlx::query("UPDATE driver_profiles SET map_expert_until = NULL WHERE user_id = $1").bind(id).execute(&mut *tx).await?;
+    audit::record(
+        &mut *tx,
+        audit::Entry {
+            staff_id: Some(staff.id),
+            user_id: Some(id),
+            action: "driver.map_expert_end",
             target_type: "user",
             target_id: id.to_string(),
             detail: Some(json!({ "reason": body.reason.as_str() })),
