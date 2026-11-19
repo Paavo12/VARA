@@ -2345,7 +2345,10 @@ export interface components {
             max: number;
             /** Format: double */
             min: number;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When staff last changed it; absent for a value never changed since it was installed.
+             */
             updated_at?: string | null;
             /**
              * Format: double

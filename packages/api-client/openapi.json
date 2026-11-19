@@ -7730,7 +7730,8 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "When staff last changed it; absent for a value never changed since it was installed."
           },
           "value": {
             "type": [

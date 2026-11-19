@@ -5,7 +5,7 @@
 -->
 <script lang="ts">
 	import { Button, Notice, TextField } from '@fuber/ui';
-	import { formatWhen, messageOf } from '#lib/format.ts';
+	import { formatDetail, formatWhen, messageOf } from '#lib/format.ts';
 	import { api, staff, type AuditEntry } from '#lib/staff.svelte.ts';
 
 	let action = $state('');
@@ -74,7 +74,7 @@
 						<td>{e.staff_email ?? 'System'}</td>
 						<td><code>{e.action}</code></td>
 						<td>{e.target_type} <code>{e.target_id}</code></td>
-						<td><code class="detail">{e.detail ? JSON.stringify(e.detail) : ''}</code></td>
+						<td><code class="detail">{formatDetail(e.detail)}</code></td>
 						<td>{e.ip ?? ''}</td>
 					</tr>
 				{/each}

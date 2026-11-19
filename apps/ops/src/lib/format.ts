@@ -31,3 +31,16 @@ export function formatWhen(iso: string): string {
 		minute: '2-digit'
 	});
 }
+
+/** Audit detail fields the API stores as Unix seconds. */
+const UNIX_TIME_KEYS = new Set(['effective_from', 'until', 'before']);
+
+/** An audit entry's detail as text, with Unix-second times shown as dates. */
+export function formatDetail(detail: unknown): string {
+	if (detail == null) return '';
+	return JSON.stringify(detail, (key, value) =>
+		UNIX_TIME_KEYS.has(key) && typeof value === 'number'
+			? formatWhen(new Date(value * 1000).toISOString())
+			: value
+	);
+}
