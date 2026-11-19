@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
 	import type { RiderRide } from '@fuber/api-client';
-	import { messageOf, ReportIssue, useSession } from '@fuber/account';
+	import { messageOf, ReportIssue, ShareTrip, useSession } from '@fuber/account';
 	import { Button, Notice, Plate, Screen, Stars, formatMinutes, formatNad } from '@fuber/ui';
 
 	interface Props {
@@ -208,6 +208,8 @@
 			</Notice>
 		{/if}
 		{@render trip()}
+		<!-- Share trip (PRD S-2) from acceptance to drop-off, in view under the trip details. -->
+		<ShareTrip rideId={ride.id} />
 		{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
 		{#snippet footer()}
 			{#if beforePin}{@render cancelButton('Cancel ride')}{/if}

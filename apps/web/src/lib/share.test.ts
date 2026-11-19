@@ -16,7 +16,7 @@ const trip: SharedTrip = {
 
 describe('share page', () => {
 	it('says where the trip is for each side', () => {
-		expect(headline(trip)).toBe('Ndeshi is on her way to Klein Windhoek area');
+		expect(headline(trip)).toBe('Ndeshi is on her way');
 		expect(headline({ ...trip, status: 'driver_on_the_way' })).toBe(
 			"Ndeshi's driver is on the way"
 		);

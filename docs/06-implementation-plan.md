@@ -227,6 +227,11 @@ Operations
 | Masked calls | Explore MTC / Paratus; in-app chat is primary meanwhile | Chat (T-8) built (PR #17); calls wait for the provider |
 | Chat access (2026-11-09) | The safety team may read a trip's chat when a safety issue is raised about it. No extra encryption requirement | Built: audited view on the Safety desk; Privacy Policy draft says so (migration 0011) |
 | Ride codes (2026-11-09) | Codes follow the VARA name | New rides get `VA-` codes (migration 0011); older rides keep `FU-` |
+| RideCheck silent car (2026-11-19) | A phone silent for 2 minutes mid-trip counts as a RideCheck stop | Built (S-3, migration 0013) |
+| Suspension mid-trip (2026-11-19) | A suspended driver may finish the trip in progress | Built: signed out of new requests and taken offline; the current trip finishes |
+| Settlements (2026-11-19) | Only admins see and mark weekly settlements | Built: `ops_admin` only |
+| Share trip map (2026-11-19) | OpenStreetMap link until a Google Maps API key is available | Built: OSM link, no embedded map |
+| Providers (2026-11-19) | SMS, push, payments, maps, calls and email are integrated once the app is otherwise done | Not started, by choice |
 
 **Launch date:** set once Phase 3, cloud staging, real SMS and legal approvals are finished.
 

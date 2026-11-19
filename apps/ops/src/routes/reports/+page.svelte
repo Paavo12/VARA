@@ -32,8 +32,11 @@
 		const { data, error: err } = await api
 			.GET('/v1/ops/reports', { params: { query: { status } } })
 			.catch(() => ({ data: undefined, error: undefined }));
-		if (data) reports = data;
-		else error = messageOf(err, 'The reports didn’t load.');
+		if (data) {
+			// Every note box needs a string: binding `undefined` to TextField's value throws.
+			notes = Object.fromEntries(data.map((r) => [r.id, notes[r.id] ?? '']));
+			reports = data;
+		} else error = messageOf(err, 'The reports didn’t load.');
 	}
 
 	async function move(r: SupportReport, status: 'in_progress' | 'resolved') {

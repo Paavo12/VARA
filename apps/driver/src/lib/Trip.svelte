@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
 	import type { DriverRide } from '@fuber/api-client';
-	import { messageOf, ReportIssue, useSession } from '@fuber/account';
+	import { messageOf, ReportIssue, ShareTrip, useSession } from '@fuber/account';
 	import { Button, Notice, Screen, Stars, formatNad } from '@fuber/ui';
 	import { onMount } from 'svelte';
 
@@ -178,6 +178,8 @@
 			{ride.payment_method === 'cash' ? 'Cash' : 'Card'}
 		</p>
 	</div>
+	<!-- Share trip (PRD S-2), in view on every trip screen with the card. -->
+	<ShareTrip rideId={ride.id} />
 {/snippet}
 
 {#snippet cancelPanel()}
