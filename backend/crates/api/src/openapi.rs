@@ -32,7 +32,7 @@ use crate::{ops, routes};
         routes::chat::thread, routes::chat::send,
         routes::safety::sos, routes::share::create, routes::share::view, routes::ridecheck::respond,
         routes::report::report,
-        ops::auth::login, ops::auth::logout,
+        ops::auth::login, ops::auth::session, ops::auth::logout,
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
         ops::drivers::queue, ops::drivers::detail, ops::drivers::set_tiers, ops::drivers::decide,
         ops::drivers::decide_document, ops::drivers::decide_vehicle,
@@ -83,7 +83,7 @@ impl Modify for Security {
         c.add_security_scheme(
             "staff",
             SecurityScheme::Http(
-                HttpBuilder::new().scheme(HttpAuthScheme::Bearer).description(Some("Staff session token from /v1/ops/auth/login")).build(),
+                HttpBuilder::new().scheme(HttpAuthScheme::Bearer).description(Some("Staff session token: the `vara_ops` cookie set by /v1/ops/auth/login (browsers; changes also need `X-CSRF-Token`), or this header (scripts)")).build(),
             ),
         );
     }

@@ -1337,7 +1337,7 @@
         },
         "responses": {
           "200": {
-            "description": "",
+            "description": "Signed in; the session is in the `vara_ops` cookie (8 hours)",
             "content": {
               "application/json": {
                 "schema": {
@@ -1378,6 +1378,41 @@
         "responses": {
           "204": {
             "description": ""
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/auth/session": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "ops_session",
+        "responses": {
+          "200": {
+            "description": "Still signed in (the console calls this after a reload)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session, or it expired or was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -8226,12 +8261,17 @@
       },
       "StaffSession": {
         "type": "object",
+        "description": "The signed-in session. The token itself is in the `vara_ops` cookie.",
         "required": [
-          "token",
+          "csrf_token",
           "expires_at",
           "roles"
         ],
         "properties": {
+          "csrf_token": {
+            "type": "string",
+            "description": "Send as `X-CSRF-Token` with every request that changes something."
+          },
           "expires_at": {
             "type": "string",
             "format": "date-time"
@@ -8241,10 +8281,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "token": {
-            "type": "string",
-            "description": "Send as `Authorization: Bearer <token>` to `/v1/ops/*`."
           }
         }
       },
@@ -9020,7 +9056,7 @@
       "staff": {
         "type": "http",
         "scheme": "bearer",
-        "description": "Staff session token from /v1/ops/auth/login"
+        "description": "Staff session token: the `vara_ops` cookie set by /v1/ops/auth/login (browsers; changes also need `X-CSRF-Token`), or this header (scripts)"
       }
     }
   },

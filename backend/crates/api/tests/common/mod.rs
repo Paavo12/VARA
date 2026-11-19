@@ -178,6 +178,35 @@ impl T {
         (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
     }
 
+    /// A request as the ops console's browser makes it: the session cookie, and the CSRF header
+    /// when given. Returns the status, any `Set-Cookie` and the body.
+    pub async fn browser(
+        &self,
+        method: Method,
+        uri: &str,
+        cookie: Option<&str>,
+        csrf: Option<&str>,
+        body: Option<Value>,
+    ) -> (StatusCode, Option<String>, Value) {
+        let mut req = Request::builder().method(method).uri(uri);
+        if let Some(c) = cookie {
+            req = req.header(header::COOKIE, format!("theme=dark; vara_ops={c}"));
+        }
+        if let Some(c) = csrf {
+            req = req.header("x-csrf-token", c);
+        }
+        let req = match body {
+            Some(b) => req.header(header::CONTENT_TYPE, "application/json").body(Body::from(b.to_string())),
+            None => req.body(Body::empty()),
+        }
+        .unwrap();
+        let res = self.app.clone().oneshot(req).await.unwrap();
+        let status = res.status();
+        let set_cookie = res.headers().get(header::SET_COOKIE).map(|v| v.to_str().unwrap().to_owned());
+        let bytes = res.into_body().collect().await.unwrap().to_bytes();
+        (status, set_cookie, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+    }
+
     pub async fn get(&self, uri: &str, token: &str) -> (StatusCode, Value) {
         self.call(Method::GET, uri, Some(token), None).await
     }
@@ -274,7 +303,13 @@ impl T {
     }
 
     /// A staff member with the given role; returns their bearer token.
+    /// Signs in a new staff member with `role`; returns the session token (from the cookie).
     pub async fn staff(&self, role: &str) -> String {
+        self.staff_session(role).await.0
+    }
+
+    /// Like [`T::staff`], with the CSRF token the console gets and the whole `Set-Cookie`.
+    pub async fn staff_session(&self, role: &str) -> (String, String, String) {
         let email = format!("{}@ops.fuber.test", Uuid::new_v4().simple());
         let secret = random_bytes::<20>();
         let hash = Argon2::default().hash_password(b"correct horse battery").unwrap().to_string();
@@ -288,11 +323,14 @@ impl T {
             .unwrap();
         let code = totp::code(&secret, OffsetDateTime::now_utc().unix_timestamp() / 30);
         let login = json!({ "email": email, "password": "correct horse battery", "totp": code });
-        let (status, body) = self.call(Method::POST, "/v1/ops/auth/login", None, Some(login.clone())).await;
+        let (status, cookie, body) = self.browser(Method::POST, "/v1/ops/auth/login", None, None, Some(login.clone())).await;
         assert_eq!(status, StatusCode::OK, "{body}");
+        assert!(body.get("token").is_none(), "the token stays out of reach of page scripts: {body}");
         // The same code can't be used twice.
         assert_eq!(self.call(Method::POST, "/v1/ops/auth/login", None, Some(login)).await.0, StatusCode::UNAUTHORIZED);
-        body["token"].as_str().unwrap().to_owned()
+        let cookie = cookie.expect("login sets the session cookie");
+        let token = cookie.strip_prefix("vara_ops=").and_then(|c| c.split(';').next()).unwrap().to_owned();
+        (token, body["csrf_token"].as_str().unwrap().to_owned(), cookie)
     }
 }
 

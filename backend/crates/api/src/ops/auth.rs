@@ -1,10 +1,15 @@
-//! Staff sign-in: email + password + TOTP, all three required (TRD §7.4).
+//! Staff sign-in: email + password + TOTP, all three required (TRD §7.4). The session token is
+//! set as an `HttpOnly` cookie (see the module docs of `ops`), never returned to page scripts.
 
 use argon2::{
     Argon2,
     password_hash::{PasswordVerifier, phc::PasswordHash},
 };
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::State,
+    http::{HeaderValue, StatusCode, header},
+};
 use fuber_common::{
     crypto::{random_token, totp},
     validate::Email,
@@ -15,7 +20,7 @@ use time::{Duration, OffsetDateTime};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::{Staff, session_hash};
+use super::{Staff, csrf_token, session_cookie, session_hash};
 use crate::{
     AppState, audit,
     error::{ApiError, ErrorBody},
@@ -61,10 +66,11 @@ impl TryFrom<String> for Password {
     }
 }
 
+/// The signed-in session. The token itself is in the `vara_ops` cookie.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct StaffSession {
-    /// Send as `Authorization: Bearer <token>` to `/v1/ops/*`.
-    pub token: String,
+    /// Send as `X-CSRF-Token` with every request that changes something.
+    pub csrf_token: String,
     #[serde(with = "time::serde::rfc3339")]
     pub expires_at: OffsetDateTime,
     pub roles: Vec<String>,
@@ -74,7 +80,7 @@ pub struct StaffSession {
     post, path = "/v1/ops/auth/login", tag = "ops",
     request_body = Login,
     responses(
-        (status = 200, body = StaffSession),
+        (status = 200, description = "Signed in; the session is in the `vara_ops` cookie (8 hours)", body = StaffSession),
         (status = 401, description = "Email, password or code is wrong (never says which)", body = ErrorBody),
         (status = 429, description = "5 attempts per 15 minutes per account and IP", body = ErrorBody),
     )
@@ -83,7 +89,7 @@ pub async fn login(
     State(s): State<AppState>,
     ClientIp(ip): ClientIp,
     ValidJson(req): ValidJson<Login>,
-) -> Result<Json<StaffSession>, ApiError> {
+) -> Result<([(header::HeaderName, HeaderValue); 1], Json<StaffSession>), ApiError> {
     let email_key: String =
         s.keys.hasher.hash("staff-email", req.email.as_str().as_bytes()).iter().take(12).map(|b| format!("{b:02x}")).collect();
     s.limiter.check("ops_login", &format!("{email_key}:{ip}"), s.limits.ops_login).await?;
@@ -162,11 +168,25 @@ pub async fn login(
     )
     .await?;
     tx.commit().await?;
-    Ok(Json(StaffSession { token, expires_at, roles }))
+    let session = StaffSession { csrf_token: csrf_token(&s, &token), expires_at, roles };
+    Ok(([(header::SET_COOKIE, session_cookie(&s, Some(&token)))], Json(session)))
+}
+
+#[utoipa::path(
+    get, path = "/v1/ops/auth/session", operation_id = "ops_session", tag = "ops", security(("staff" = [])),
+    responses(
+        (status = 200, description = "Still signed in (the console calls this after a reload)", body = StaffSession),
+        (status = 401, description = "No session, or it expired or was revoked", body = ErrorBody),
+    )
+)]
+pub async fn session(State(s): State<AppState>, staff: Staff) -> Result<Json<StaffSession>, ApiError> {
+    let expires_at: OffsetDateTime =
+        sqlx::query_scalar("SELECT expires_at FROM staff_sessions WHERE id = $1").bind(staff.session_id).fetch_one(&s.db).await?;
+    Ok(Json(StaffSession { csrf_token: staff.csrf_token, expires_at, roles: staff.roles }))
 }
 
 #[utoipa::path(post, path = "/v1/ops/auth/logout", operation_id = "ops_logout", tag = "ops", security(("staff" = [])), responses((status = 204)))]
-pub async fn logout(State(s): State<AppState>, staff: Staff) -> Result<StatusCode, ApiError> {
+pub async fn logout(State(s): State<AppState>, staff: Staff) -> Result<([(header::HeaderName, HeaderValue); 1], StatusCode), ApiError> {
     sqlx::query("UPDATE staff_sessions SET revoked_at = now() WHERE id = $1").bind(staff.session_id).execute(&s.db).await?;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(([(header::SET_COOKIE, session_cookie(&s, None))], StatusCode::NO_CONTENT))
 }

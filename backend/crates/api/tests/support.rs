@@ -220,3 +220,38 @@ async fn an_admin_makes_a_driver_a_map_expert_and_her_comfort_trips_pay_15_perce
             .unwrap();
     assert_eq!(actions, ["driver.map_expert_grant", "driver.map_expert_end"]);
 }
+
+#[tokio::test]
+async fn the_console_session_is_an_httponly_cookie_and_changes_need_the_csrf_token() {
+    let t = setup!(relaxed());
+    let (token, csrf, cookie) = t.staff_session("ops_support").await;
+    for part in ["HttpOnly", "SameSite=Strict", "Path=/v1/ops", "Max-Age=28800"] {
+        assert!(cookie.contains(part), "{part} missing: {cookie}");
+    }
+    let rider = t.rider().await;
+    let uri = format!("/v1/ops/users/{}/priority", rider.user_id);
+    let body = json!({ "role": "rider", "delta": 5, "reason": "Goodwill" });
+
+    // Reading with the cookie alone is fine, and a reload gets the roles and CSRF token back.
+    let (status, _, session) = t.browser(Method::GET, "/v1/ops/auth/session", Some(&token), None, None).await;
+    assert_eq!(status, StatusCode::OK, "{session}");
+    assert_eq!((session["csrf_token"].as_str(), session["roles"][0].as_str()), (Some(csrf.as_str()), Some("ops_support")));
+    assert_eq!(t.browser(Method::GET, "/v1/ops/reports", Some(&token), None, None).await.0, StatusCode::OK);
+
+    // A change with the cookie needs the matching CSRF token (another page can't read it).
+    let (status, _, e) = t.browser(Method::POST, &uri, Some(&token), None, Some(body.clone())).await;
+    assert_eq!((status, e["error"]["code"].as_str()), (StatusCode::FORBIDDEN, Some("csrf_failed")));
+    let other = t.staff_session("ops_support").await.1;
+    assert_eq!(t.browser(Method::POST, &uri, Some(&token), Some(&other), Some(body.clone())).await.0, StatusCode::FORBIDDEN);
+    let (status, _, e) = t.browser(Method::POST, &uri, Some(&token), Some(&csrf), Some(body.clone())).await;
+    assert_eq!(status, StatusCode::OK, "{e}");
+    // Scripts sending the token as a bearer header need no CSRF token.
+    assert_eq!(t.ops(&token, Method::POST, &uri, Some(body)).await.0, StatusCode::OK);
+
+    // Sign-out clears the cookie and ends the session.
+    let (status, cleared, _) = t.browser(Method::POST, "/v1/ops/auth/logout", Some(&token), Some(&csrf), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let cleared = cleared.unwrap();
+    assert!(cleared.starts_with("vara_ops=;") && cleared.contains("Max-Age=0"), "{cleared}");
+    assert_eq!(t.browser(Method::GET, "/v1/ops/auth/session", Some(&token), None, None).await.0, StatusCode::UNAUTHORIZED);
+}

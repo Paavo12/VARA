@@ -33,11 +33,19 @@ pub fn apply_headers(router: Router, env: Environment) -> Router {
 }
 
 /// Exact-origin allow-list. An empty list allows no cross-origin browser calls at all.
+/// Credentials are allowed so the ops console's session cookie is sent; only listed origins
+/// get that, and changes also need the CSRF header.
 pub fn cors(origins: &[String]) -> CorsLayer {
     let origins: Vec<HeaderValue> = origins.iter().filter_map(|o| HeaderValue::from_str(o).ok()).collect();
     CorsLayer::new()
         .allow_origin(origins)
+        .allow_credentials(true)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE])
-        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, HeaderName::from_static("idempotency-key")])
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+            HeaderName::from_static("idempotency-key"),
+            HeaderName::from_static(crate::ops::CSRF_HEADER),
+        ])
         .max_age(Duration::from_secs(600))
 }

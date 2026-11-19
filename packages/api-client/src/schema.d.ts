@@ -453,6 +453,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ops_session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/documents/{id}/decision": {
         parameters: {
             query?: never;
@@ -2513,12 +2529,13 @@ export interface components {
              */
             ride_id?: string | null;
         };
+        /** @description The signed-in session. The token itself is in the `vara_ops` cookie. */
         StaffSession: {
+            /** @description Send as `X-CSRF-Token` with every request that changes something. */
+            csrf_token: string;
             /** Format: date-time */
             expires_at: string;
             roles: string[];
-            /** @description Send as `Authorization: Bearer <token>` to `/v1/ops/*`. */
-            token: string;
         };
         Statement: {
             /** @description Positive: VARA pays her. Negative: she pays VARA (service fees on cash trips). */
@@ -3793,6 +3810,7 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Signed in; the session is in the `vara_ops` cookie (8 hours) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3835,6 +3853,35 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ops_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Still signed in (the console calls this after a reload) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffSession"];
+                };
+            };
+            /** @description No session, or it expired or was revoked */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

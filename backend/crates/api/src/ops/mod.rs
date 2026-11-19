@@ -2,8 +2,13 @@
 //! identity-verification review, and driver application review (documents, vehicle, tiers,
 //! decision). Every action and every view of an identity image is written to the audit log.
 //!
-//! Staff authenticate with email + password (argon2id) + TOTP and receive an opaque 8-hour
-//! bearer token. Phase 5 moves the console to an `HttpOnly` cookie with CSRF protection.
+//! Staff authenticate with email + password (argon2id) + TOTP. The opaque 8-hour session token
+//! goes in an `HttpOnly`, `SameSite=Strict` cookie scoped to `/v1/ops`, so page scripts never see
+//! it and a reload stays signed in. Every request that changes something must also send the
+//! session's CSRF token in `X-CSRF-Token` (from sign-in or `GET /v1/ops/auth/session`). Scripts
+//! may send the token as `Authorization: Bearer` instead; a browser never attaches that on its
+//! own, so it needs no CSRF token. The console must be served from the same site as the API
+//! (e.g. `ops.vara.example` and `api.vara.example`), or the browser won't send the cookie.
 
 pub mod audit_log;
 pub mod auth;
@@ -19,9 +24,11 @@ pub mod verifications;
 use axum::{
     Router,
     extract::FromRequestParts,
-    http::request::Parts,
+    http::{HeaderValue, Method, header, request::Parts},
     routing::{get, post, put},
 };
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use fuber_common::{Environment, crypto::ct_eq};
 use serde::Deserialize;
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -32,6 +39,7 @@ pub fn router(_: &AppState) -> Router<AppState> {
     Router::new()
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
+        .route("/auth/session", get(auth::session))
         .route("/verifications", get(verifications::queue))
         .route("/verifications/{id}", get(verifications::detail))
         .route("/verifications/{id}/decision", post(verifications::decide))
@@ -70,6 +78,8 @@ pub struct Staff {
     pub id: Uuid,
     pub session_id: Uuid,
     pub roles: Vec<String>,
+    /// The session's CSRF token, for the console to send back.
+    pub csrf_token: String,
 }
 
 impl Staff {
@@ -114,7 +124,22 @@ impl FromRequestParts<AppState> for Staff {
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, s: &AppState) -> Result<Self, ApiError> {
-        let token = bearer_token(parts).filter(|t| t.len() == 43).ok_or_else(ApiError::unauthorized)?;
+        let (token, from_cookie) = match bearer_token(parts) {
+            Some(t) => (t, false),
+            None => (cookie_token(parts).ok_or_else(ApiError::unauthorized)?, true),
+        };
+        if token.len() != 43 {
+            return Err(ApiError::unauthorized());
+        }
+        let csrf_token = csrf_token(s, token);
+        // A cookie rides along on any request the browser makes, so a change must prove it came
+        // from the console: only the console can read the CSRF token.
+        if from_cookie && !matches!(parts.method, Method::GET | Method::HEAD) {
+            let sent = parts.headers.get(CSRF_HEADER).map(|v| v.as_bytes()).unwrap_or_default();
+            if !ct_eq(sent, csrf_token.as_bytes()) {
+                return Err(ApiError::forbidden("csrf_failed", "Your session check failed. Reload the page and try again."));
+            }
+        }
         let row: Option<(Uuid, Uuid, Vec<String>)> = sqlx::query_as(
             "SELECT st.id, ss.id, st.roles::text[] FROM staff_sessions ss JOIN staff_users st ON st.id = ss.staff_id
              WHERE ss.token_hash = $1 AND ss.revoked_at IS NULL AND ss.expires_at > now() AND st.disabled_at IS NULL",
@@ -124,8 +149,39 @@ impl FromRequestParts<AppState> for Staff {
         .await?;
         let (id, session_id, roles) = row.ok_or_else(ApiError::unauthorized)?;
         s.limiter.check("ops", &id.to_string(), s.limits.ops).await?;
-        Ok(Staff { id, session_id, roles })
+        Ok(Staff { id, session_id, roles, csrf_token })
     }
+}
+
+/// The staff session cookie. `HttpOnly`: page scripts never see the token.
+pub const COOKIE: &str = "vara_ops";
+pub const CSRF_HEADER: &str = "x-csrf-token";
+
+/// Derived from the session token, so it needs no storage and dies with the session.
+pub fn csrf_token(s: &AppState, token: &str) -> String {
+    URL_SAFE_NO_PAD.encode(s.keys.hasher.hash("staff-csrf", token.as_bytes()))
+}
+
+fn cookie_token(parts: &Parts) -> Option<&str> {
+    parts
+        .headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(';'))
+        .find_map(|c| c.trim().strip_prefix(COOKIE)?.strip_prefix('='))
+}
+
+/// `Set-Cookie` for a new session, or (with `None`) one that clears it.
+pub fn session_cookie(s: &AppState, token: Option<&str>) -> HeaderValue {
+    let (value, max_age) = match token {
+        Some(t) => (t, auth::STAFF_SESSION_TTL.whole_seconds()),
+        None => ("", 0),
+    };
+    // Plain-HTTP local runs can't use Secure cookies on every browser.
+    let secure = if s.config.env == Environment::Local { "" } else { "; Secure" };
+    HeaderValue::from_str(&format!("{COOKIE}={value}; Path=/v1/ops; HttpOnly; SameSite=Strict; Max-Age={max_age}{secure}"))
+        .expect("token is base64url")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ToSchema)]
