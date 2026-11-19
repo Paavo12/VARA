@@ -22,9 +22,14 @@ async fn admins_change_parameters_within_bounds_and_it_is_audited() {
     assert_eq!(status, StatusCode::OK, "{list}");
     let radius = list.as_array().unwrap().iter().find(|s| s["key"] == "dispatch.radius_m").unwrap();
     assert_eq!(radius["value"], 3000.0);
+    // Seeded by the migrations, never changed: no "changed" date.
+    assert!(radius["updated_at"].is_null(), "{radius}");
 
     let (status, saved) = t.call(Method::PUT, "/v1/ops/settings/dispatch.radius_m", Some(&admin), Some(json!({ "value": 4500 }))).await;
     assert_eq!(status, StatusCode::OK, "{saved}");
+    let (_, list) = t.call(Method::GET, "/v1/ops/settings", Some(&admin), None).await;
+    let radius = list.as_array().unwrap().iter().find(|s| s["key"] == "dispatch.radius_m").unwrap();
+    assert!(radius["updated_at"].is_string(), "{radius}");
     assert_eq!(Dispatch::load(&t.state.db).await.unwrap().radius_m, 4500.0, "matching reads it on its next run");
     let detail: serde_json::Value =
         sqlx::query_scalar("SELECT detail FROM audit_log WHERE action = 'setting.update' AND target_id = 'dispatch.radius_m'")

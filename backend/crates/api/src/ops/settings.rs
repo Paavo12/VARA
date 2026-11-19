@@ -50,6 +50,7 @@ pub struct Setting {
     pub value: Option<f64>,
     pub min: f64,
     pub max: f64,
+    /// When staff last changed it; absent for a value never changed since it was installed.
     #[serde(with = "time::serde::rfc3339::option")]
     pub updated_at: Option<OffsetDateTime>,
 }
@@ -63,13 +64,14 @@ pub struct Setting {
 )]
 pub async fn list(State(s): State<AppState>, staff: Staff) -> Result<Json<Vec<Setting>>, ApiError> {
     staff.require_admin()?;
-    let rows: Vec<(String, serde_json::Value, OffsetDateTime)> =
-        sqlx::query_as("SELECT key, value, updated_at FROM settings").fetch_all(&s.db).await?;
+    // Rows the migrations seeded carry the install time and no staff member: not a change.
+    let rows: Vec<(String, serde_json::Value, Option<OffsetDateTime>)> =
+        sqlx::query_as("SELECT key, value, CASE WHEN updated_by IS NOT NULL THEN updated_at END FROM settings").fetch_all(&s.db).await?;
     Ok(Json(
         KEYS.iter()
             .map(|&(key, label, min, max)| {
                 let row = rows.iter().find(|r| r.0 == key);
-                Setting { key, label, value: row.and_then(|r| r.1.as_f64()), min, max, updated_at: row.map(|r| r.2) }
+                Setting { key, label, value: row.and_then(|r| r.1.as_f64()), min, max, updated_at: row.and_then(|r| r.2) }
             })
             .collect(),
     ))
