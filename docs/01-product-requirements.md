@@ -195,6 +195,8 @@ Detailed in the [TRD](02-technical-requirements.md).
 
 Service fee raised on 2 November 2026 from the demo's 2 / 2.5 / 3 %, which earned N$2–3 on a N$100 fare against N$2.10–3.60 of per-trip costs (SMS, maps, payment fees), a loss on every ride. At 15–18 % the platform keeps about N$12–15 per N$100 trip after those costs and breaks even at about 7,600 trips a month (fixed overhead N$48,500–97,500 a month, including the 24/7 safety desk). Bolt takes 18–24 % and Yango 15–20 %. Fares for riders did not change (migration `0007_service_fees.sql`).
 
+**Map Experts** pay a flat 15 % on every tier (so N$85 kept on a N$100 Comfort or Soft Life fare): drivers who work unmapped or newly developed zones, such as parts of Katutura, and help verify wayfinding. An admin grants the status per driver until a date; the fee is fixed when she accepts a ride (migration `0015_map_experts.sql`).
+
 Surge: High 1.4×, Peak 1.8×, set per zone by ops (automatic surge is phase 2). Time component uses the demand level's base traffic factor, so the quote is stable (fixed demo bug, see commit c284f3e). No booking, cancellation or no-show fees in v1.
 
 ## 9. Roadmap after v1

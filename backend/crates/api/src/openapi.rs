@@ -39,7 +39,7 @@ use crate::{ops, routes};
         ops::incidents::queue, ops::incidents::messages, ops::incidents::close,
         ops::settlements::queue, ops::settlements::settle,
         ops::support::search, ops::support::detail, ops::support::suspend, ops::support::reinstate,
-        ops::support::adjust_priority, ops::support::reports, ops::support::set_report_status,
+        ops::support::adjust_priority, ops::support::grant_map_expert, ops::support::end_map_expert, ops::support::reports, ops::support::set_report_status,
         ops::settings::list, ops::settings::set, ops::metrics::metrics,
         ops::pricing::list, ops::pricing::add, ops::pricing::zones, ops::pricing::update_zone, ops::audit_log::list,
     ),

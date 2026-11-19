@@ -221,7 +221,7 @@ Operations
 | 5 wrong PINs | Driver blocked from new requests until ops clears it | Built (`POST /ops/incidents/{id}/close`, ops Safety desk page) |
 | Name | Product renamed to **VARA** (Verified, Authenticated, Reliable, App) | Name and placeholder domain `vara.example` changed. Still open: the real domain, the app IDs (`app.fuber.*`) and internal code names |
 | Launch promotion | No 32 % promotion, no commission under 15 %. Launch on 15–18 % | Fees already 15 / 16.5 / 18 % (migration 0007); no promotion exists |
-| Map Experts | Flat 15 % for drivers working unmapped or newly developed zones who help verify wayfinding and geofencing | Not started; needs qualification thresholds and who grants it |
+| Map Experts | Flat 15 % for drivers working unmapped or newly developed zones who help verify wayfinding and geofencing | Built (2026-11-19, migration 0015): an admin grants it per driver until a date (at most a year), audited; her offers and accepted rides on every tier pay 15 %. Still open: qualification thresholds, and limiting it to certain zones (needs drawn zones, so a map provider) |
 | Background location | Tauri or native handling approved if it keeps drivers visible | Stay on Capacitor; native foreground service still to build and test on Samsung and Huawei |
 | Cards | DPO Pay or PayToday; PayPoint later. Closed pilot on cash only | Provider integration not started; final pick open |
 | Masked calls | Explore MTC / Paratus; in-app chat is primary meanwhile | Chat (T-8) built (PR #17); calls wait for the provider |

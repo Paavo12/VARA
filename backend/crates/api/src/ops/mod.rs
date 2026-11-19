@@ -51,6 +51,8 @@ pub fn router(_: &AppState) -> Router<AppState> {
         .route("/users/{id}/suspend", post(support::suspend))
         .route("/users/{id}/reinstate", post(support::reinstate))
         .route("/users/{id}/priority", post(support::adjust_priority))
+        .route("/users/{id}/map-expert", post(support::grant_map_expert))
+        .route("/users/{id}/map-expert/end", post(support::end_map_expert))
         .route("/reports", get(support::reports))
         .route("/reports/{id}/status", post(support::set_report_status))
         .route("/settings", get(settings::list))
@@ -89,7 +91,7 @@ impl Staff {
         }
     }
 
-    /// Money: weekly settlements. Admins only.
+    /// Money: weekly settlements, pricing and Map Expert status. Admins only.
     pub fn require_admin(&self) -> Result<(), ApiError> {
         if self.roles.iter().any(|r| r == "ops_admin") { Ok(()) } else { Err(ApiError::forbidden("forbidden", "Your role can't do this.")) }
     }

@@ -17,7 +17,7 @@ use fuber_db::{
     settings::Dispatch,
     sqlx,
 };
-use fuber_domain::{Demand, Party, RideEvent, matching};
+use fuber_domain::{Cents, Demand, Party, RideEvent, matching, pricing};
 use uuid::Uuid;
 
 use crate::{Ctx, JobError};
@@ -108,7 +108,7 @@ async fn start_scheduled(ctx: &Ctx, cfg: &Dispatch) -> Result<usize, JobError> {
     Ok(n)
 }
 
-type RideRow = (f64, f64, String, bool, Uuid, i16, String, i64, i32);
+type RideRow = (f64, f64, String, bool, Uuid, i16, String, i64, i32, i32);
 
 /// Offers the ride to the best driver not yet asked this round. `Some(true)` = offered,
 /// `Some(false)` = nobody left (now `NO_DRIVERS`), `None` = another worker has it or it is no
@@ -117,8 +117,8 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
     let mut tx = ctx.db.begin().await?;
     let row: Option<RideRow> = sqlx::query_as(
         "SELECT ST_Y(r.pickup::geometry), ST_X(r.pickup::geometry), r.tier::text, r.wheelchair, r.rider_id, r.search_round,
-                r.demand_level, r.driver_earning_cents, rp.priority_points
-         FROM rides r JOIN rider_profiles rp ON rp.user_id = r.rider_id
+                r.demand_level, r.fare_cents, p.service_fee_bp, rp.priority_points
+         FROM rides r JOIN rider_profiles rp ON rp.user_id = r.rider_id JOIN pricing_tiers p ON p.id = r.pricing_tier_id
          WHERE r.id = $1 AND r.state = 'SEARCHING'
            AND NOT EXISTS (SELECT 1 FROM ride_offers o WHERE o.ride_id = r.id AND o.response = 'pending')
          FOR UPDATE OF r SKIP LOCKED",
@@ -126,7 +126,7 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
     .bind(ride_id)
     .fetch_optional(&mut *tx)
     .await?;
-    let Some((lat, lon, tier, wheelchair, rider_id, round, demand, earning, rider_points)) = row else { return Ok(None) };
+    let Some((lat, lon, tier, wheelchair, rider_id, round, demand, fare, fee_bp, rider_points)) = row else { return Ok(None) };
     let demand = Demand::parse(&demand).unwrap_or(Demand::Normal);
     // Drivers asked this round, plus any who accepted this ride in an earlier round and then
     // cancelled: she has seen the exact pickup, and a new driver's PIN attempts start again.
@@ -180,6 +180,13 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
         tracing::info!(%ride_id, asked, "no drivers left");
         return Ok(Some(false));
     };
+    // What she would earn: a Map Expert pays the flat fee (accept books the same split).
+    let map_expert: bool = sqlx::query_scalar("SELECT coalesce(map_expert_until > now(), false) FROM driver_profiles WHERE user_id = $1")
+        .bind(driver_id)
+        .fetch_optional(&mut *tx)
+        .await?
+        .unwrap_or(false);
+    let (_, earning) = pricing::split(Cents(fare), fee_bp as u32, map_expert);
     let inserted = sqlx::query(
         "INSERT INTO ride_offers (ride_id, driver_id, rank, score, eta_s, distance_m, expires_at, round, earning_cents)
          VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7), $8, $9)",
@@ -192,7 +199,7 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
     .bind(distance_m)
     .bind(cfg.offer_ms as f64 / 1000.0)
     .bind(round)
-    .bind(earning)
+    .bind(earning.0)
     .execute(&mut *tx)
     .await;
     match inserted {

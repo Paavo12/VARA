@@ -2530,6 +2530,144 @@
         ]
       }
     },
+    "/v1/ops/users/{id}/map-expert": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "grant_map_expert",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapExpertGrant"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Rides she accepts until then pay the flat 15 % Map Expert fee; granting again moves the date"
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The date is not in the future, or more than a year ahead",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/users/{id}/map-expert/end": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "end_map_expert",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reason"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Ended now: rides she accepts from now on pay the tier's fee"
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such driver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "She is not a Map Expert (`not_map_expert`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
     "/v1/ops/users/{id}/priority": {
       "post": {
         "tags": [
@@ -6258,6 +6396,25 @@
         },
         "additionalProperties": false
       },
+      "MapExpertGrant": {
+        "type": "object",
+        "required": [
+          "until",
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Why (the zones she maps, who asked), for the audit log."
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The status lapses at this time; at most a year ahead."
+          }
+        },
+        "additionalProperties": false
+      },
       "Me": {
         "type": "object",
         "required": [
@@ -8497,6 +8654,14 @@
               "null"
             ],
             "format": "int32"
+          },
+          "map_expert_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "A driver's Map Expert status (flat 15 % fee) ends then; in the past means it lapsed."
           },
           "reports": {
             "type": "array",

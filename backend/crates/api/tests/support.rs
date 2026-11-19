@@ -160,3 +160,63 @@ async fn only_support_and_admins_use_the_support_tools() {
     assert_eq!(t.call(Method::GET, "/v1/ops/reports", Some(&rider.access), None).await.0, StatusCode::UNAUTHORIZED);
     assert_eq!(t.ops(&admin, Method::GET, &format!("/v1/ops/users/{}", uuid::Uuid::new_v4()), None).await.0, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn an_admin_makes_a_driver_a_map_expert_and_her_comfort_trips_pay_15_percent() {
+    let t = setup!(relaxed());
+    let admin = t.staff("ops_admin").await;
+    let support = t.staff("ops_support").await;
+    let rider = t.rider().await;
+    let driver = t.online_driver("Hilma Nangolo", "comfort", NEAR).await;
+    let uri = format!("/v1/ops/users/{}/map-expert", driver.user_id);
+    let until =
+        (time::OffsetDateTime::now_utc() + time::Duration::days(90)).format(&time::format_description::well_known::Rfc3339).unwrap();
+    let grant = json!({ "until": until, "reason": "Verifies wayfinding in Katutura" });
+
+    // Admins only, and a date within the next year.
+    assert_eq!(t.ops(&support, Method::POST, &uri, Some(grant.clone())).await.0, StatusCode::FORBIDDEN);
+    let past = json!({ "until": "2020-01-01T00:00:00Z", "reason": "Old" });
+    assert_eq!(t.ops(&admin, Method::POST, &uri, Some(past)).await.0, StatusCode::UNPROCESSABLE_ENTITY);
+    let rider_uri = format!("/v1/ops/users/{}/map-expert", rider.user_id);
+    assert_eq!(t.ops(&admin, Method::POST, &rider_uri, Some(grant.clone())).await.0, StatusCode::NOT_FOUND);
+    let (status, e) = t.ops(&admin, Method::POST, &uri, Some(grant)).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{e}");
+    let (_, detail) = t.ops(&admin, Method::GET, &format!("/v1/ops/users/{}", driver.user_id), None).await;
+    assert!(detail["map_expert_until"].is_string(), "{detail}");
+
+    // A Comfort ride is quoted at 16.5 %; her offer and the booked split use 15 %.
+    let q = t.quote(&rider, POST_ST_MALL, MAERUA_MALL).await;
+    let (status, ride) =
+        t.request(&rider, json!({ "quote": q["quote"], "tier": "comfort", "passengers": 1, "payment_method": "cash" }), &key()).await;
+    assert_eq!(status, StatusCode::CREATED, "{ride}");
+    let fare = ride["fare"]["total"].as_i64().unwrap();
+    assert_eq!(ride["fare"]["service_fee"].as_i64().unwrap(), (fare * 1650 + 5000) / 10_000);
+    let expert_fee = (fare * 1500 + 5000) / 10_000;
+    assert_eq!(t.tick().await.offered, 1);
+    let card = t.driver_status(&driver).await["offer"].clone();
+    assert_eq!(card["earning"].as_i64().unwrap(), fare - expert_fee);
+    let (status, view) = t.post(&format!("/v1/offers/{}/accept", card["offer_id"].as_str().unwrap()), &driver.access, json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{view}");
+    assert_eq!(view["earning"].as_i64().unwrap(), fare - expert_fee);
+    let (fee, earning, breakdown): (i64, i64, Value) =
+        sqlx::query_as("SELECT service_fee_cents, driver_earning_cents, fare_breakdown FROM rides WHERE id = $1::uuid")
+            .bind(ride["id"].as_str().unwrap())
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+    assert_eq!((fee, earning), (expert_fee, fare - expert_fee));
+    assert_eq!((breakdown["service_fee"].as_i64(), breakdown["total"].as_i64()), (Some(expert_fee), Some(fare)));
+
+    // Ended: once, then there is nothing to end. Both changes are audited.
+    let reason = json!({ "reason": "Zone mapped" });
+    assert_eq!(t.ops(&admin, Method::POST, &format!("{uri}/end"), Some(reason.clone())).await.0, StatusCode::NO_CONTENT);
+    let (status, e) = t.ops(&admin, Method::POST, &format!("{uri}/end"), Some(reason)).await;
+    assert_eq!((status, e["error"]["code"].as_str()), (StatusCode::CONFLICT, Some("not_map_expert")));
+    let actions: Vec<String> =
+        sqlx::query_scalar("SELECT action FROM audit_log WHERE user_id = $1 AND action LIKE 'driver.map_expert%' ORDER BY id")
+            .bind(driver.user_id)
+            .fetch_all(&t.state.db)
+            .await
+            .unwrap();
+    assert_eq!(actions, ["driver.map_expert_grant", "driver.map_expert_end"]);
+}

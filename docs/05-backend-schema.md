@@ -115,6 +115,7 @@ CREATE TABLE driver_profiles (
   active_vehicle_id     uuid,              -- FK added after vehicles
   can_go_online         boolean NOT NULL DEFAULT false,  -- maintained by document-expiry job
   payout_account        bytea,             -- 🔒 bank details
+  map_expert_until      timestamptz,       -- flat 15 % fee on every tier until then (0015)
   created_at            timestamptz NOT NULL DEFAULT now(),
   updated_at            timestamptz NOT NULL DEFAULT now()
 );
