@@ -706,7 +706,7 @@ All under `https://api.vara.example/v1`, JSON, documented by OpenAPI (generated 
 | `GET /legal/{kind}/latest` | public | |
 | `POST /webhooks/{provider}` | provider | signature-verified |
 | `WS /ws` | rider/driver | §5 of the TRD |
-| `/ops/*` | staff | separate router, role checks, audit-logged. Phase 1: `POST /ops/auth/login` (password + TOTP → 8 h bearer token; cookie + CSRF in Phase 5), `GET /ops/verifications[/{id}]`, `POST /ops/verifications/{id}/decision`, `GET /ops/drivers[/{id}]`, `PUT /ops/drivers/{id}/tiers`, `POST /ops/drivers/{id}/decision`, `POST /ops/documents/{id}/decision`, `POST /ops/vehicles/{id}/decision`. Phase 3: `GET /ops/incidents`, `GET /ops/incidents/{id}/messages` (safety role; each view audited), `POST /ops/incidents/{id}/close` |
+| `/ops/*` | staff | separate router, role checks, audit-logged. Phase 1: `POST /ops/auth/login` (password + TOTP → 8 h session in an `HttpOnly` cookie; changes also send `X-CSRF-Token`; scripts may use the token as a bearer header), `GET /ops/auth/session`, `POST /ops/auth/logout`, `GET /ops/verifications[/{id}]`, `POST /ops/verifications/{id}/decision`, `GET /ops/drivers[/{id}]`, `PUT /ops/drivers/{id}/tiers`, `POST /ops/drivers/{id}/decision`, `POST /ops/documents/{id}/decision`, `POST /ops/vehicles/{id}/decision`. Phase 3: `GET /ops/incidents`, `GET /ops/incidents/{id}/messages` (safety role; each view audited), `POST /ops/incidents/{id}/close` |
 
 ### Phase 1 schema changes
 

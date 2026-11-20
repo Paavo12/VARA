@@ -1,16 +1,19 @@
 <!--
 	Ops console frame: top bar with the signed-in staff member, and the staff sign-in form until
-	someone has signed in (password + authenticator code).
+	someone has signed in (password + authenticator code). After a reload the session cookie is
+	checked first, so a signed-in agent goes straight back to work.
 -->
 <script lang="ts">
 	import '@fuber/ui/tokens.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import { resolve } from '$app/paths';
-	import { signOut, staff } from '#lib/staff.svelte.ts';
+	import { restoreSession, signOut, staff } from '#lib/staff.svelte.ts';
 	import SignIn from '#lib/SignIn.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+
+	void restoreSession();
 </script>
 
 <svelte:head>
@@ -37,8 +40,10 @@
 <main>
 	{#if staff.session}
 		{@render children()}
-	{:else}
+	{:else if staff.checked}
 		<SignIn />
+	{:else}
+		<p class="muted" role="status">Loading…</p>
 	{/if}
 </main>
 
@@ -48,6 +53,9 @@
 		background: var(--color-bg);
 		color: var(--color-text);
 		font-family: var(--font-sans);
+	}
+	.muted {
+		color: var(--color-text-muted);
 	}
 	header {
 		display: flex;

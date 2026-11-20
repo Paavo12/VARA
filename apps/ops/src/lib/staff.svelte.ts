@@ -1,8 +1,10 @@
 /**
- * The signed-in staff member and a typed API client that sends their token.
+ * The signed-in staff member and a typed API client.
  *
- * The 8-hour staff token is kept in memory only, so a reload signs out (a new TOTP code is
- * needed anyway). Phase 5 moves the console to an HttpOnly cookie with CSRF protection.
+ * The 8-hour session is an HttpOnly cookie the API sets at sign-in: this code never sees the
+ * token, and a reload stays signed in ({@link restoreSession}). Requests that change something
+ * send the session's CSRF token in X-CSRF-Token. The console must be served from the same site
+ * as the API, or the browser won't send the cookie.
  */
 import createFetchClient from 'openapi-fetch';
 import type { components, paths } from '@fuber/api-client';
@@ -30,10 +32,15 @@ export type IncidentMessage = components['schemas']['IncidentMessage'];
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8080';
 
 let session = $state<StaffSession | null>(null);
+/** False until the first session check after a page load has answered. */
+let checked = $state(false);
 
 export const staff = {
 	get session() {
 		return session;
+	},
+	get checked() {
+		return checked;
 	},
 	get canReview() {
 		return !!session?.roles.some((r) => r === 'ops_reviewer' || r === 'ops_admin');
@@ -51,10 +58,11 @@ export const staff = {
 	}
 };
 
-export const api = createFetchClient<paths>({ baseUrl: API_URL });
+export const api = createFetchClient<paths>({ baseUrl: API_URL, credentials: 'include' });
 api.use({
 	onRequest({ request }) {
-		if (session) request.headers.set('Authorization', `Bearer ${session.token}`);
+		if (session && request.method !== 'GET')
+			request.headers.set('X-CSRF-Token', session.csrf_token);
 		return request;
 	},
 	onResponse({ response }) {
@@ -66,6 +74,13 @@ api.use({
 
 export function signedIn(s: StaffSession): void {
 	session = s;
+}
+
+/** After a page load: picks up the session cookie if it is still valid. */
+export async function restoreSession(): Promise<void> {
+	const { data } = await api.GET('/v1/ops/auth/session').catch(() => ({ data: undefined }));
+	session = data ?? null;
+	checked = true;
 }
 
 export async function signOut(): Promise<void> {
