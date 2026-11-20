@@ -85,6 +85,14 @@
 	{#if searched && results.length === 0 && !error}
 		<p class="hint">No places match “{query}”. Try a landmark, suburb or street name.</p>
 	{/if}
+	<!-- Results change as she types; say how many (WCAG 4.1.3). -->
+	<p class="sr-only" aria-live="polite">
+		{searched && !error
+			? results.length === 0
+				? 'No places found'
+				: `${results.length} place${results.length === 1 ? '' : 's'} found`
+			: ''}
+	</p>
 </Screen>
 
 <style>

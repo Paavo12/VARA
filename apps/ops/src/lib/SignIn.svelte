@@ -28,6 +28,8 @@
 	}
 </script>
 
+<svelte:head><title>Sign in · VARA Ops</title></svelte:head>
+
 <form class="card" onsubmit={submit}>
 	<h1>Staff sign-in</h1>
 	<p class="lead">For VARA reviewers and the safety desk. Every action is recorded.</p>

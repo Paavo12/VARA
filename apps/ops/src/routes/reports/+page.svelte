@@ -145,7 +145,7 @@
 		gap: var(--space-3);
 	}
 	.safety {
-		color: var(--color-sos);
+		color: var(--color-sos-text);
 		font-weight: 700;
 	}
 	.text {

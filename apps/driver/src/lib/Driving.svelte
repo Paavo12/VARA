@@ -260,7 +260,9 @@
 	/>
 {:else if offer}
 	<Screen title="New request" lead="{NAMES[offer.tier] ?? offer.tier} · {offer.pickup_area.label}">
-		<div class="offer" role="alert">
+		<!-- Announced once. The countdown is a timer, read on demand, not every second. -->
+		<p class="sr-only" role="alert">New ride request</p>
+		<div class="offer">
 			<svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
 				<circle cx="50" cy="50" r="44" class="track" />
 				<circle
@@ -272,7 +274,7 @@
 					stroke-dashoffset={RING * (1 - progress)}
 				/>
 			</svg>
-			<span class="left" aria-label="{left} seconds left">{left}</span>
+			<span class="left" role="timer">{left}<span class="sr-only"> seconds left</span></span>
 		</div>
 		<p class="earning">{formatNad(offer.earning)}</p>
 		<div class="card">

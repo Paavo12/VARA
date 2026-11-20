@@ -406,7 +406,7 @@
 		min-height: 48px;
 		max-height: 120px;
 		padding: var(--space-3);
-		border: 1px solid var(--color-border);
+		border: 1px solid var(--color-border-control);
 		border-radius: var(--radius-md);
 		background: var(--color-surface);
 		color: var(--color-text);

@@ -72,8 +72,10 @@
 				</div>
 				<div class="right">
 					<strong>{done(t.state) ? formatNad(t.fare) : '—'}</strong>
-					{#if t.my_rating}<small aria-label="You gave {t.my_rating} stars"
-							>{'★'.repeat(t.my_rating)}</small
+					{#if t.my_rating}<small
+							><span aria-hidden="true">{'★'.repeat(t.my_rating)}</span><span class="sr-only"
+								>You gave {t.my_rating} stars</span
+							></small
 						>{/if}
 				</div>
 			</li>

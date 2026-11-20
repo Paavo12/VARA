@@ -15,15 +15,31 @@
 	}
 
 	let { title, lead, step, onback, children, footer }: Props = $props();
+
+	// The apps swap screens without a page load, so tell screen readers where they are (WCAG 2.4.3,
+	// 4.1.3). If the control that had focus went away with the old screen, focus the new heading.
+	// If focus is still somewhere (typing in the chat, or the same screen with a new title such as
+	// "Your driver has arrived"), leave it there and announce the title instead.
+	let heading: HTMLHeadingElement | undefined = $state();
+	let announced = $state('');
+	let mounted = false;
+	$effect(() => {
+		const now = title;
+		const lost = !document.activeElement || document.activeElement === document.body;
+		if (lost) heading?.focus();
+		else if (mounted) announced = now;
+		mounted = true;
+	});
 </script>
 
 <main class="screen">
+	<p class="sr-only" aria-live="polite">{announced}</p>
 	<header>
 		{#if onback}
 			<button class="back" type="button" onclick={onback} aria-label="Back">←</button>
 		{/if}
 		{#if step}<p class="step">{step}</p>{/if}
-		<h1>{title}</h1>
+		<h1 bind:this={heading} tabindex="-1">{title}</h1>
 		{#if lead}<p class="lead">{lead}</p>{/if}
 	</header>
 	<div class="body">{@render children?.()}</div>
@@ -65,6 +81,10 @@
 		margin: 0;
 		font-size: var(--text-2xl);
 		line-height: 1.2;
+	}
+	/* Focused by the script for screen readers only; it isn't a control, so no ring. */
+	h1:focus {
+		outline: none;
 	}
 	.lead {
 		margin: 0;

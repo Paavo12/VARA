@@ -142,7 +142,9 @@
 </script>
 
 {#if stage === 'loading'}
-	<div class="splash" aria-label="Loading"><span>VARA</span></div>
+	<div class="splash" role="status">
+		<span>VARA</span><span class="sr-only">Loading</span>
+	</div>
 {:else if stage === 'home'}
 	<Screen title="Hi {me.display_name}" lead="Where are you going today?">
 		{#if me.emergency_contacts === 0}

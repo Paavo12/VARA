@@ -8,7 +8,7 @@
 <script lang="ts">
 	import type { RideCheckView } from '@fuber/api-client';
 	import { messageOf, useSession } from '@fuber/account';
-	import { Button, Notice } from '@fuber/ui';
+	import { Button, Notice, modal } from '@fuber/ui';
 
 	interface Props {
 		check: RideCheckView;
@@ -26,6 +26,8 @@
 	let sos = $state<{ message: string; police: string } | null>(null);
 
 	const left = $derived(Math.max(0, Math.ceil((new Date(check.answer_by).getTime() - now) / 1000)));
+	// Read out every 15 s, then every 5 s near the end, not every second (the visible text is).
+	const spokenLeft = $derived(left > 15 ? Math.ceil(left / 15) * 15 : Math.ceil(left / 5) * 5);
 	const why = $derived(
 		check.kind === 'deviation'
 			? 'Your car has left the expected route.'
@@ -91,23 +93,33 @@
 	}
 </script>
 
-<div class="overlay" role="alertdialog" aria-modal="true" aria-labelledby="rc-title">
+<div
+	class="overlay"
+	role="alertdialog"
+	aria-modal="true"
+	aria-labelledby="rc-title"
+	aria-describedby="rc-why"
+	use:modal
+>
 	<div class="box">
 		{#if sos}
 			<h2 id="rc-title">Help is coming</h2>
-			<p>{sos.message}</p>
+			<p id="rc-why">{sos.message}</p>
 			<a class="police" href="tel:{sos.police}">Call the police ({sos.police})</a>
 			<Button variant="secondary" onclick={onclose}>Close</Button>
 		{:else if left === 0}
 			<h2 id="rc-title">We've alerted VARA's safety team</h2>
-			<p>You didn't answer, so the safety team will call you now.</p>
+			<p id="rc-why">You didn't answer, so the safety team will call you now.</p>
 			<Button loading={busy} onclick={() => answer('fine')}>I'm fine</Button>
 			<Button variant="sos" loading={busy} onclick={() => answer('help')}>Call for help</Button>
 		{:else}
 			<h2 id="rc-title">Are you okay?</h2>
-			<p>{why}</p>
-			<p class="muted" aria-live="polite">
+			<p id="rc-why">{why}</p>
+			<p class="muted" aria-hidden="true">
 				If you don't answer in {left} s, VARA's safety team will be alerted.
+			</p>
+			<p class="sr-only" aria-live="polite">
+				If you don't answer in {spokenLeft} seconds, VARA's safety team will be alerted.
 			</p>
 			<Button loading={busy} onclick={() => answer('fine')}>Yes, I'm fine</Button>
 			<Button variant="sos" loading={busy} onclick={() => answer('help')}>Call for help</Button>

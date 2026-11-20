@@ -7,6 +7,7 @@
 	import { Button, Notice, TextField } from '@fuber/ui';
 	import { formatDetail, formatWhen, messageOf } from '#lib/format.ts';
 	import { api, staff, type AuditEntry } from '#lib/staff.svelte.ts';
+	import TableScroll from '#lib/TableScroll.svelte';
 
 	let action = $state('');
 	let userId = $state('');
@@ -63,23 +64,27 @@
 	{#if entries.length === 0 && !busy}
 		<p class="muted">No entries.</p>
 	{:else}
-		<table>
-			<thead>
-				<tr><th>When</th><th>Staff</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr>
-			</thead>
-			<tbody>
-				{#each entries as e (e.id)}
-					<tr>
-						<td>{formatWhen(e.at)}</td>
-						<td>{e.staff_email ?? 'System'}</td>
-						<td><code>{e.action}</code></td>
-						<td>{e.target_type} <code>{e.target_id}</code></td>
-						<td><code class="detail">{formatDetail(e.detail)}</code></td>
-						<td>{e.ip ?? ''}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
+		<TableScroll label="Audit entries">
+			<table>
+				<thead>
+					<tr
+						><th>When</th><th>Staff</th><th>Action</th><th>Target</th><th>Detail</th><th>IP</th></tr
+					>
+				</thead>
+				<tbody>
+					{#each entries as e (e.id)}
+						<tr>
+							<td>{formatWhen(e.at)}</td>
+							<td>{e.staff_email ?? 'System'}</td>
+							<td><code>{e.action}</code></td>
+							<td>{e.target_type} <code>{e.target_id}</code></td>
+							<td><code class="detail">{formatDetail(e.detail)}</code></td>
+							<td>{e.ip ?? ''}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</TableScroll>
 		{#if more}<Button variant="ghost" loading={busy} onclick={() => load(true)}
 				>Older entries</Button
 			>{/if}

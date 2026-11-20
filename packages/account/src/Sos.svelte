@@ -6,8 +6,8 @@
 	own phone with her position filled in.
 -->
 <script lang="ts">
-	import { Button } from '@fuber/ui';
-	import { onDestroy } from 'svelte';
+	import { Button, modal } from '@fuber/ui';
+	import { onDestroy, tick } from 'svelte';
 	import { useSession } from './context';
 
 	interface Props {
@@ -36,6 +36,7 @@
 	let police = $state(POLICE);
 	let position: { lat: number; lon: number } | null = null;
 	let timer: ReturnType<typeof setInterval> | undefined;
+	let fab: HTMLButtonElement | undefined = $state();
 
 	$effect(() => {
 		active = step !== 'idle';
@@ -66,7 +67,14 @@
 
 	function cancel() {
 		clearInterval(timer);
+		close();
+	}
+
+	/** Back to the SOS button. It is a new element, so focus it (the dialog's opener is gone). */
+	async function close() {
 		step = 'idle';
+		await tick();
+		fab?.focus();
 	}
 
 	async function send() {
@@ -97,14 +105,20 @@
 </script>
 
 {#if step === 'idle'}
-	<button class="sos-fab" type="button" onclick={start} aria-label="SOS: get help now">SOS</button>
+	<button
+		class="sos-fab"
+		type="button"
+		bind:this={fab}
+		onclick={start}
+		aria-label="SOS: get help now">SOS</button
+	>
 {:else}
-	<div class="overlay" role="alertdialog" aria-modal="true" aria-labelledby="sos-title">
+	<div class="overlay" role="alertdialog" aria-modal="true" aria-labelledby="sos-title" use:modal>
 		{#if step === 'counting'}
 			<h2 id="sos-title">Sending SOS in</h2>
 			<p class="count" aria-live="assertive">{left}</p>
 			<p>VARA’s safety team and your emergency contacts will be alerted.</p>
-			<Button size="driver" variant="secondary" onclick={cancel}>Cancel</Button>
+			<Button size="driver" variant="secondary" onclick={cancel} data-autofocus>Cancel</Button>
 		{:else if step === 'sending'}
 			<h2 id="sos-title">Sending your alert…</h2>
 			<a class="call" href="tel:{POLICE}">Call police {POLICE}</a>
@@ -112,14 +126,14 @@
 			<h2 id="sos-title">Alert sent</h2>
 			<p>{message}</p>
 			<a class="call" href="tel:{police}">Call police {police}</a>
-			<Button variant="ghost" onclick={() => (step = 'idle')}>Close</Button>
+			<Button variant="ghost" onclick={close}>Close</Button>
 		{:else}
 			<h2 id="sos-title">We couldn’t reach VARA</h2>
 			<p>Call the police, or text the safety desk from your phone.</p>
 			<a class="call" href="tel:{POLICE}">Call police {POLICE}</a>
 			{#if fallbackSms}<a class="text" href={fallbackSms}>Text the safety desk</a>{/if}
 			<Button variant="secondary" onclick={send}>Try again</Button>
-			<Button variant="ghost" onclick={() => (step = 'idle')}>Close</Button>
+			<Button variant="ghost" onclick={close}>Close</Button>
 		{/if}
 	</div>
 {/if}
@@ -162,7 +176,7 @@
 	h2 {
 		margin: 0;
 		font-size: var(--text-xl);
-		color: var(--color-sos);
+		color: var(--color-sos-text);
 	}
 	p {
 		margin: 0;
@@ -171,7 +185,7 @@
 		font-size: 5rem;
 		font-weight: 800;
 		line-height: 1;
-		color: var(--color-sos);
+		color: var(--color-sos-text);
 		font-variant-numeric: tabular-nums;
 	}
 	.call,
@@ -189,12 +203,7 @@
 		color: var(--button-sos-fg);
 	}
 	.text {
-		border: 2px solid var(--color-sos);
-		color: var(--color-sos);
-	}
-	@media (prefers-color-scheme: dark) {
-		.overlay {
-			background: var(--color-bg);
-		}
+		border: 2px solid var(--color-sos-text);
+		color: var(--color-sos-text);
 	}
 </style>

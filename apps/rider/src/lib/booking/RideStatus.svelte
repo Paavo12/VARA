@@ -199,7 +199,11 @@
 		{#if beforePin}
 			<div class="pin" class:arrived={ride.state === 'DRIVER_ARRIVED'}>
 				<small>{ride.state === 'DRIVER_ARRIVED' ? 'Show your driver this PIN' : 'Your PIN'}</small>
-				<strong aria-label="PIN {ride.pin.split('').join(' ')}">{ride.pin}</strong>
+				<strong
+					><span aria-hidden="true">{ride.pin}</span><span class="sr-only"
+						>{ride.pin.split('').join(' ')}</span
+					></strong
+				>
 				<small>Only get in once she enters it. Check the plate first.</small>
 			</div>
 		{:else}

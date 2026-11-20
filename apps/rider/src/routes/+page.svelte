@@ -78,7 +78,9 @@
 </svelte:head>
 
 {#if view === 'loading'}
-	<div class="splash" aria-label="Loading"><span>VARA</span></div>
+	<div class="splash" role="status">
+		<span>VARA</span><span class="sr-only">Loading</span>
+	</div>
 {:else if view === 'offline'}
 	<Screen title="No connection" lead="We couldn’t reach VARA. Check your internet connection.">
 		{#snippet footer()}<Button onclick={refresh}>Try again</Button>{/snippet}
