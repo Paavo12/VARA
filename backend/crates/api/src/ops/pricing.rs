@@ -3,6 +3,8 @@
 //! - **Rates are versioned**: a change adds a `pricing_tiers` row from a start time (now or
 //!   later) and never edits one, so quotes already locked keep the rates they were signed with.
 //! - **Service fee** stays within 15–18 % (stakeholder decision 2026-11-04, docs/06 §7).
+//! - **Launch promotion**: 13 % on every ride type, Map Experts included, for 90 days from the
+//!   launch date an admin sets (client decision 2026-11-20); fixed once it has started.
 //! - **Surge zones**: the multiplier (1.00–3.00) and demand level of an existing zone. Drawing
 //!   new zones needs a map (later).
 //!
@@ -300,4 +302,128 @@ pub async fn update_zone(
     .await?;
     tx.commit().await?;
     Ok(Json(SurgeZone { id, name, multiplier, demand_level: u.demand_level, updated_at }))
+}
+
+/// Settings key of the launch promotion (migration 0016).
+const LAUNCH_PROMO_KEY: &str = "pricing.launch_promo";
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct LaunchPromo {
+    /// The official launch: the promotion runs from here. Absent until an admin sets it.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub starts_at: Option<OffsetDateTime>,
+    /// When the tier fees (15–18 %) and the 15 % Map Expert fee apply again.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub ends_at: Option<OffsetDateTime>,
+    /// Running now: drivers accepting a ride now pay `fee_bp`.
+    pub active: bool,
+    /// 1300 = 13 %, on every ride type, Map Experts included.
+    pub fee_bp: u32,
+    pub days: i64,
+}
+
+async fn launch_promo_view(db: impl sqlx::PgExecutor<'_>) -> Result<LaunchPromo, ApiError> {
+    let (starts_at, active): (Option<OffsetDateTime>, bool) =
+        sqlx::query_as("SELECT (SELECT (value->>'starts_at')::timestamptz FROM settings WHERE key = $1), launch_promo_active()")
+            .bind(LAUNCH_PROMO_KEY)
+            .fetch_one(db)
+            .await?;
+    let days = fuber_domain::pricing::LAUNCH_PROMO_DAYS;
+    Ok(LaunchPromo {
+        starts_at,
+        ends_at: starts_at.map(|s| s + time::Duration::days(days)),
+        active,
+        fee_bp: fuber_domain::pricing::LAUNCH_PROMO_FEE_BP,
+        days,
+    })
+}
+
+#[utoipa::path(
+    get, path = "/v1/ops/pricing/launch-promo", operation_id = "launch_promo_get", tag = "ops", security(("staff" = [])),
+    responses(
+        (status = 200, description = "The 13 % launch promotion: its dates and whether it runs now", body = LaunchPromo),
+        (status = 403, description = "Admins only", body = ErrorBody),
+    )
+)]
+pub async fn launch_promo(State(s): State<AppState>, staff: Staff) -> Result<Json<LaunchPromo>, ApiError> {
+    staff.require_admin()?;
+    Ok(Json(launch_promo_view(&s.db).await?))
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LaunchPromoUpdate {
+    /// The official launch date and time; `null` removes a date that hasn't started yet.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub starts_at: Option<OffsetDateTime>,
+}
+
+#[utoipa::path(
+    put, path = "/v1/ops/pricing/launch-promo", operation_id = "launch_promo_set", tag = "ops", security(("staff" = [])),
+    request_body = LaunchPromoUpdate,
+    responses(
+        (status = 200, description = "Saved; drivers accepting rides in the 90 days pay 13 %", body = LaunchPromo),
+        (status = 403, description = "Admins only", body = ErrorBody),
+        (status = 409, description = "The promotion has already started, so its dates are fixed (`promo_started`)", body = ErrorBody),
+        (status = 422, description = "The date is in the past", body = ErrorBody),
+    )
+)]
+pub async fn set_launch_promo(
+    State(s): State<AppState>,
+    staff: Staff,
+    ClientIp(ip): ClientIp,
+    ValidJson(u): ValidJson<LaunchPromoUpdate>,
+) -> Result<Json<LaunchPromo>, ApiError> {
+    staff.require_admin()?;
+    let now = OffsetDateTime::now_utc();
+    if u.starts_at.is_some_and(|t| t < now - time::Duration::minutes(1)) {
+        return Err(ApiError::invalid("The launch date can't be in the past"));
+    }
+    let mut tx = s.db.begin().await?;
+    let old: Option<OffsetDateTime> =
+        sqlx::query_scalar("SELECT (value->>'starts_at')::timestamptz FROM settings WHERE key = $1 FOR UPDATE")
+            .bind(LAUNCH_PROMO_KEY)
+            .fetch_optional(&mut *tx)
+            .await?
+            .flatten();
+    // It runs once: after the launch, moving or removing it would hand out a second promotion
+    // or cut drivers' terms short.
+    if old.is_some_and(|t| t <= now) {
+        return Err(ApiError::conflict("promo_started", "The launch promotion has already started; its dates can't change."));
+    }
+    match u.starts_at {
+        Some(t) => {
+            sqlx::query(
+                "INSERT INTO settings (key, value, updated_by, updated_at) VALUES ($1, $2, $3, now())
+                 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()",
+            )
+            .bind(LAUNCH_PROMO_KEY)
+            .bind(json!({ "starts_at": t.format(&time::format_description::well_known::Rfc3339).map_err(|_| ApiError::invalid("Bad date"))? }))
+            .bind(staff.id)
+            .execute(&mut *tx)
+            .await?;
+        }
+        None => {
+            sqlx::query("DELETE FROM settings WHERE key = $1").bind(LAUNCH_PROMO_KEY).execute(&mut *tx).await?;
+        }
+    }
+    audit::record(
+        &mut *tx,
+        audit::Entry {
+            staff_id: Some(staff.id),
+            user_id: None,
+            action: "pricing.launch_promo",
+            target_type: "setting",
+            target_id: LAUNCH_PROMO_KEY.into(),
+            detail: Some(json!({
+                "from": old.map(|t| t.unix_timestamp()),
+                "to": u.starts_at.map(|t| t.unix_timestamp()),
+            })),
+            ip: Some(ip),
+        },
+    )
+    .await?;
+    let view = launch_promo_view(&mut *tx).await?;
+    tx.commit().await?;
+    Ok(Json(view))
 }

@@ -233,6 +233,9 @@ Operations
 | Settlements (2026-11-19) | Only admins see and mark weekly settlements | Built: `ops_admin` only |
 | Share trip map (2026-11-19) | OpenStreetMap link until a Google Maps API key is available | Built: OSM link, no embedded map |
 | Providers (2026-11-19) | SMS, push, payments, maps, calls and email are integrated once the app is otherwise done | Not started, by choice |
+| Launch promotion (2026-11-20) | Replaces the 2 % idea and the row above: 13.0 % service fee on every ride type, Map Experts included, for 90 days from the official launch; then 15–18 % (15 % Map Experts) with no manual step. An admin sets the launch date | Built (migration 0016): `PUT /ops/pricing/launch-promo`, admin only, audited, fixed once started; the offer and the booked split take the lowest of tier, Map Expert and promo fee |
+| Male passengers (2026-11-20, changed 2026-11-23) | The client's brief allowed adult male guests with a verified ID riding with her. Changed on 2026-11-23: **no men ride at all**. Women may bring young children, baby boys included (part of Kids Guardian) | Nothing to build: riders are verified women and drivers are women. The male-guest feature built on 2026-11-23 was removed before it was pushed. Open: the age up to which a boy may ride with her (legal) |
+| Kids Guardian (2026-11-20) | Riders declare the children riding with them (girls, and young boys) and may ask for child seats or guardian help for a flat surcharge F_kids (set by an admin), shown on the driver's offer. Unaccompanied minors stay disabled until legal sign-off | Not built yet |
 
 **Launch date:** set once Phase 3, cloud staging, real SMS and legal approvals are finished.
 

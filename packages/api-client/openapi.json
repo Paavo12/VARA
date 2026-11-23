@@ -1969,6 +1969,104 @@
         ]
       }
     },
+    "/v1/ops/pricing/launch-promo": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "launch_promo_get",
+        "responses": {
+          "200": {
+            "description": "The 13 % launch promotion: its dates and whether it runs now",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchPromo"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "launch_promo_set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchPromoUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Saved; drivers accepting rides in the 90 days pay 13 %",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchPromo"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admins only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The promotion has already started, so its dates are fixed (`promo_started`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The date is in the past",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
     "/v1/ops/reports": {
       "get": {
         "tags": [
@@ -6341,6 +6439,60 @@
             "format": "double"
           }
         }
+      },
+      "LaunchPromo": {
+        "type": "object",
+        "required": [
+          "active",
+          "fee_bp",
+          "days"
+        ],
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "Running now: drivers accepting a ride now pay `fee_bp`."
+          },
+          "days": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ends_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the tier fees (15–18 %) and the 15 % Map Expert fee apply again."
+          },
+          "fee_bp": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1300 = 13 %, on every ride type, Map Experts included.",
+            "minimum": 0
+          },
+          "starts_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The official launch: the promotion runs from here. Absent until an admin sets it."
+          }
+        }
+      },
+      "LaunchPromoUpdate": {
+        "type": "object",
+        "properties": {
+          "starts_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The official launch date and time; `null` removes a date that hasn't started yet."
+          }
+        },
+        "additionalProperties": false
       },
       "LegalDocument": {
         "type": "object",

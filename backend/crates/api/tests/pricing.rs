@@ -145,3 +145,77 @@ async fn only_admins_change_prices_or_read_the_audit_log() {
     }
     assert_eq!(t.call(Method::GET, "/v1/ops/audit", None, None).await.0, StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn the_launch_promo_charges_13_percent_for_90_days_then_stops_by_itself() {
+    let t = setup!(relaxed());
+    let admin = t.staff("ops_admin").await;
+    let support = t.staff("ops_support").await;
+    let rider = t.rider().await;
+    let driver = t.online_driver("Hilma Nangolo", "comfort", NEAR).await;
+    let uri = "/v1/ops/pricing/launch-promo";
+    let rfc = |t: time::OffsetDateTime| t.format(&time::format_description::well_known::Rfc3339).unwrap();
+
+    // Nothing set: no promotion.
+    let (status, view) = t.call(Method::GET, uri, Some(&admin), None).await;
+    assert_eq!(status, StatusCode::OK, "{view}");
+    assert_eq!((view["starts_at"].is_null(), view["active"].as_bool(), view["fee_bp"].as_i64()), (true, Some(false), Some(1300)));
+
+    // Admins only, never in the past.
+    let soon = time::OffsetDateTime::now_utc() + time::Duration::hours(1);
+    assert_eq!(t.call(Method::PUT, uri, Some(&support), Some(json!({ "starts_at": rfc(soon) }))).await.0, StatusCode::FORBIDDEN);
+    let past = json!({ "starts_at": "2020-01-01T00:00:00Z" });
+    assert_eq!(t.call(Method::PUT, uri, Some(&admin), Some(past)).await.0, StatusCode::UNPROCESSABLE_ENTITY);
+    let (status, view) = t.call(Method::PUT, uri, Some(&admin), Some(json!({ "starts_at": rfc(soon) }))).await;
+    assert_eq!(status, StatusCode::OK, "{view}");
+    assert_eq!(view["active"], false, "it starts at the launch, not before");
+    assert!(view["ends_at"].is_string(), "{view}");
+
+    // Launched a day ago: a Comfort ride (16.5 %) pays 13 % at the offer and when booked.
+    sqlx::query("UPDATE settings SET value = jsonb_build_object('starts_at', now() - interval '1 day') WHERE key = 'pricing.launch_promo'")
+        .execute(&t.state.db)
+        .await
+        .unwrap();
+    assert_eq!(t.call(Method::GET, uri, Some(&admin), None).await.1["active"], true);
+    let q = t.quote(&rider, POST_ST_MALL, MAERUA_MALL).await;
+    let (status, ride) =
+        t.request(&rider, json!({ "quote": q["quote"], "tier": "comfort", "passengers": 1, "payment_method": "cash" }), &key()).await;
+    assert_eq!(status, StatusCode::CREATED, "{ride}");
+    let fare = ride["fare"]["total"].as_i64().unwrap();
+    let promo_fee = (fare * 1300 + 5000) / 10_000;
+    assert_eq!(t.tick().await.offered, 1);
+    let card = t.driver_status(&driver).await["offer"].clone();
+    assert_eq!(card["earning"].as_i64().unwrap(), fare - promo_fee);
+    let (status, view) = t.post(&format!("/v1/offers/{}/accept", card["offer_id"].as_str().unwrap()), &driver.access, json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{view}");
+    let (fee, earning): (i64, i64) = sqlx::query_as("SELECT service_fee_cents, driver_earning_cents FROM rides WHERE id = $1::uuid")
+        .bind(ride["id"].as_str().unwrap())
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap();
+    assert_eq!((fee, earning), (promo_fee, fare - promo_fee));
+
+    // Once started, its dates are fixed.
+    let (status, e) = t.call(Method::PUT, uri, Some(&admin), Some(json!({ "starts_at": null }))).await;
+    assert_eq!((status, e["error"]["code"].as_str()), (StatusCode::CONFLICT, Some("promo_started")));
+
+    // Day 90 is the last day; on day 91 the tier fees are back with no one doing anything.
+    let active_after = |days: i32| {
+        let db = t.state.db.clone();
+        async move {
+            sqlx::query(&format!(
+                "UPDATE settings SET value = jsonb_build_object('starts_at', now() - interval '{days} days') WHERE key = 'pricing.launch_promo'"
+            ))
+            .execute(&db)
+            .await
+            .unwrap();
+            sqlx::query_scalar::<_, bool>("SELECT launch_promo_active()").fetch_one(&db).await.unwrap()
+        }
+    };
+    assert!(active_after(89).await);
+    assert!(!active_after(91).await);
+
+    let actions: Vec<String> =
+        sqlx::query_scalar("SELECT action FROM audit_log WHERE action = 'pricing.launch_promo'").fetch_all(&t.state.db).await.unwrap();
+    assert_eq!(actions.len(), 1, "the one successful change is audited");
+}

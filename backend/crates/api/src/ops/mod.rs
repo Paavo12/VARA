@@ -67,6 +67,7 @@ pub fn router(_: &AppState) -> Router<AppState> {
         .route("/settings/{key}", put(settings::set))
         .route("/metrics", get(metrics::metrics))
         .route("/pricing", get(pricing::list).post(pricing::add))
+        .route("/pricing/launch-promo", get(pricing::launch_promo).put(pricing::set_launch_promo))
         .route("/surge-zones", get(pricing::zones))
         .route("/surge-zones/{id}", put(pricing::update_zone))
         .route("/audit", get(audit_log::list))
