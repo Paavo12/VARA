@@ -179,6 +179,13 @@
 			<small>Passengers</small>{ride.passengers}{ride.wheelchair ? ' · wheelchair' : ''} ·
 			{ride.payment_method === 'cash' ? 'Cash' : 'Card'}
 		</p>
+		{#if ride.passenger.children > 0}
+			<p>
+				<small>Children</small>{ride.passenger.children} with her{ride.passenger.child_seat
+					? ` · child seat asked for (+${formatNad(ride.passenger.child_seat_surcharge)}, all yours)`
+					: ''}
+			</p>
+		{/if}
 	</div>
 	<!-- Share trip (PRD S-2), in view on every trip screen with the card. -->
 	<ShareTrip rideId={ride.id} />

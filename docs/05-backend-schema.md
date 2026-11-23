@@ -724,6 +724,10 @@ Migration `0007_service_fees.sql` adds new `pricing_tiers` rows effective 2 Nove
 
 Migration `0016_launch_promo.sql` adds `launch_promo_active(at)`: true for 90 days from the `starts_at` an admin stores in setting `pricing.launch_promo`; while true, offers and accepted rides pay 13 % on every tier.
 
+### Kids Guardian (2026-11-23)
+
+Migration `0017_kids_guardian.sql` adds `rides.children` (0–3, fewer than `passengers`), `rides.child_seat` and `rides.kids_surcharge_cents` (F_kids from setting `pricing.kids_surcharge_cents`, locked in the quote token; added to `fare_cents` and `fare_breakdown.kids`; no service fee is taken on it, so the driver keeps it).
+
 ### Phase 4 schema changes
 
 Migration `0008_payments_ratings.sql` (0007 is the service-fee change) adds `rides.driver_rating_skipped`, a unique index so each trip books one ledger entry per kind, and history indexes on `rides`. Completing a trip inserts a `pending` row in `payments`; for cash, `cash-received` moves it to `cash_confirmed` and books `service_fee` (negative) in `driver_ledger`.

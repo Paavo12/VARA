@@ -180,15 +180,18 @@ pub async fn offer_next(ctx: &Ctx, cfg: &Dispatch, ride_id: Uuid) -> Result<Opti
         tracing::info!(%ride_id, asked, "no drivers left");
         return Ok(Some(false));
     };
-    // What she would earn: a Map Expert pays the flat fee, and everyone pays the launch
-    // promotion's fee while it runs (accept books the same split).
-    let (map_expert, launch_promo): (bool, bool) = sqlx::query_as(
-        "SELECT coalesce((SELECT map_expert_until > now() FROM driver_profiles WHERE user_id = $1), false), launch_promo_active()",
+    // What she would earn: a Map Expert pays the flat fee, everyone pays the launch promotion's
+    // fee while it runs, and a child seat surcharge is hers in full (accept books the same split).
+    let (map_expert, launch_promo, kids): (bool, bool, i64) = sqlx::query_as(
+        "SELECT coalesce((SELECT map_expert_until > now() FROM driver_profiles WHERE user_id = $1), false), launch_promo_active(),
+                (SELECT kids_surcharge_cents FROM rides WHERE id = $2)",
     )
     .bind(driver_id)
+    .bind(ride_id)
     .fetch_one(&mut *tx)
     .await?;
-    let (_, earning) = pricing::split(Cents(fare), fee_bp as u32, pricing::FeeTerms { map_expert, launch_promo });
+    let terms = pricing::FeeTerms { map_expert, launch_promo };
+    let (_, earning) = pricing::split_with_kids(Cents(fare), Cents(kids), fee_bp as u32, terms);
     let inserted = sqlx::query(
         "INSERT INTO ride_offers (ride_id, driver_id, rank, score, eta_s, distance_m, expires_at, round, earning_cents)
          VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7), $8, $9)",

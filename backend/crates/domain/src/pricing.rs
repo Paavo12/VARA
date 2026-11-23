@@ -42,11 +42,22 @@ pub struct Fare {
     pub minimum_adjustment: Cents,
     pub surge_bp: u32,
     pub surge: Cents,
-    /// What the rider pays: base + distance + time + minimum_adjustment + surge.
+    /// Kids Guardian child seat surcharge (F_kids): all of it goes to the driver, who provides
+    /// the seat, so no service fee is taken on it. Zero when no child seat was asked for.
+    #[serde(default)]
+    pub kids: Cents,
+    /// What the rider pays: base + distance + time + minimum_adjustment + surge + kids.
     pub total: Cents,
     pub service_fee: Cents,
     /// What the driver earns: total − service fee.
     pub driver_earning: Cents,
+}
+
+impl Fare {
+    /// Adds the Kids Guardian child seat surcharge: the rider pays it and the driver keeps all of it.
+    pub fn with_kids_surcharge(self, surcharge: Cents) -> Fare {
+        Fare { kids: surcharge, total: self.total + surcharge, driver_earning: self.driver_earning + surcharge, ..self }
+    }
 }
 
 /// The flat service fee for a Map Expert, on every tier (1500 = 15 %).
@@ -81,6 +92,13 @@ pub fn split(total: Cents, tier_fee_bp: u32, terms: FeeTerms) -> (Cents, Cents) 
     (fee, total - fee)
 }
 
+/// [`split`] for a ride's whole fare of `total` that includes a child seat surcharge of `kids`:
+/// the service fee is taken on the rest only, and the driver keeps the surcharge.
+pub fn split_with_kids(total: Cents, kids: Cents, tier_fee_bp: u32, terms: FeeTerms) -> (Cents, Cents) {
+    let (fee, _) = split(total - kids, tier_fee_bp, terms);
+    (fee, total - fee)
+}
+
 /// `rate × n / d`, rounded half up, for non-negative inputs.
 fn prorate(rate: Cents, n: u64, d: u64) -> Cents {
     let p = rate.0 as i128 * n as i128;
@@ -103,6 +121,7 @@ pub fn fare(rates: &Rates, distance_m: u32, duration_s: u32, surge_bp: u32) -> F
         minimum_adjustment: subtotal - sub,
         surge_bp,
         surge: total - subtotal,
+        kids: Cents(0),
         total,
         service_fee,
         driver_earning: total - service_fee,
@@ -182,6 +201,16 @@ mod tests {
         }
         // Never more than the tier's own fee.
         assert_eq!(split(Cents(10_000), 1200, PROMO).0, Cents(1200));
+    }
+
+    #[test]
+    fn the_child_seat_surcharge_goes_to_the_driver_without_a_fee() {
+        let f = fare(&Rates::default_for(Tier::Comfort), 7400, 900, 10_000).with_kids_surcharge(Cents(2000));
+        assert_eq!((f.kids, f.total), (Cents(2000), Cents(13650)));
+        assert_eq!((f.service_fee, f.driver_earning), (Cents(1922), Cents(11728)));
+        // The split booked at accept agrees: fee on N$116.50 only, the driver keeps the rest.
+        assert_eq!(split_with_kids(f.total, f.kids, 1650, FeeTerms::default()), (Cents(1922), Cents(11728)));
+        assert_eq!(split_with_kids(Cents(10_000), Cents(0), 1500, FeeTerms::default()), split(Cents(10_000), 1500, FeeTerms::default()));
     }
 
     #[test]

@@ -20,7 +20,7 @@ use fuber_db::{
     settings::Dispatch,
 };
 use fuber_domain::{
-    Demand, Party, RideEvent, RideState, Tier, geo,
+    Cents, Demand, Party, RideEvent, RideState, Tier, geo,
     pricing::{self, Fare, Rates},
 };
 use fuber_integrations::routing::RoutingError;
@@ -81,6 +81,9 @@ pub struct Quote {
     pub demand: &'static str,
     pub currency: &'static str,
     pub options: Vec<QuoteOption>,
+    /// Kids Guardian: added to the price when she asks for a child seat, locked with this quote.
+    /// All of it goes to the driver.
+    pub kids_surcharge: Cents,
 }
 
 /// What a quote token commits to. Short field names keep the token small.
@@ -103,6 +106,9 @@ struct QuoteClaims {
     d: Demand,
     /// Rate rows (`pricing_tiers.id`) for classic, comfort, softlife.
     t: [Uuid; 3],
+    /// Kids Guardian child seat surcharge in cents (absent in quotes issued before it existed).
+    #[serde(default)]
+    k: i64,
 }
 
 impl HasExpiry for QuoteClaims {
@@ -145,7 +151,6 @@ async fn current_rates(db: &PgPool) -> Result<Vec<(Tier, Uuid, Rates)>, sqlx::Er
 }
 
 fn rates(base: i64, km: i64, min: i64, minimum: i64, fee: i32) -> Rates {
-    use fuber_domain::Cents;
     Rates { base: Cents(base), per_km: Cents(km), per_min: Cents(min), minimum: Cents(minimum), service_fee_bp: fee as u32 }
 }
 
@@ -207,6 +212,7 @@ pub async fn quote(
         });
     }
     let expires_at = OffsetDateTime::now_utc() + Duration::seconds(cfg.quote_ttl_s);
+    let kids_surcharge = kids_surcharge(&s.db).await?;
     let claims = QuoteClaims {
         iss: QUOTE_ISSUER.into(),
         sub: user.user_id,
@@ -220,6 +226,7 @@ pub async fn quote(
         sb: surge_bp,
         d: demand,
         t: [rates[0].1, rates[1].1, rates[2].1],
+        k: kids_surcharge.0,
     };
     Ok(Json(Quote {
         quote: s.keys.tokens.sign(&claims),
@@ -230,7 +237,15 @@ pub async fn quote(
         demand: demand.as_str(),
         currency: "NAD",
         options,
+        kids_surcharge,
     }))
+}
+
+/// F_kids, the Kids Guardian child seat surcharge an admin sets (N$0 until then).
+async fn kids_surcharge(db: &PgPool) -> Result<Cents, ApiError> {
+    let v: Option<serde_json::Value> =
+        sqlx::query_scalar("SELECT value FROM settings WHERE key = 'pricing.kids_surcharge_cents'").fetch_optional(db).await?;
+    Ok(Cents(v.and_then(|v| v.as_f64()).filter(|n| n.is_finite() && *n >= 0.0).map_or(0, |n| n.round() as i64)))
 }
 
 /// Road ETA of the nearest free driver of this type, or None if nobody is within the radius.
@@ -272,6 +287,10 @@ pub struct Guest {
     /// Receives the driver, plate and PIN by SMS once a driver accepts (PRD B-5).
     #[schema(value_type = String, example = "+264811234567")]
     pub phone: PhoneE164,
+    /// The booker confirms the passenger is an adult woman: children never ride alone (Kids
+    /// Guardian; unaccompanied minors stay disabled until legal sign-off).
+    #[serde(default)]
+    pub confirm_adult: bool,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, ToSchema)]
@@ -292,6 +311,13 @@ pub struct RideRequest {
     /// Only wheelchair-accessible vehicles (PRD B-4).
     #[serde(default)]
     pub wheelchair: bool,
+    /// Kids Guardian: children riding with the adult passenger (0–3), counted in `passengers`.
+    #[serde(default)]
+    #[schema(minimum = 0, maximum = 3)]
+    pub children: u8,
+    /// Ask for a child seat; adds the quote's `kids_surcharge`. Needs at least one child.
+    #[serde(default)]
+    pub child_seat: bool,
     /// Booking for someone else.
     pub guest: Option<Guest>,
     pub payment_method: PaymentMethod,
@@ -384,7 +410,20 @@ pub async fn create(
     let rates = rates_by_id(&s.db, pricing_tier_id)
         .await?
         .ok_or_else(|| ApiError::invalid("this price has expired; please check the price again"))?;
-    let fare = pricing::fare(&rates, q.m, q.s, q.sb);
+    if req.guest.as_ref().is_some_and(|g| !g.confirm_adult) {
+        return Err(ApiError::invalid("Confirm the passenger is an adult woman. Children can only ride with an adult."));
+    }
+    if req.children > 3 || req.children as usize >= req.passengers.get() as usize {
+        return Err(ApiError::invalid("Children ride with an adult: count her and every child in the passengers (3 children at most)"));
+    }
+    if req.child_seat && req.children == 0 {
+        return Err(ApiError::invalid("A child seat needs a child on the ride"));
+    }
+    let mut fare = pricing::fare(&rates, q.m, q.s, q.sb);
+    let kids_surcharge = if req.child_seat { Cents(q.k) } else { Cents(0) };
+    if req.child_seat {
+        fare = fare.with_kids_surcharge(kids_surcharge);
+    }
     let (fuzz_lat, fuzz_lon) = geo::fuzz(q.a.0, q.a.1, cfg.fuzz_min_m, cfg.fuzz_max_m, unit(), unit());
     let (guest_name, guest_phone) = match &req.guest {
         Some(g) => (Some(g.name.as_str().to_owned()), Some(s.keys.sealer.seal_str(GUEST_PHONE_AAD, g.phone.as_str()))),
@@ -398,12 +437,12 @@ pub async fn create(
                             pickup, pickup_address, pickup_fuzzed, dropoff, dropoff_address,
                             quote_distance_m, quote_duration_s, pricing_tier_id, surge_multiplier,
                             fare_cents, fare_breakdown, service_fee_cents, driver_earning_cents, payment_method,
-                            pin, scheduled_for, idempotency_key, demand_level)
+                            pin, scheduled_for, idempotency_key, demand_level, children, child_seat, kids_surcharge_cents)
          VALUES ($1, $2::ride_state, $3::ride_tier, $4, $5, $6, $7,
                  ST_SetSRID(ST_MakePoint($9, $8), 4326)::geography, $10,
                  ST_SetSRID(ST_MakePoint($12, $11), 4326)::geography,
                  ST_SetSRID(ST_MakePoint($14, $13), 4326)::geography, $15,
-                 $16, $17, $18, $19 / 10000.0, $20, $21, $22, $23, $24::payment_method, $25, $26, $27, $28)
+                 $16, $17, $18, $19 / 10000.0, $20, $21, $22, $23, $24::payment_method, $25, $26, $27, $28, $29, $30, $31)
          RETURNING id",
     )
     .bind(user.user_id)
@@ -434,6 +473,9 @@ pub async fn create(
     .bind(req.scheduled_for)
     .bind(&key)
     .bind(q.d.as_str())
+    .bind(req.children as i16)
+    .bind(req.child_seat)
+    .bind(kids_surcharge.0)
     .fetch_one(&mut *tx)
     .await;
     let ride_id = match inserted {

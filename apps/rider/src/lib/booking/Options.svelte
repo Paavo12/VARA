@@ -1,6 +1,7 @@
 <!--
 	Ride options (PRD B-3 – B-7, design brief §5.1 item 6): three ride types with an exact,
-	locked price and live pickup ETA; passengers; wheelchair; For me / Someone else; Now /
+	locked price and live pickup ETA; passengers; children and a child seat (Kids Guardian);
+	wheelchair; For me / Someone else (an adult woman: children never ride alone); Now /
 	Schedule; payment. The price shown is the price charged (PRD P-1): Request sends the signed
 	quote, and an expired quote is refreshed before asking the rider to confirm again.
 -->
@@ -40,6 +41,10 @@
 	let tier = $state<Tier>('classic');
 	let passengers = $state(1);
 	let wheelchair = $state(false);
+	/** Kids Guardian: children riding with the adult passenger, and a child seat for a surcharge. */
+	let children = $state(0);
+	let childSeat = $state(false);
+	let guestAdult = $state(false);
 	let forWhom = $state<'me' | 'guest'>('me');
 	let guestName = $state('');
 	let guestPhone = $state('');
@@ -81,6 +86,14 @@
 	});
 
 	const chosen = $derived(quote?.options.find((o) => o.tier === tier));
+	/** What she pays: the locked fare, plus the child seat surcharge when she asks for one. */
+	const price = $derived(
+		(chosen?.fare.total ?? 0) + (children > 0 && childSeat ? (quote?.kids_surcharge ?? 0) : 0)
+	);
+	// Children ride with an adult: never fewer passengers than children + 1.
+	$effect(() => {
+		if (passengers < children + 1) passengers = Math.min(4, children + 1);
+	});
 	// A ride now needs a driver of that type nearby; a scheduled ride is dispatched later.
 	const bookable = (eta: number | null | undefined) => when === 'later' || eta != null;
 	const minSchedule = $derived(localInput(new Date(Date.now() + 31 * 60_000)));
@@ -100,7 +113,10 @@
 			const phone = normalisePhone(guestPhone);
 			if (!guestName.trim() || !phone)
 				return void (error = 'Add the passenger’s name and Namibian mobile number.');
-			guest = { name: guestName.trim(), phone };
+			if (!guestAdult)
+				return void (error =
+					'Confirm the passenger is an adult woman. Children only ride with an adult.');
+			guest = { name: guestName.trim(), phone, confirm_adult: true };
 		}
 		let scheduled_for: string | null = null;
 		if (when === 'later') {
@@ -117,6 +133,8 @@
 						tier,
 						passengers,
 						wheelchair,
+						children,
+						child_seat: children > 0 && childSeat,
 						guest,
 						payment_method: payment,
 						scheduled_for
@@ -196,7 +214,7 @@
 			<div class="stepper" role="group" aria-labelledby="pax">
 				<button
 					aria-label="Fewer passengers"
-					disabled={passengers <= 1}
+					disabled={passengers <= children + 1}
 					onclick={() => (passengers -= 1)}>−</button
 				>
 				<output aria-live="polite">{passengers}</output>
@@ -208,6 +226,31 @@
 			</div>
 		</div>
 		<p class="hint">All women, never shared with strangers. The price doesn’t change.</p>
+		<div class="row">
+			<span class="label" id="kids">Children with her</span>
+			<div class="stepper" role="group" aria-labelledby="kids">
+				<button aria-label="Fewer children" disabled={children <= 0} onclick={() => (children -= 1)}
+					>−</button
+				>
+				<output aria-live="polite">{children}</output>
+				<button
+					aria-label="More children"
+					disabled={children >= 3 || children + 1 >= passengers}
+					onclick={() => (children += 1)}>+</button
+				>
+			</div>
+		</div>
+		{#if children > 0}
+			<label class="row toggle">
+				<span class="label"
+					>Child seat{quote.kids_surcharge > 0
+						? ` (+${formatNad(quote.kids_surcharge)})`
+						: ''}</span
+				>
+				<input type="checkbox" bind:checked={childSeat} />
+			</label>
+		{/if}
+		<p class="hint">Count every child in the passengers. Children only ride with an adult woman.</p>
 		<label class="row toggle">
 			<span class="label">Wheelchair-accessible car</span>
 			<input type="checkbox" bind:checked={wheelchair} />
@@ -230,6 +273,10 @@
 				inputmode="tel"
 				hint="We text her the driver, car, plate and PIN."
 			/>
+			<label class="row toggle">
+				<span class="label">She is an adult woman</span>
+				<input type="checkbox" bind:checked={guestAdult} />
+			</label>
 		{/if}
 
 		<Segmented
@@ -271,7 +318,7 @@
 		{#if quote && chosen}
 			<Button onclick={request} loading={busy} disabled={!bookable(chosen.pickup_eta_s)}>
 				{when === 'later' ? 'Schedule' : 'Request'}
-				{NAMES[tier].name} · {formatNad(chosen.fare.total)}
+				{NAMES[tier].name} · {formatNad(price)}
 			</Button>
 		{:else if error}
 			<Button variant="secondary" onclick={() => ((error = null), loadQuote())}>Try again</Button>

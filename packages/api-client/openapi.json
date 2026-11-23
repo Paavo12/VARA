@@ -6135,6 +6135,10 @@
             "$ref": "#/components/schemas/Cents",
             "description": "What the driver earns: total − service fee."
           },
+          "kids": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Kids Guardian child seat surcharge (F_kids): all of it goes to the driver, who provides\nthe seat, so no service fee is taken on it. Zero when no child seat was asked for."
+          },
           "minimum_adjustment": {
             "$ref": "#/components/schemas/Cents",
             "description": "Top-up to reach the tier minimum (zero when the trip is long enough)."
@@ -6155,7 +6159,7 @@
           },
           "total": {
             "$ref": "#/components/schemas/Cents",
-            "description": "What the rider pays: base + distance + time + minimum_adjustment + surge."
+            "description": "What the rider pays: base + distance + time + minimum_adjustment + surge + kids."
           }
         }
       },
@@ -6194,6 +6198,10 @@
           "phone"
         ],
         "properties": {
+          "confirm_adult": {
+            "type": "boolean",
+            "description": "The booker confirms the passenger is an adult woman: children never ride alone (Kids\nGuardian; unaccompanied minors stay disabled until legal sign-off)."
+          },
           "name": {
             "type": "string",
             "example": "Ndapandula Shikongo"
@@ -7000,7 +7008,10 @@
         "type": "object",
         "description": "Who the driver is picking up (PRD D-4, B-5).",
         "required": [
-          "name"
+          "name",
+          "children",
+          "child_seat",
+          "child_seat_surcharge"
         ],
         "properties": {
           "booked_by": {
@@ -7009,6 +7020,18 @@
               "null"
             ],
             "description": "For a guest: \"booked by Ndeshi (verified)\". The demo showed a guest as \"Verified\" with\nthe booker's rating, which was wrong."
+          },
+          "child_seat": {
+            "type": "boolean",
+            "description": "She asked for a child seat; `child_seat_surcharge` is included in the driver's earning."
+          },
+          "child_seat_surcharge": {
+            "$ref": "#/components/schemas/Cents"
+          },
+          "children": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Kids Guardian: children riding with her (counted in the passengers)."
           },
           "name": {
             "type": "string",
@@ -7289,7 +7312,8 @@
           "routing",
           "demand",
           "currency",
-          "options"
+          "options",
+          "kids_surcharge"
         ],
         "properties": {
           "currency": {
@@ -7313,6 +7337,10 @@
           "expires_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "kids_surcharge": {
+            "$ref": "#/components/schemas/Cents",
+            "description": "Kids Guardian: added to the price when she asks for a child seat, locked with this quote.\nAll of it goes to the driver."
           },
           "options": {
             "type": "array",
@@ -7674,6 +7702,17 @@
           "payment_method"
         ],
         "properties": {
+          "child_seat": {
+            "type": "boolean",
+            "description": "Ask for a child seat; adds the quote's `kids_surcharge`. Needs at least one child."
+          },
+          "children": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Kids Guardian: children riding with the adult passenger (0–3), counted in `passengers`.",
+            "maximum": 3,
+            "minimum": 0
+          },
           "guest": {
             "oneOf": [
               {
