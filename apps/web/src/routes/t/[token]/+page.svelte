@@ -77,6 +77,8 @@
 		<p>Shared trip links stop working 30 minutes after the trip ends.</p>
 	{:else if trip}
 		<h1>{headline(trip)}</h1>
+		<!-- The page refreshes itself; read out a new status (WCAG 4.1.3). -->
+		<p class="sr-only" aria-live="polite">{headline(trip)}</p>
 
 		{#if loaded.kind === 'retry'}
 			<Notice tone="attention">

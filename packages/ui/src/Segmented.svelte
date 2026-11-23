@@ -52,12 +52,15 @@
 		display: grid;
 		place-items: center;
 		min-height: var(--touch-target);
+		border: 2px solid transparent;
 		border-radius: var(--radius-pill);
 		font-weight: 600;
 		cursor: pointer;
 		color: var(--color-text-secondary);
 	}
+	/* The brand border marks the choice; the white pill alone is too faint (WCAG 1.4.11). */
 	label.on {
+		border-color: var(--color-brand);
 		background: var(--color-surface);
 		color: var(--color-brand);
 		box-shadow: var(--shadow-sm);

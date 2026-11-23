@@ -43,6 +43,8 @@
 	let cancelling = $state(false);
 	let reason = $state<Reason | null>(null);
 	let slide = $state(0);
+	/** Completing with a tap and a confirm, for anyone who can't drag the slider (WCAG 2.5.7). */
+	let confirmComplete = $state(false);
 	let now = $state(Date.now());
 	let stars = $state(0);
 	let lowReasons = $state<string[]>([]);
@@ -226,7 +228,8 @@
 			<strong>{ride.pickup?.address}</strong>
 		</div>
 		<div class="pin" class:shake>
-			<div class="digits" aria-label="PIN entered: {pin.length} of 4 digits">
+			<p class="sr-only" aria-live="polite">PIN entered: {pin.length} of 4 digits</p>
+			<div class="digits" aria-hidden="true">
 				{#each [0, 1, 2, 3] as i (i)}<span class:filled={i < pin.length}></span>{/each}
 			</div>
 			<div class="keys">
@@ -234,7 +237,7 @@
 					<button type="button" onclick={() => press(d)} disabled={busy}>{d}</button>
 				{/each}
 				<button type="button" class="soft" onclick={() => (pin = pin.slice(0, -1))} disabled={busy}
-					>⌫ <span class="sr">Delete</span></button
+					>⌫ <span class="sr-only">Delete</span></button
 				>
 				<button type="button" onclick={() => press('0')} disabled={busy}>0</button>
 				<span></span>
@@ -301,6 +304,18 @@
 					aria-label="Slide to complete the trip"
 				/>
 			</label>
+			{#if confirmComplete}
+				<Button size="driver" onclick={() => act('/v1/rides/{id}/complete')} loading={busy}
+					>Yes, the trip is complete</Button
+				>
+				<Button variant="ghost" onclick={() => (confirmComplete = false)} disabled={busy}
+					>Not yet</Button
+				>
+			{:else}
+				<Button variant="ghost" onclick={() => (confirmComplete = true)} disabled={busy}
+					>Complete without sliding</Button
+				>
+			{/if}
 		{/snippet}
 	</Screen>
 {:else if ride.state === 'COMPLETED' || ride.state === 'RATED'}
@@ -432,13 +447,6 @@
 	.keys .soft {
 		font-size: var(--text-lg);
 		color: var(--color-text-muted);
-	}
-	.sr {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
 	}
 	.attempts {
 		margin: 0;

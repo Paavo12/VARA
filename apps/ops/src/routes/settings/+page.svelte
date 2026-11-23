@@ -7,6 +7,7 @@
 	import { Button, Notice } from '@fuber/ui';
 	import { formatWhen, messageOf } from '#lib/format.ts';
 	import { api, staff, type Setting } from '#lib/staff.svelte.ts';
+	import TableScroll from '#lib/TableScroll.svelte';
 
 	let settings = $state<Setting[] | null>(null);
 	let drafts = $state<Record<string, number>>({});
@@ -59,31 +60,39 @@
 	{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
 	{#if notice}<Notice tone="success"><p>{notice}</p></Notice>{/if}
 	{#if settings}
-		<table>
-			<thead>
-				<tr><th>Setting</th><th>Value</th><th>Allowed</th><th>Changed</th><th></th></tr>
-			</thead>
-			<tbody>
-				{#each settings as s (s.key)}
-					<tr>
-						<td><label for={s.key}>{s.label}</label><br /><code>{s.key}</code></td>
-						<td>
-							<input id={s.key} type="number" min={s.min} max={s.max} bind:value={drafts[s.key]} />
-						</td>
-						<td>{s.min} – {s.max}</td>
-						<td>{s.updated_at ? formatWhen(s.updated_at) : 'Default'}</td>
-						<td>
-							<Button
-								variant="secondary"
-								loading={saving === s.key}
-								disabled={drafts[s.key] === s.value}
-								onclick={() => save(s)}>Save</Button
-							>
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
+		<TableScroll label="Settings">
+			<table>
+				<thead>
+					<tr><th>Setting</th><th>Value</th><th>Allowed</th><th>Changed</th><th></th></tr>
+				</thead>
+				<tbody>
+					{#each settings as s (s.key)}
+						<tr>
+							<td><label for={s.key}>{s.label}</label><br /><code>{s.key}</code></td>
+							<td>
+								<input
+									id={s.key}
+									type="number"
+									min={s.min}
+									max={s.max}
+									bind:value={drafts[s.key]}
+								/>
+							</td>
+							<td>{s.min} – {s.max}</td>
+							<td>{s.updated_at ? formatWhen(s.updated_at) : 'Default'}</td>
+							<td>
+								<Button
+									variant="secondary"
+									loading={saving === s.key}
+									disabled={drafts[s.key] === s.value}
+									onclick={() => save(s)}>Save</Button
+								>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</TableScroll>
 	{/if}
 {/if}
 

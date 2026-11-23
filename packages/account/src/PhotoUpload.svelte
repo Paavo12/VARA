@@ -35,6 +35,16 @@
 	let preview = $state<string | null>(null);
 	let message = $state<string | null>(null);
 	let input: HTMLInputElement | undefined = $state();
+	// A rejection is announced by its danger Notice (role="alert"), so it isn't repeated here.
+	const spoken = $derived(
+		{
+			empty: '',
+			uploading: 'Uploading…',
+			checking: 'Checking the file…',
+			ready: `${label} ready`,
+			rejected: ''
+		}[phase]
+	);
 
 	$effect(() => () => {
 		if (preview) URL.revokeObjectURL(preview);
@@ -79,6 +89,8 @@
 	{#if preview}
 		<img src={preview} alt="Preview of {label.toLowerCase()}" />
 	{/if}
+	<!-- Always in the page, so screen readers hear each change of state (WCAG 4.1.3). -->
+	<p class="sr-only" role="status">{spoken}</p>
 	{#if phase === 'uploading'}
 		<p class="status">Uploading…</p>
 	{:else if phase === 'checking'}

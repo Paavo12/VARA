@@ -8,6 +8,7 @@
 	import { Button, Notice, formatNad } from '@fuber/ui';
 	import { formatWhen, messageOf } from '#lib/format.ts';
 	import { api, staff, type SurgeZone, type TierRates } from '#lib/staff.svelte.ts';
+	import TableScroll from '#lib/TableScroll.svelte';
 
 	type Tier = 'classic' | 'comfort' | 'softlife';
 	const NAMES: Record<string, string> = {
@@ -118,31 +119,33 @@
 	{#if notice}<Notice tone="success"><p>{notice}</p></Notice>{/if}
 
 	{#if rates}
-		<table>
-			<thead>
-				<tr>
-					<th>Ride type</th><th>Base</th><th>Per km</th><th>Per min</th><th>Minimum</th>
-					<th>Service fee</th><th>From</th><th></th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each rates as r (r.id)}
-					<tr class:later={!r.current}>
-						<td>{NAMES[r.tier] ?? r.tier}{r.current ? '' : ' (scheduled)'}</td>
-						<td>{formatNad(r.base)}</td>
-						<td>{formatNad(r.per_km)}</td>
-						<td>{formatNad(r.per_min)}</td>
-						<td>{formatNad(r.minimum)}</td>
-						<td>{(r.service_fee_bp / 100).toFixed(1)} %</td>
-						<td>{formatWhen(r.effective_from)}</td>
-						<td>
-							{#if r.current}<Button variant="ghost" onclick={() => edit(r)}>New rates…</Button
-								>{/if}
-						</td>
+		<TableScroll label="Rates per ride type">
+			<table>
+				<thead>
+					<tr>
+						<th>Ride type</th><th>Base</th><th>Per km</th><th>Per min</th><th>Minimum</th>
+						<th>Service fee</th><th>From</th><th></th>
 					</tr>
-				{/each}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					{#each rates as r (r.id)}
+						<tr class:later={!r.current}>
+							<td>{NAMES[r.tier] ?? r.tier}{r.current ? '' : ' (scheduled)'}</td>
+							<td>{formatNad(r.base)}</td>
+							<td>{formatNad(r.per_km)}</td>
+							<td>{formatNad(r.per_min)}</td>
+							<td>{formatNad(r.minimum)}</td>
+							<td>{(r.service_fee_bp / 100).toFixed(1)} %</td>
+							<td>{formatWhen(r.effective_from)}</td>
+							<td>
+								{#if r.current}<Button variant="ghost" onclick={() => edit(r)}>New rates…</Button
+									>{/if}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</TableScroll>
 	{/if}
 
 	{#if editing}
@@ -185,40 +188,42 @@
 	{#if zones.length === 0}
 		<p class="muted">No surge zones yet. Drawing zones needs the map (later).</p>
 	{:else}
-		<table>
-			<thead
-				><tr><th>Zone</th><th>Multiplier</th><th>Demand</th><th>Changed</th><th></th></tr></thead
-			>
-			<tbody>
-				{#each zones as z (z.id)}
-					<tr>
-						<td>{z.name}</td>
-						<td>
-							<input
-								aria-label="Multiplier for {z.name}"
-								type="number"
-								min="1"
-								max="3"
-								step="0.05"
-								bind:value={zoneDrafts[z.id].multiplier}
-							/>
-						</td>
-						<td>
-							<select aria-label="Demand for {z.name}" bind:value={zoneDrafts[z.id].demand_level}>
-								<option value="normal">Normal</option>
-								<option value="high">High</option>
-								<option value="peak">Peak</option>
-							</select>
-						</td>
-						<td>{formatWhen(z.updated_at)}</td>
-						<td
-							><Button variant="secondary" loading={busy} onclick={() => saveZone(z)}>Save</Button
-							></td
-						>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
+		<TableScroll label="Surge zones">
+			<table>
+				<thead
+					><tr><th>Zone</th><th>Multiplier</th><th>Demand</th><th>Changed</th><th></th></tr></thead
+				>
+				<tbody>
+					{#each zones as z (z.id)}
+						<tr>
+							<td>{z.name}</td>
+							<td>
+								<input
+									aria-label="Multiplier for {z.name}"
+									type="number"
+									min="1"
+									max="3"
+									step="0.05"
+									bind:value={zoneDrafts[z.id].multiplier}
+								/>
+							</td>
+							<td>
+								<select aria-label="Demand for {z.name}" bind:value={zoneDrafts[z.id].demand_level}>
+									<option value="normal">Normal</option>
+									<option value="high">High</option>
+									<option value="peak">Peak</option>
+								</select>
+							</td>
+							<td>{formatWhen(z.updated_at)}</td>
+							<td
+								><Button variant="secondary" loading={busy} onclick={() => saveZone(z)}>Save</Button
+								></td
+							>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</TableScroll>
 	{/if}
 {/if}
 

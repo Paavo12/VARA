@@ -18,8 +18,8 @@
 		{#each [1, 2, 3, 4, 5] as n (n)}
 			<label class:on={n <= value}>
 				<input type="radio" {name} value={n} bind:group={value} />
-				<span aria-hidden="true">★</span>
-				<span class="sr">{n} of 5 stars</span>
+				<span aria-hidden="true">{n <= value ? '★' : '☆'}</span>
+				<span class="sr-only">{n} of 5 stars</span>
 			</label>
 		{/each}
 	</div>
@@ -51,11 +51,13 @@
 		height: var(--touch-target-driver);
 		font-size: 2.25rem;
 		line-height: 1;
-		color: var(--color-border);
+		/* Outline stars in muted text and filled ones in --color-rating: both 3:1 or more, so the
+		   rating shows without relying on a pale fill (WCAG 1.4.11). */
+		color: var(--color-text-muted);
 		cursor: pointer;
 	}
 	label.on {
-		color: var(--color-accent);
+		color: var(--color-rating);
 	}
 	input {
 		position: absolute;
@@ -67,12 +69,5 @@
 	label:has(input:focus-visible) {
 		outline: 3px solid var(--color-focus-ring);
 		border-radius: var(--radius-sm);
-	}
-	.sr {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
 	}
 </style>

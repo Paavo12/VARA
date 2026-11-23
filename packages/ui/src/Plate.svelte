@@ -10,7 +10,8 @@
 	let { plate }: Props = $props();
 </script>
 
-<span class="plate" aria-label="Number plate {plate}">{plate}</span>
+<!-- aria-label isn't read on a plain span, so the spoken name is hidden text instead. -->
+<span class="plate"><span class="sr-only">Number plate </span>{plate}</span>
 
 <style>
 	.plate {
