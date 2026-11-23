@@ -1,13 +1,20 @@
 <!--
 	Pricing and surge (PRD O-5), admins only. New rates are added as a new version from a start
 	time (now or later); rides already quoted keep the rates they were locked with. The service
-	fee stays 15–18 %. Surge zones: change the multiplier and demand level of an existing zone.
-	Every change is audited.
+	fee stays 15–18 %. The launch promotion: 13 % for everyone, Map Experts included, for 90 days
+	from the launch date an admin sets, then the tier fees again by themselves. Surge zones:
+	change the multiplier and demand level of an existing zone. Every change is audited.
 -->
 <script lang="ts">
 	import { Button, Notice, formatNad } from '@fuber/ui';
 	import { formatWhen, messageOf } from '#lib/format.ts';
-	import { api, staff, type SurgeZone, type TierRates } from '#lib/staff.svelte.ts';
+	import {
+		api,
+		staff,
+		type LaunchPromo,
+		type SurgeZone,
+		type TierRates
+	} from '#lib/staff.svelte.ts';
 	import TableScroll from '#lib/TableScroll.svelte';
 
 	type Tier = 'classic' | 'comfort' | 'softlife';
@@ -27,14 +34,18 @@
 	let editing = $state<Tier | null>(null);
 	let form = $state({ base: 0, km: 0, min: 0, minimum: 0, fee: 15, from: '' });
 	let zoneDrafts = $state<Record<string, { multiplier: number; demand_level: string }>>({});
+	let promo = $state<LaunchPromo | null>(null);
+	let launchAt = $state('');
 
 	async function load() {
 		error = null;
-		const [r, z] = await Promise.all([
+		const [r, z, p] = await Promise.all([
 			api.GET('/v1/ops/pricing').catch(() => ({ data: undefined, error: undefined })),
-			api.GET('/v1/ops/surge-zones').catch(() => ({ data: undefined, error: undefined }))
+			api.GET('/v1/ops/surge-zones').catch(() => ({ data: undefined, error: undefined })),
+			api.GET('/v1/ops/pricing/launch-promo').catch(() => ({ data: undefined, error: undefined }))
 		]);
 		if (r.data) rates = r.data;
+		if (p.data) promo = p.data;
 		if (z.data) {
 			zones = z.data;
 			zoneDrafts = Object.fromEntries(
@@ -85,6 +96,33 @@
 		} else error = messageOf(err);
 	}
 
+	/** Sets, moves or (with `null`) removes the launch date; fixed once the promotion has started. */
+	async function savePromo(startsAt: string | null) {
+		error = notice = null;
+		busy = true;
+		const { data, error: err } = await api
+			.PUT('/v1/ops/pricing/launch-promo', { body: { starts_at: startsAt } })
+			.catch(() => ({ data: undefined, error: undefined }));
+		busy = false;
+		if (data) {
+			promo = data;
+			launchAt = '';
+			notice = data.starts_at
+				? `The launch promotion runs ${formatWhen(data.starts_at)} – ${formatWhen(data.ends_at ?? '')}.`
+				: 'The launch date is removed.';
+		} else error = messageOf(err);
+	}
+
+	const promoState = $derived(
+		!promo?.starts_at
+			? 'unset'
+			: promo.active
+				? 'running'
+				: new Date(promo.starts_at) > new Date()
+					? 'scheduled'
+					: 'ended'
+	);
+
 	async function saveZone(z: SurgeZone) {
 		error = notice = null;
 		busy = true;
@@ -115,6 +153,40 @@
 	</Notice>
 {:else}
 	<h1>Pricing</h1>
+	{#if promo}
+		<section class="box" aria-labelledby="promo">
+			<h2 id="promo">Launch promotion: 13 % for {promo.days} days</h2>
+			{#if promoState === 'running'}
+				<p>
+					Running until {formatWhen(promo.ends_at ?? '')}. Every driver, Map Experts included, pays
+					13 % on the rides she accepts.
+				</p>
+			{:else if promoState === 'ended'}
+				<p>Ended {formatWhen(promo.ends_at ?? '')}. The tier fees and the Map Expert fee apply.</p>
+			{:else}
+				<p>
+					{promoState === 'scheduled'
+						? `Starts ${formatWhen(promo.starts_at ?? '')}, ends ${formatWhen(promo.ends_at ?? '')}.`
+						: 'Not set. Enter the official launch date to start it.'}
+					Afterwards 15–18 % (15 % for Map Experts) applies again by itself. Once it has started, the
+					dates can’t change.
+				</p>
+				<div class="actions">
+					<label>Launch date and time <input type="datetime-local" bind:value={launchAt} /></label>
+					<Button
+						onclick={() => savePromo(new Date(launchAt).toISOString())}
+						loading={busy}
+						disabled={!launchAt}>{promoState === 'scheduled' ? 'Move launch' : 'Set launch'}</Button
+					>
+					{#if promoState === 'scheduled'}
+						<Button variant="ghost" onclick={() => savePromo(null)} disabled={busy}
+							>Remove launch date</Button
+						>
+					{/if}
+				</div>
+			{/if}
+		</section>
+	{/if}
 	{#if error}<Notice tone="danger"><p>{error}</p></Notice>{/if}
 	{#if notice}<Notice tone="success"><p>{notice}</p></Notice>{/if}
 

@@ -52,10 +52,31 @@ pub struct Fare {
 /// The flat service fee for a Map Expert, on every tier (1500 = 15 %).
 pub const MAP_EXPERT_FEE_BP: u32 = 1500;
 
-/// The service fee and the driver's earning on a fare of `total`: the tier's fee, or the Map
-/// Expert fee when she is one and it is lower.
-pub fn split(total: Cents, tier_fee_bp: u32, map_expert: bool) -> (Cents, Cents) {
-    let bp = if map_expert { tier_fee_bp.min(MAP_EXPERT_FEE_BP) } else { tier_fee_bp };
+/// The launch promotion's service fee, on every tier and for Map Experts too (1300 = 13 %).
+/// It runs for [`LAUNCH_PROMO_DAYS`] from the launch date an admin sets; the database function
+/// `launch_promo_active()` (migration 0016) says whether a moment falls inside it.
+pub const LAUNCH_PROMO_FEE_BP: u32 = 1300;
+pub const LAUNCH_PROMO_DAYS: i64 = 90;
+
+/// What lowers a driver's service fee below her tier's.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct FeeTerms {
+    /// She is a Map Expert now.
+    pub map_expert: bool,
+    /// The launch promotion is running now.
+    pub launch_promo: bool,
+}
+
+/// The service fee and the driver's earning on a fare of `total`: the lowest of the tier's fee,
+/// the Map Expert fee when she is one, and the launch promotion's fee while it runs.
+pub fn split(total: Cents, tier_fee_bp: u32, terms: FeeTerms) -> (Cents, Cents) {
+    let mut bp = tier_fee_bp;
+    if terms.map_expert {
+        bp = bp.min(MAP_EXPERT_FEE_BP);
+    }
+    if terms.launch_promo {
+        bp = bp.min(LAUNCH_PROMO_FEE_BP);
+    }
     let fee = total.mul_bp(bp);
     (fee, total - fee)
 }
@@ -137,15 +158,30 @@ mod tests {
         }
     }
 
+    const EXPERT: FeeTerms = FeeTerms { map_expert: true, launch_promo: false };
+    const PROMO: FeeTerms = FeeTerms { map_expert: false, launch_promo: true };
+
     #[test]
     fn a_map_expert_pays_15_percent_on_every_tier() {
         for tier in Tier::ALL {
             let r = Rates::default_for(tier);
-            assert_eq!(split(Cents(10_000), r.service_fee_bp, true), (Cents(1500), Cents(8500)), "{tier:?}");
-            assert_eq!(split(Cents(10_000), r.service_fee_bp, false).0, Cents(10_000).mul_bp(r.service_fee_bp));
+            assert_eq!(split(Cents(10_000), r.service_fee_bp, EXPERT), (Cents(1500), Cents(8500)), "{tier:?}");
+            assert_eq!(split(Cents(10_000), r.service_fee_bp, FeeTerms::default()).0, Cents(10_000).mul_bp(r.service_fee_bp));
         }
         // Never more than the tier's own fee.
-        assert_eq!(split(Cents(10_000), 1200, true).0, Cents(1200));
+        assert_eq!(split(Cents(10_000), 1200, EXPERT).0, Cents(1200));
+    }
+
+    #[test]
+    fn the_launch_promo_charges_13_percent_to_everyone_map_experts_too() {
+        for tier in Tier::ALL {
+            let r = Rates::default_for(tier);
+            assert_eq!(split(Cents(10_000), r.service_fee_bp, PROMO), (Cents(1300), Cents(8700)), "{tier:?}");
+            let both = FeeTerms { map_expert: true, launch_promo: true };
+            assert_eq!(split(Cents(10_000), r.service_fee_bp, both), (Cents(1300), Cents(8700)), "{tier:?}");
+        }
+        // Never more than the tier's own fee.
+        assert_eq!(split(Cents(10_000), 1200, PROMO).0, Cents(1200));
     }
 
     #[test]

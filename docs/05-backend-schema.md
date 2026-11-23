@@ -720,6 +720,10 @@ Migration `0005_booking_dispatch.sql` adds the `unaccent` and `pg_trgm` extensio
 
 Migration `0007_service_fees.sql` adds new `pricing_tiers` rows effective 2 November 2026 with service fees of 15 / 16.5 / 18 % (1500 / 1650 / 1800 bp); fares are unchanged. Rides keep the `pricing_tier_id` they were quoted with.
 
+### Launch promotion (2026-11-20)
+
+Migration `0016_launch_promo.sql` adds `launch_promo_active(at)`: true for 90 days from the `starts_at` an admin stores in setting `pricing.launch_promo`; while true, offers and accepted rides pay 13 % on every tier.
+
 ### Phase 4 schema changes
 
 Migration `0008_payments_ratings.sql` (0007 is the service-fee change) adds `rides.driver_rating_skipped`, a unique index so each trip books one ledger entry per kind, and history indexes on `rides`. Completing a trip inserts a `pending` row in `payments`; for cash, `cash-received` moves it to `cash_confirmed` and books `service_fee` (negative) in `driver_ledger`.

@@ -25,6 +25,7 @@ export type Setting = components['schemas']['Setting'];
 export type Metrics = components['schemas']['Metrics'];
 export type TierRates = components['schemas']['TierRates'];
 export type SurgeZone = components['schemas']['SurgeZone'];
+export type LaunchPromo = components['schemas']['LaunchPromo'];
 export type AuditEntry = components['schemas']['AuditEntry'];
 export type IncidentMessage = components['schemas']['IncidentMessage'];
 

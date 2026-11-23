@@ -629,6 +629,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/pricing/launch-promo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["launch_promo_get"];
+        put: operations["launch_promo_set"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/reports": {
         parameters: {
             query?: never;
@@ -1833,6 +1849,34 @@ export interface components {
             lat: number;
             /** Format: double */
             lon: number;
+        };
+        LaunchPromo: {
+            /** @description Running now: drivers accepting a ride now pay `fee_bp`. */
+            active: boolean;
+            /** Format: int64 */
+            days: number;
+            /**
+             * Format: date-time
+             * @description When the tier fees (15–18 %) and the 15 % Map Expert fee apply again.
+             */
+            ends_at?: string | null;
+            /**
+             * Format: int32
+             * @description 1300 = 13 %, on every ride type, Map Experts included.
+             */
+            fee_bp: number;
+            /**
+             * Format: date-time
+             * @description The official launch: the promotion runs from here. Absent until an admin sets it.
+             */
+            starts_at?: string | null;
+        };
+        LaunchPromoUpdate: {
+            /**
+             * Format: date-time
+             * @description The official launch date and time; `null` removes a date that hasn't started yet.
+             */
+            starts_at?: string | null;
         };
         LegalDocument: {
             /** Format: uuid */
@@ -4249,6 +4293,86 @@ export interface operations {
                 };
             };
             /** @description Outside the allowed ranges */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    launch_promo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The 13 % launch promotion: its dates and whether it runs now */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LaunchPromo"];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    launch_promo_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LaunchPromoUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved; drivers accepting rides in the 90 days pay 13 % */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LaunchPromo"];
+                };
+            };
+            /** @description Admins only */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The promotion has already started, so its dates are fixed (`promo_started`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The date is in the past */
             422: {
                 headers: {
                     [name: string]: unknown;
