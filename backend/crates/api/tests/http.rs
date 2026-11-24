@@ -88,6 +88,7 @@ async fn hsts_outside_local() {
         ("REDIS_URL", "rediss://cache"),
         ("ROUTING", "osrm"),
         ("OSRM_URL", "http://osrm:5000"),
+        ("TRIP_LINK_BASE", "https://staging.vara.na/t"),
     ]);
     let (_, headers, _) = send(&app_with(RateLimits::default(), cfg), get("/v1/health")).await;
     assert!(headers["strict-transport-security"].to_str().unwrap().contains("max-age="));

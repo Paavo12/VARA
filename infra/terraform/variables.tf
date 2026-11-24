@@ -38,6 +38,16 @@ variable "deploy_branch" {
   default     = "main"
 }
 
+variable "trip_link_base" {
+  description = "Public address of the website's Share trip page, e.g. https://vara.na/t. SOS texts and Share trip links point here."
+  type        = string
+
+  validation {
+    condition     = can(regex("^https://[^/]+", var.trip_link_base)) && !can(regex("^https://([^/]*\\.)?(example|test|invalid|localhost)(/|:|$)", var.trip_link_base))
+    error_message = "trip_link_base must be an https:// address on a real domain (not example, test, invalid or localhost)."
+  }
+}
+
 variable "cors_origins" {
   description = "Exact origins allowed by the API's CORS (web apps and Capacitor shells)."
   type        = list(string)

@@ -234,10 +234,24 @@ impl Config {
             }
         };
 
-        let trip_link_base = get("TRIP_LINK_BASE").unwrap_or_else(|| "https://vara.example/t".into()).trim_end_matches('/').to_owned();
+        // SOS texts and Share trip links carry this address: outside local it must be set, and to a
+        // real domain, or emergency contacts get a link that opens nothing.
+        let trip_link_base = match get("TRIP_LINK_BASE") {
+            Some(v) => v,
+            None if env.is_some_and(|e| e != Environment::Local) => {
+                errors.push("TRIP_LINK_BASE is required outside APP_ENV=local (the website's /t address)".into());
+                String::new()
+            }
+            None => "https://vara.example/t".into(),
+        }
+        .trim_end_matches('/')
+        .to_owned();
         let local_http = env == Some(Environment::Local) && trip_link_base.starts_with("http://");
-        if !(trip_link_base.starts_with("https://") || local_http) {
+        if !trip_link_base.is_empty() && !(trip_link_base.starts_with("https://") || local_http) {
             errors.push(format!("TRIP_LINK_BASE must be an https:// URL (got {trip_link_base:?})"));
+        }
+        if env.is_some_and(|e| e != Environment::Local) && placeholder_host(&trip_link_base) {
+            errors.push(format!("TRIP_LINK_BASE uses a placeholder domain outside APP_ENV=local (got {trip_link_base:?})"));
         }
 
         if env == Some(Environment::Production) {
@@ -279,6 +293,12 @@ impl Config {
             trip_link_base,
         })
     }
+}
+
+/// Hosts reserved for examples and testing (RFC 2606), which no real link can use.
+fn placeholder_host(url: &str) -> bool {
+    let host = url.split("://").nth(1).unwrap_or(url).split(['/', ':']).next().unwrap_or("").to_ascii_lowercase();
+    host == "localhost" || [".example", ".test", ".invalid", ".localhost"].iter().any(|t| host.ends_with(t) || host == t[1..])
 }
 
 #[cfg(test)]
@@ -331,8 +351,8 @@ mod tests {
             ("CLAMAV_ADDR", "clamav:3310"),
         ])
         .unwrap_err();
-        // Dev password, plain Redis, fake SMS gateway, local storage, estimated routing.
-        assert_eq!(e.0.len(), 5, "{e}");
+        // Dev password, plain Redis, fake SMS gateway, local storage, estimated routing, no trip link.
+        assert_eq!(e.0.len(), 6, "{e}");
     }
 
     #[test]
@@ -354,6 +374,7 @@ mod tests {
             ("CLAMAV_ADDR", "clamav:3310"),
             ("ROUTING", "osrm"),
             ("OSRM_URL", "http://osrm:5000"),
+            ("TRIP_LINK_BASE", "https://vara.na/t"),
             ("HASH_SECRET", "local-only-0123456789abcdef0123456789"),
         ]);
         assert_eq!(example.unwrap_err().0.len(), 1);
@@ -384,6 +405,28 @@ mod tests {
         assert_eq!(c.redis_ca_cert.as_deref(), Some(pem));
         let e = load(&[&base[..], &[("REDIS_URL", "redis://r"), ("REDIS_CA_CERT", "not a cert")]].concat()).unwrap_err();
         assert_eq!(e.0.len(), 2, "{e}");
+    }
+
+    #[test]
+    fn trip_link_base_must_be_real_outside_local() {
+        let staging = [
+            ("APP_ENV", "staging"),
+            ("DATABASE_URL", "postgres://u:from-vault@db/x"),
+            ("REDIS_URL", "rediss://r"),
+            ("VIRUS_SCAN", "clamav"),
+            ("CLAMAV_ADDR", "clamav:3310"),
+            ("ROUTING", "osrm"),
+            ("OSRM_URL", "http://osrm:5000"),
+        ];
+        let e = load(&staging).unwrap_err();
+        assert!(e.to_string().contains("TRIP_LINK_BASE is required"), "{e}");
+        for bad in ["https://vara.example/t", "https://localhost/t", "https://staging.vara.test/t", "http://vara.na/t"] {
+            assert!(load(&[&staging[..], &[("TRIP_LINK_BASE", bad)]].concat()).is_err(), "{bad}");
+        }
+        let c = load(&[&staging[..], &[("TRIP_LINK_BASE", "https://staging.vara.na/t/")]].concat()).unwrap();
+        assert_eq!(c.trip_link_base, "https://staging.vara.na/t");
+        let local = load(&[("APP_ENV", "local"), ("DATABASE_URL", "x"), ("REDIS_URL", "y")]).unwrap();
+        assert_eq!(local.trip_link_base, "https://vara.example/t");
     }
 
     #[test]

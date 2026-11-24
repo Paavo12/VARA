@@ -1357,7 +1357,7 @@
             }
           },
           "429": {
-            "description": "5 attempts per 15 minutes per account and IP",
+            "description": "5 attempts per 15 minutes per account and IP, 20 per hour per account",
             "content": {
               "application/json": {
                 "schema": {

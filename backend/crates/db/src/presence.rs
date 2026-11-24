@@ -27,10 +27,34 @@ pub struct Online {
     pub online_since: time::OffsetDateTime,
     pub tiers: Vec<String>,
     pub wheelchair: bool,
+    /// Going online, the reported position was implausible: she is placed at her last
+    /// accepted one until her phone reports a reachable position.
+    pub fix_ignored: bool,
 }
 
 /// can_go_online, account status, active vehicle, approved tiers, vehicle wheelchair access.
 type EligibilityRow = (bool, String, Option<Uuid>, Vec<String>, Option<bool>);
+
+/// A reported position is believed only if a car could have got there from her last accepted
+/// one: at most `FIX_SLACK_M` (GPS error) plus `FIX_MAX_SPEED_MPS` (150 km/h) for every second
+/// since. The exact pickup unlocks within 50 m of it, so a phone that claims to jump about can't
+/// sweep the approximate pickup circle faster than she could drive it (security review 2026-11-24).
+pub const FIX_SLACK_M: f64 = 100.0;
+pub const FIX_MAX_SPEED_MPS: f64 = 150.0 / 3.6;
+
+/// `$2` is the reported point; true if it is reachable from `last_fix` (or there is none yet).
+const REACHABLE: &str =
+    "(last_fix IS NULL OR ST_Distance(last_fix, ST_GeogFromText($2)) <= $3 + $4 * greatest(extract(epoch FROM now() - last_fix_at), 0))";
+
+/// What happened to a reported position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fix {
+    Recorded,
+    /// Online, but no car could have got there since her last position: not stored.
+    Implausible,
+    /// This session is not the one online (offline, or signed in elsewhere).
+    Offline,
+}
 
 /// Puts the driver online from this session, or moves an existing online row to it (a new
 /// sign-in on another phone takes over). Opens a shift if none is open.
@@ -72,6 +96,28 @@ pub async fn go_online(
                 .await?
         }
     };
+    // Her last accepted position survives going offline, so going offline and back on can't jump.
+    let (reachable, last_lat, last_lon): (bool, Option<f64>, Option<f64>) = sqlx::query_as(&format!(
+        "SELECT {REACHABLE}, ST_Y(last_fix::geometry), ST_X(last_fix::geometry) FROM driver_profiles WHERE user_id = $1"
+    ))
+    .bind(driver_id)
+    .bind(point(at))
+    .bind(FIX_SLACK_M)
+    .bind(FIX_MAX_SPEED_MPS)
+    .fetch_one(&mut *conn)
+    .await?;
+    let at = match (reachable, last_lat, last_lon) {
+        (true, _, _) => {
+            sqlx::query("UPDATE driver_profiles SET last_fix = ST_GeogFromText($2), last_fix_at = now() WHERE user_id = $1")
+                .bind(driver_id)
+                .bind(point(at))
+                .execute(&mut *conn)
+                .await?;
+            at
+        }
+        (false, Some(lat), Some(lon)) => Position { lat, lon, heading: None, speed_kmh: None },
+        (false, _, _) => at,
+    };
     let since: time::OffsetDateTime = sqlx::query_scalar(
         "INSERT INTO driver_presence (driver_id, session_id, shift_id, vehicle_id, tiers, wheelchair, location, heading, speed_kmh)
          VALUES ($1, $2, $3, $4, $5::ride_tier[], $6, ST_SetSRID(ST_MakePoint($8, $7), 4326)::geography, $9, $10)
@@ -92,26 +138,45 @@ pub async fn go_online(
     .bind(at.speed_kmh)
     .fetch_one(&mut *conn)
     .await?;
-    Ok(Ok(Online { online_since: since, tiers, wheelchair }))
+    Ok(Ok(Online { online_since: since, tiers, wheelchair, fix_ignored: !reachable }))
 }
 
-/// Records a new position. False if this session is not the one online (offline, or signed in
-/// elsewhere), in which case the app should show "offline".
-pub async fn update_location<'e>(db: impl PgExecutor<'e>, driver_id: Uuid, session_id: Uuid, at: Position) -> Result<bool, sqlx::Error> {
-    let n = sqlx::query(
-        "UPDATE driver_presence SET location = ST_SetSRID(ST_MakePoint($4, $3), 4326)::geography, heading = $5, speed_kmh = $6, updated_at = now()
-         WHERE driver_id = $1 AND session_id = $2",
-    )
+/// Records a new position if this session is the one online and the position is reachable
+/// from her last one (see `FIX_MAX_SPEED_MPS`). One statement, so it can't race itself.
+pub async fn update_location<'e>(db: impl PgExecutor<'e>, driver_id: Uuid, session_id: Uuid, at: Position) -> Result<Fix, sqlx::Error> {
+    let (online, recorded): (bool, bool) = sqlx::query_as(&format!(
+        "WITH here AS (SELECT 1 FROM driver_presence WHERE driver_id = $1 AND session_id = $5),
+         fix AS (
+           UPDATE driver_profiles SET last_fix = ST_GeogFromText($2), last_fix_at = now()
+           WHERE user_id = $1 AND EXISTS (SELECT 1 FROM here) AND {REACHABLE}
+           RETURNING 1
+         ),
+         moved AS (
+           UPDATE driver_presence SET location = ST_GeogFromText($2), heading = $6, speed_kmh = $7, updated_at = now()
+           WHERE driver_id = $1 AND session_id = $5 AND EXISTS (SELECT 1 FROM fix)
+           RETURNING 1
+         )
+         SELECT EXISTS (SELECT 1 FROM here), EXISTS (SELECT 1 FROM moved)"
+    ))
     .bind(driver_id)
+    .bind(point(at))
+    .bind(FIX_SLACK_M)
+    .bind(FIX_MAX_SPEED_MPS)
     .bind(session_id)
-    .bind(at.lat)
-    .bind(at.lon)
     .bind(at.heading)
     .bind(at.speed_kmh)
-    .execute(db)
-    .await?
-    .rows_affected();
-    Ok(n == 1)
+    .fetch_one(db)
+    .await?;
+    Ok(match (online, recorded) {
+        (false, _) => Fix::Offline,
+        (true, true) => Fix::Recorded,
+        (true, false) => Fix::Implausible,
+    })
+}
+
+/// The position as a PostGIS geography literal (WGS 84 is geography's default SRID).
+fn point(at: Position) -> String {
+    format!("POINT({} {})", at.lon, at.lat)
 }
 
 /// Takes the driver offline: withdraws a pending offer (matching moves on) and ends the shift.
@@ -138,7 +203,7 @@ pub async fn status<'e>(db: impl PgExecutor<'e>, driver_id: Uuid, session_id: Uu
             .bind(session_id)
             .fetch_optional(db)
             .await?;
-    Ok(row.map(|(online_since, tiers, wheelchair)| Online { online_since, tiers, wheelchair }))
+    Ok(row.map(|(online_since, tiers, wheelchair)| Online { online_since, tiers, wheelchair, fix_ignored: false }))
 }
 
 /// Takes offline every driver whose session has ended, or who has sent no position for five
