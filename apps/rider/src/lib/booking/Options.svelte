@@ -233,10 +233,8 @@
 					>−</button
 				>
 				<output aria-live="polite">{children}</output>
-				<button
-					aria-label="More children"
-					disabled={children >= 3 || children + 1 >= passengers}
-					onclick={() => (children += 1)}>+</button
+				<button aria-label="More children" disabled={children >= 3} onclick={() => (children += 1)}
+					>+</button
 				>
 			</div>
 		</div>

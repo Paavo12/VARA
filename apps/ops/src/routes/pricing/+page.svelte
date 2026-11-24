@@ -352,6 +352,8 @@
 	}
 	.actions {
 		display: flex;
+		flex-wrap: wrap; /* the launch date box reflows at 320 px (WCAG 1.4.10) */
+		align-items: flex-end;
 		gap: var(--space-2);
 	}
 	.muted {
