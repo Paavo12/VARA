@@ -250,6 +250,10 @@
 					<dd>{formatNad(ride.fare.minimum_adjustment)}</dd>
 				</div>
 			{/if}
+			{#if (ride.fare.kids ?? 0) > 0}<div>
+					<dt>Child seat</dt>
+					<dd>{formatNad(ride.fare.kids ?? 0)}</dd>
+				</div>{/if}
 			{#if ride.fare.surge > 0}<div>
 					<dt>Busy time</dt>
 					<dd>{formatNad(ride.fare.surge)}</dd>

@@ -470,7 +470,7 @@ async fn a_guest_passenger_gets_her_driver_plate_and_pin_by_sms() {
     let q = t.quote(&rider, POST_ST_MALL, MAERUA_MALL).await;
     let body = json!({
         "quote": q["quote"], "tier": "classic", "passengers": 1, "payment_method": "cash",
-        "guest": { "name": "Ndapandula Shikongo", "phone": guest_phone },
+        "guest": { "name": "Ndapandula Shikongo", "phone": guest_phone, "confirm_adult": true },
     });
     let (status, ride) = t.request(&rider, body, &key()).await;
     assert_eq!(status, StatusCode::CREATED, "{ride}");

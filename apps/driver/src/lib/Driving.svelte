@@ -290,6 +290,13 @@
 				<small>Passengers</small>{offer.passengers}{offer.wheelchair ? ' · wheelchair' : ''} ·
 				{offer.payment_method === 'cash' ? 'Cash' : 'Card'}
 			</p>
+			{#if offer.passenger.children > 0}
+				<p>
+					<small>Children</small>{offer.passenger.children} with her{offer.passenger.child_seat
+						? ` · child seat asked for (+${formatNad(offer.passenger.child_seat_surcharge)}, all yours)`
+						: ''}
+				</p>
+			{/if}
 		</div>
 		{#snippet footer()}
 			<Button size="driver" onclick={() => answer(true)} loading={busy}>Accept</Button>

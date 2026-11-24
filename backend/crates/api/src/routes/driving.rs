@@ -229,9 +229,9 @@ pub async fn accept(State(s): State<AppState>, DriverUser(user): DriverUser, Pat
     }
     // Her fee: the tier's, the flat Map Expert fee or the launch promotion's, whichever is lowest.
     // Set on every accept, so a ride another driver gave up gets this driver's split, as her offer
-    // showed.
-    let (fare, fee_bp, map_expert, launch_promo): (i64, i32, bool, bool) = sqlx::query_as(
-        "SELECT r.fare_cents, p.service_fee_bp,
+    // showed. A child seat surcharge is hers in full, with no fee on it.
+    let (fare, kids, fee_bp, map_expert, launch_promo): (i64, i64, i32, bool, bool) = sqlx::query_as(
+        "SELECT r.fare_cents, r.kids_surcharge_cents, p.service_fee_bp,
                 coalesce((SELECT map_expert_until > now() FROM driver_profiles WHERE user_id = $2), false),
                 launch_promo_active()
          FROM rides r JOIN pricing_tiers p ON p.id = r.pricing_tier_id WHERE r.id = $1",
@@ -241,7 +241,7 @@ pub async fn accept(State(s): State<AppState>, DriverUser(user): DriverUser, Pat
     .fetch_one(&mut *tx)
     .await?;
     let terms = fuber_domain::pricing::FeeTerms { map_expert, launch_promo };
-    let (fee, earning) = fuber_domain::pricing::split(fuber_domain::Cents(fare), fee_bp as u32, terms);
+    let (fee, earning) = fuber_domain::pricing::split_with_kids(fuber_domain::Cents(fare), fuber_domain::Cents(kids), fee_bp as u32, terms);
     sqlx::query(
         "UPDATE rides SET service_fee_cents = $2, driver_earning_cents = $3,
                 fare_breakdown = fare_breakdown || jsonb_build_object('service_fee', $2, 'driver_earning', $3)

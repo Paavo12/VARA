@@ -179,6 +179,13 @@
 			<small>Passengers</small>{ride.passengers}{ride.wheelchair ? ' · wheelchair' : ''} ·
 			{ride.payment_method === 'cash' ? 'Cash' : 'Card'}
 		</p>
+		{#if ride.passenger.children > 0}
+			<p>
+				<small>Children</small>{ride.passenger.children} with her{ride.passenger.child_seat
+					? ` · child seat asked for (+${formatNad(ride.passenger.child_seat_surcharge)}, all yours)`
+					: ''}
+			</p>
+		{/if}
 	</div>
 	<!-- Share trip (PRD S-2), in view on every trip screen with the card. -->
 	<ShareTrip rideId={ride.id} />
@@ -226,6 +233,13 @@
 		<div class="area exact">
 			<small>Exact pickup</small>
 			<strong>{ride.pickup?.address}</strong>
+			{#if ride.passenger.children > 0}
+				<small
+					>With her: {ride.passenger.children} child{ride.passenger.children === 1
+						? ''
+						: 'ren'}{ride.passenger.child_seat ? ', child seat asked for' : ''}</small
+				>
+			{/if}
 		</div>
 		<div class="pin" class:shake>
 			<p class="sr-only" aria-live="polite">PIN entered: {pin.length} of 4 digits</p>

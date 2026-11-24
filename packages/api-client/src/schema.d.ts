@@ -1751,6 +1751,11 @@ export interface components {
             distance: components["schemas"]["Cents"];
             /** @description What the driver earns: total − service fee. */
             driver_earning: components["schemas"]["Cents"];
+            /**
+             * @description Kids Guardian child seat surcharge (F_kids): all of it goes to the driver, who provides
+             *     the seat, so no service fee is taken on it. Zero when no child seat was asked for.
+             */
+            kids?: components["schemas"]["Cents"];
             /** @description Top-up to reach the tier minimum (zero when the trip is long enough). */
             minimum_adjustment: components["schemas"]["Cents"];
             service_fee: components["schemas"]["Cents"];
@@ -1758,7 +1763,7 @@ export interface components {
             /** Format: int32 */
             surge_bp: number;
             time: components["schemas"]["Cents"];
-            /** @description What the rider pays: base + distance + time + minimum_adjustment + surge. */
+            /** @description What the rider pays: base + distance + time + minimum_adjustment + surge + kids. */
             total: components["schemas"]["Cents"];
         };
         FavouriteDriver: {
@@ -1771,6 +1776,11 @@ export interface components {
             rating?: number | null;
         };
         Guest: {
+            /**
+             * @description The booker confirms the passenger is an adult woman: children never ride alone (Kids
+             *     Guardian; unaccompanied minors stay disabled until legal sign-off).
+             */
+            confirm_adult?: boolean;
             /** @example Ndapandula Shikongo */
             name: string;
             /**
@@ -2092,6 +2102,14 @@ export interface components {
              *     the booker's rating, which was wrong.
              */
             booked_by?: string | null;
+            /** @description She asked for a child seat; `child_seat_surcharge` is included in the driver's earning. */
+            child_seat: boolean;
+            child_seat_surcharge: components["schemas"]["Cents"];
+            /**
+             * Format: int32
+             * @description Kids Guardian: children riding with her (counted in the passengers).
+             */
+            children: number;
             /** @description First name of the rider, or the guest's name. */
             name: string;
             /**
@@ -2203,6 +2221,11 @@ export interface components {
             duration_s: number;
             /** Format: date-time */
             expires_at: string;
+            /**
+             * @description Kids Guardian: added to the price when she asks for a child seat, locked with this quote.
+             *     All of it goes to the driver.
+             */
+            kids_surcharge: components["schemas"]["Cents"];
             options: components["schemas"]["QuoteOption"][];
             /** @description Present this with `POST /v1/rides` before `expires_at`. */
             quote: string;
@@ -2314,6 +2337,13 @@ export interface components {
             kind: string;
         };
         RideRequest: {
+            /** @description Ask for a child seat; adds the quote's `kids_surcharge`. Needs at least one child. */
+            child_seat?: boolean;
+            /**
+             * Format: int32
+             * @description Kids Guardian: children riding with the adult passenger (0–3), counted in `passengers`.
+             */
+            children?: number;
             guest?: null | components["schemas"]["Guest"];
             /** Format: int64 */
             passengers: number;

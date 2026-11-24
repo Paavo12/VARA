@@ -34,6 +34,7 @@ const KEYS: &[(&str, &str, f64, f64)] = &[
     ("booking.schedule_lead_s", "Matching starts this long before a scheduled pickup (s)", 300.0, 3_600.0),
     ("safety.deviation_m", "RideCheck: distance off the planned route (m)", 100.0, 1_000.0),
     ("safety.unexpected_stop_s", "RideCheck: stopped for (s)", 60.0, 900.0),
+    ("pricing.kids_surcharge_cents", "Kids Guardian: child seat surcharge (cents, all to the driver)", 0.0, 20_000.0),
 ];
 
 /// Minimum key, maximum key, and their defaults: a minimum may not pass its maximum.

@@ -167,6 +167,11 @@ pub struct Passenger {
     /// For a guest: "booked by Ndeshi (verified)". The demo showed a guest as "Verified" with
     /// the booker's rating, which was wrong.
     pub booked_by: Option<String>,
+    /// Kids Guardian: children riding with her (counted in the passengers).
+    pub children: i16,
+    /// She asked for a child seat; `child_seat_surcharge` is included in the driver's earning.
+    pub child_seat: bool,
+    pub child_seat_surcharge: Cents,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
@@ -350,11 +355,12 @@ async fn assigned_driver(db: &PgPool, ride_id: Uuid, driver_id: Uuid) -> Result<
     }))
 }
 
-type PassengerRow = (Option<String>, Option<String>, Option<f64>, String);
+type PassengerRow = (Option<String>, Option<String>, Option<f64>, String, i16, bool, i64);
 
 async fn passenger(db: &PgPool, ride_id: Uuid) -> Result<Passenger, sqlx::Error> {
-    let (guest, booker, rating, verification): PassengerRow = sqlx::query_as(
-        "SELECT r.guest_name, u.display_name, rp.rating_avg::float8, u.verification::text
+    let (guest, booker, rating, verification, children, child_seat, surcharge): PassengerRow = sqlx::query_as(
+        "SELECT r.guest_name, u.display_name, rp.rating_avg::float8, u.verification::text,
+                r.children, r.child_seat, r.kids_surcharge_cents
          FROM rides r JOIN users u ON u.id = r.rider_id JOIN rider_profiles rp ON rp.user_id = r.rider_id WHERE r.id = $1",
     )
     .bind(ride_id)
@@ -370,8 +376,11 @@ async fn passenger(db: &PgPool, ride_id: Uuid) -> Result<Passenger, sqlx::Error>
             } else {
                 format!("booked by {booker}")
             }),
+            children,
+            child_seat,
+            child_seat_surcharge: Cents(surcharge),
         },
-        None => Passenger { name: booker, rating, booked_by: None },
+        None => Passenger { name: booker, rating, booked_by: None, children, child_seat, child_seat_surcharge: Cents(surcharge) },
     })
 }
 
