@@ -1,6 +1,6 @@
 # VARA — women-only ride-hailing demo (Windhoek, Namibia)
 
-A working prototype with two portals, a **Rider app** and a **Driver app**, running on one simulated dispatch engine. It's built for a live presentation, so the city, GPS, matching, payments and verification are all simulated, while every state change is visible.
+A working prototype with a **Rider app**, a **Driver app** and an **Admin dashboard** (the ops console), all running on one simulated dispatch engine. What the admin changes (prices, fees, approvals, pauses) shows up on the phones straight away. It's built for a live presentation, so the city, GPS, matching, payments and verification are all simulated, while every state change is visible.
 
 - **Zero dependencies.** It needs Node.js 16+ and nothing else: no `npm install`, no database and no API keys. Internet is optional: with it you get the OpenStreetMap map and the web font; without it the app draws Windhoek's roads itself and uses the system font.
 - **Set in real Windhoek.** All prices are in **Namibian dollars (N$)**. The map is the free OpenStreetMap map, and cars drive Windhoek's real roads: routes, ETAs, street names, addresses and turn-by-turn directions come from OpenStreetMap road data built into the app, and landmarks (Post Street Mall, Maerua Mall, Grove Mall, Katutura State Hospital, Eros Airport…) sit at their real locations. Plates look like Windhoek plates (`N 9090 W`), and phone numbers use +264.
@@ -24,11 +24,12 @@ Open **http://localhost:3100**. You get both phones side by side plus the presen
 | `http://localhost:3100/` | Presenter stage: Rider + Driver phones + presentation panel |
 | `http://localhost:3100/?view=rider` | Rider app only (full-screen when opened on a phone) |
 | `http://localhost:3100/?view=driver` | Driver app only (full-screen when opened on a phone) |
+| `http://localhost:3100/?view=admin` | Admin dashboard only: open it in a second window or on a second screen |
 | `http://<your-LAN-IP>:3100/?view=rider` | Use a real phone as the rider. The server prints this address at startup |
 
-Every screen connected to the server shares one live state. You can book on your phone and accept on the laptop.
+Every screen connected to the server shares one live state. You can book on your phone and accept on the laptop. The top bar's **Show** switch also has **Admin** and **Phones + admin** (both phones with the dashboard beside them).
 
-**No Node?** Double-click `public/index.html`. The demo runs entirely in that tab (the top bar shows *Standalone*). Multi-device sync isn't available in this mode.
+**No Node?** Double-click `public/index.html`. The demo runs entirely in that tab (the top bar shows *Standalone*). Multi-device sync isn't available in this mode, so use **Phones + admin** to show the dashboard next to the phones.
 
 Use a different port with `PORT=4000 npm start`.
 
@@ -49,8 +50,9 @@ Use a different port with `PORT=4000 npm start`.
 8. **Complete.** Press **Jump to destination** (panel or driver phone), then **slide to complete trip** on the driver phone.
 9. **Pay & rate.** The rider sees the fare breakdown (base + distance + time + surge), pays cash (cards come after the pilot), rates the driver and can **add her to Favourite Drivers**. The driver rates the rider and sees her earnings. Once both have rated (or the driver taps *Back to requests* without rating), the ride state becomes `RATED`.
 10. **PIN block (optional, about 1 minute).** Book another ride. With the driver at the pickup, press **5 wrong PINs** in the panel: both phones stop the trip, and the driver gets no requests after that. Press **Close incident** under *Safety desk* in the panel to release her.
-11. **What's real today.** Scroll to *Real product status* at the bottom of the panel. It separates what is built from what this demo only previews.
-12. **Reset demo** (top right; click twice to confirm) clears everything for the next run.
+11. **Admin dashboard (about 2 minutes).** See section 4a.
+12. **What's real today.** Scroll to *Real product status* at the bottom of the panel. It separates what is built from what this demo only previews.
+13. **Reset demo** (top right; click twice to confirm) clears everything for the next run, including admin changes.
 
 **On a hosted link:** everyone who opens the link shares one live demo, so anyone with it can see and change the same ride. Press **Reset demo** just before presenting, and share the link only with the presenter until it's over.
 
@@ -70,7 +72,9 @@ Use a different port with `PORT=4000 npm start`.
 | **Cancelling (no fees)** | Cancelling is always free for the rider and the driver. Instead, each cancellation quietly costs **priority points** (see section 6). The panel shows the points; the phones never do. |
 | **Driver cancels** | Driver phone → **Cancel** → pick a reason. The request goes **back to the pool** and that driver is excluded. If no other online driver drives that ride type, the rider then sees *No drivers accepted*. |
 | **Wait timer / no-show** | At pickup, tap **Rider not here? Start wait timer** (5 free minutes of simulated time, about 15 s at 20×). After it expires the driver can cancel. It's free, but it counts as a rider cancellation for priority points. |
-| **Request for someone else** | Ride options → **Someone else** → enter the passenger's name and phone (or *Fill sample*). The passenger needs no app or internet: the PIN and driver details go to them by SMS (simulated). Set the pickup pin to where they are. The driver sees the passenger's name and enters the passenger's PIN. |
+| **Request for someone else** | Ride options → **Someone else** → enter the passenger's name and phone (or *Fill sample*) and tick **The passenger is an adult woman** (required: children only ride with an adult woman, and no men ride). The passenger needs no app or internet: the PIN and driver details go to them by SMS (simulated). Set the pickup pin to where they are. The driver sees the passenger's name and enters the passenger's PIN. |
+| **Kids Guardian** | Ride options → **Children with her** → **+**. Children count among the passengers (up to 3, always with an adult, so 2 children means at least 3 passengers). With children on, tick **Child seat**: it adds the admin's surcharge (N$0 until set, see section 4a), which goes to the driver in full with no fee. The driver sees the children and the seat on the request card and again at the PIN screen; the receipt shows a *Child seat* line. Children never ride alone. |
+| **Map Expert / launch promotion** | Set them in the admin dashboard (section 4a). The driver's **Earnings** tab shows her fee now and why, and her request card and trip earnings use it. |
 | **Scheduled rides** | Ride options → **Schedule** → pick a time → **Schedule**. It appears under *Trips → Upcoming*. Tap **Simulate: it's time** to dispatch it. |
 | **Wheelchair-accessible** | Ride options → toggle *Wheelchair-accessible vehicle*. Only drivers who ticked *Wheelchair-accessible vehicle* when applying qualify; the demo driver hasn't, so register one through *Apply to drive* to show it. |
 | **Trip history / favourites** | Rider → **Trips** tab (past rides with fare, driver and rating) and **Safety** tab (emergency contacts, favourite drivers). |
@@ -95,7 +99,37 @@ Toggle **Presentation mode** in the top bar. The panel is kept simple:
 
 ---
 
+## 4a. Admin dashboard
+
+Open it with **Show → Admin** (or `?view=admin` in a second window), then **Sign in as demo admin**. Every change is written to the **Audit log** and reaches the phones at once.
+
+| Section | What it does | What changes on the phones |
+| --- | --- | --- |
+| **Overview** | Drivers online, trips, what riders paid, VARA fees, drivers' earnings, a live map and the live ride (children, locked price, the driver's fee) | — |
+| **Verifications** | Approve or reject a new rider's ID and selfie (a rejection needs a reason); approve a driver applicant's documents one by one, then her application | A rejected rider sees *Not approved* with the reason and uploads again; an approved driver can go online |
+| **Drivers** | Each driver's status, rating, priority points and fee now. **Grant** makes her a Map Expert until a date (at most 366 days); **Pause** with a reason stops her requests until **Release** | Her Earnings tab and next request card show the 15 % Map Expert fee; a paused driver sees *Requests paused* and the reason |
+| **Safety desk** | SOS alerts (**Acknowledge**), PIN-lockout incidents and drivers' reports. Closing an incident or report needs a written outcome | Acknowledging tells her the desk has her alert; closing a PIN incident releases the driver |
+| **Pricing** | Rates per ride type (base, per km, per minute, minimum, service fee 15–18 %), demand and surge, the **launch promotion** date (or **Launch today**) and the **child seat surcharge** | New quotes on the rider phone use the new rates at once; a ride already booked keeps its locked price |
+| **Trips** | Every finished trip: what the rider paid, the fee and which fee it was, the child seat surcharge and what the driver earned | — |
+| **Audit log** | Who changed what and when | — |
+
+**A 2-minute admin script:**
+
+1. Pricing → set the child seat surcharge to 30. On the rider phone, add 2 children and a child seat: the price goes up by N$30.
+2. Raise Comfort's per-km rate and save: the rider's Comfort price changes before she requests.
+3. Drivers → **Grant** Map Expert to the driver who is online: her Earnings tab shows 15 %.
+4. Book and finish the ride. The driver's earnings show the Map Expert fee and the surcharge with no fee taken; Trips shows the split.
+5. Pricing → **Launch today**: every driver now pays 13 % for 90 days, and the launch date can no longer be changed, as in the real console (**Reset demo** to try again).
+6. Drivers → **Pause** her with a reason, show her phone, then **Release**.
+7. Audit log.
+
+The sign-in is a demo button. In the real console staff sign in with a second factor, the session is an HttpOnly cookie with CSRF protection, and roles (support, safety, finance, admin) limit what each person can do.
+
+---
+
 ## 5. Pricing (N$)
+
+Starting rates (the admin dashboard can change them; see section 4a):
 
 | Option | Base | Per km | Per min | Minimum | Service fee |
 | --- | --- | --- | --- | --- | --- |
@@ -103,7 +137,13 @@ Toggle **Presentation mode** in the top bar. The panel is kept simple:
 | Comfort | N$20 | N$10 | N$1.50 | N$45 | 16.5% |
 | Soft Life | N$28 | N$13 | N$2.00 | N$60 | 18% |
 
-The price is locked when the rider requests: she pays exactly the quote, and the driver earns the quote minus the service fee, shown on her request card before she accepts. A detour, traffic or a skipped demo trip never changes it. The number of passengers (1–4) doesn't change the price either. There is no booking fee yet; how a ride fee will work is still to be decided. There are no cancellation or no-show fees either: cancellations cost priority points instead. The surge multiplier applies at High (1.4×) and Peak (1.8×) demand. VARA's service fee comes out of the driver's share, so drivers keep 97–98% of the fare. Rates are set in `OPTIONS` and `CFG` at the top of `public/js/engine.js`.
+The price is locked when the rider requests: she pays exactly the quote, and the driver earns the quote minus the service fee, shown on her request card before she accepts. A detour, traffic or a skipped demo trip never changes it. The number of passengers (1–4) doesn't change the price either. There is no booking fee yet; how a ride fee will work is still to be decided. There are no cancellation or no-show fees either: cancellations cost priority points instead. The surge multiplier applies at High (1.4×) and Peak (1.8×) demand. VARA's service fee comes out of the driver's share: she keeps 82–85 % of the fare.
+
+**Lower fees, as in the real app (the lowest that applies wins):** a **Map Expert** pays a flat 15 % on every ride type until the date the admin set. During the **launch promotion** every driver pays 13 % for 90 days from the launch date, then the normal fees come back by themselves. The driver's fee is booked when she accepts.
+
+**Child seat surcharge (Kids Guardian):** a flat amount the admin sets (N$0 until then, at most N$200), added to the rider's price when she brings children and asks for a child seat. The driver keeps all of it; no fee is taken on it.
+
+The starting rates are `OPTIONS` at the top of `public/js/engine.js`; the fee rules are in `CFG` and `feeFor`. Admin changes live in the demo state (`s.pricing`) until **Reset demo**.
 
 ---
 
@@ -163,6 +203,7 @@ demo/
         ├── rider.js     Rider portal
         ├── driver.js    Driver portal
         ├── debug.js     Presentation panel (simple live view for the audience)
+        ├── admin.js     Admin dashboard (ops console): verifications, drivers, safety desk, pricing, trips, audit log
         └── main.js      Stage layout, top bar, phone scaling
 ```
 

@@ -90,7 +90,14 @@
     PRIORITY_TRIP_GAIN: 2, // each completed trip earns points back
     PRIORITY_HOLD_PER: 15, // a rider loses her nearest driver for every 15 points below the start value
     PRIORITY_DRIVER_W: 0.3, // driver score shift per 100 points from the start value
+    // Fees, as in the real API: the lowest fee that applies wins.
+    FEE_MIN: 0.15, FEE_MAX: 0.18, // service fee range an admin may set per ride type
+    LAUNCH_PROMO_FEE: 0.13, LAUNCH_PROMO_DAYS: 90, // launch promotion: 13 % for 90 days from the launch date
+    MAP_EXPERT_FEE: 0.15, MAP_EXPERT_MAX_DAYS: 366, // Map Experts: flat 15 % until the date an admin sets
+    // Kids Guardian: children ride with an adult woman; a child seat costs a flat surcharge that goes to the driver.
+    MAX_CHILDREN: 3, KIDS_SURCHARGE_MAX: 200,
   };
+  const DAY_MS = 24 * 60 * 60 * 1000;
   const STATES = ['REQUESTED', 'SEARCHING', 'DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'PIN_VERIFIED', 'IN_TRIP', 'COMPLETED', 'RATED'];
   const DRIVER_LOCKED = new Set(['DRIVER_ASSIGNED', 'DRIVER_EN_ROUTE', 'DRIVER_ARRIVED', 'PIN_VERIFIED', 'IN_TRIP']);
   // No vehicle-registration document: a driver may be driving a car she doesn't own.
@@ -439,8 +446,9 @@
   // ---------------------------------------------------------------------------
   const speedMs = (s, kmh) => (kmh || CFG.SPEED_KMH) / 3.6 / s.traffic;
 
-  function fareFor(optionId, distKm, durMin, surge) {
-    const o = OPTIONS[optionId];
+  // Rates come from the admin's pricing (s.pricing.tiers); OPTIONS holds the names and the starting rates.
+  function fareFor(optionId, distKm, durMin, surge, rates) {
+    const o = rates || OPTIONS[optionId];
     const base = o.base, distance = o.perKm * distKm, time = o.perMin * durMin;
     const sub = base + distance + time;
     const subtotal = Math.max(o.min, sub);
@@ -458,9 +466,35 @@
     // The price uses the demand level's base traffic, not the live jitter, so the quote the rider sees
     // on the options screen is exactly what she is charged when she taps Request.
     const priceMin = roadM / (CFG.SPEED_KMH / 3.6 / DEMAND[s.settings.demand].traffic) / 60;
-    const f = fareFor(optionId, roadM / 1000, priceMin, s.surge);
+    const f = fareFor(optionId, roadM / 1000, priceMin, s.surge, s.pricing.tiers[optionId]);
     return { distKm: roadM / 1000, durMin, priceMin, total: f.total, low: r2(f.total * 0.93), high: r2(f.total * 1.12), surge: s.surge };
   }
+
+  function defaultPricing() {
+    const tiers = {};
+    for (const o of Object.values(OPTIONS)) tiers[o.id] = { base: o.base, perKm: o.perKm, perMin: o.perMin, min: o.min, serviceFee: o.serviceFee };
+    return { version: 1, tiers, launchPromo: { startsAt: null }, kidsSurcharge: 0 };
+  }
+
+  // The launch promotion runs for 90 days from the launch date the admin sets, then ends by itself.
+  function promoInfo(s, now) {
+    const at = s.pricing.launchPromo.startsAt;
+    if (at == null) return { state: 'unset' };
+    const t = now == null ? Date.now() : now, ends = at + CFG.LAUNCH_PROMO_DAYS * DAY_MS;
+    return { state: t < at ? 'scheduled' : t < ends ? 'active' : 'ended', startsAt: at, endsAt: ends, daysLeft: Math.max(0, Math.ceil((ends - Math.max(t, at)) / DAY_MS)) };
+  }
+
+  // The fee a driver pays on a ride type: her tier's fee, 15 % as a Map Expert, or 13 % during the launch
+  // promotion, whichever is lowest.
+  function feeFor(s, d, optionId, now) {
+    const t = now == null ? Date.now() : now;
+    let rate = s.pricing.tiers[optionId].serviceFee, why = 'tier';
+    if (d && d.mapExpertUntil && t < d.mapExpertUntil && CFG.MAP_EXPERT_FEE < rate) { rate = CFG.MAP_EXPERT_FEE; why = 'mapExpert'; }
+    if (promoInfo(s, t).state === 'active' && CFG.LAUNCH_PROMO_FEE < rate) { rate = CFG.LAUNCH_PROMO_FEE; why = 'promo'; }
+    return { rate, why };
+  }
+  const FEE_WHY = { tier: 'service fee', mapExpert: 'Map Expert fee', promo: 'launch promotion fee' };
+  const kidsFor = (r) => (r.kidsSurcharge || 0);
 
   /**
    * Dispatch ranking. Filters, in priority order:
@@ -482,7 +516,7 @@
       const straight = dist(d, pickup);
       let reason = null;
       if (!d.online) reason = 'Offline';
-      else if (d.hold) reason = 'On hold: safety review';
+      else if (d.hold) reason = d.hold.by === 'admin' ? 'Suspended by an admin' : 'On hold: safety review';
       else if (!signedIn(s, d.id)) reason = 'Not signed in on a phone';
       else if (d.busy) reason = 'On an active trip';
       else if (d.vehicle.type !== optionId) reason = 'Vehicle is ' + OPTIONS[d.vehicle.type].short;
@@ -608,6 +642,8 @@
       rider: seedRider(), drivers: SEED_DRIVERS.map(makeDriver), driverPortals: {},
       ride: null, sos: { rider: null, driver: null }, incidents: [],
       log: [], notices: [],
+      // Admin dashboard: prices it sets, finished trips for its numbers, and its audit log.
+      pricing: defaultPricing(), trips: [], reports: [], audit: [],
     };
     log(s, 'Demo reset — ' + s.drivers.length + ' verified women drivers seeded', 'system');
     return s;
@@ -626,6 +662,11 @@
   }
   const byId = (s, id) => s.drivers.find((d) => d.id === id);
   const fail = (error) => ({ ok: false, error });
+  function audit(s, action, detail, data) {
+    s.audit.unshift({ id: s.audit.length + 1, at: Date.now(), who: 'Admin (demo)', action, detail, data: data || null });
+    if (s.audit.length > 100) s.audit.length = 100;
+  }
+  function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }
   const code = () => Math.random().toString(36).slice(2, 8).toUpperCase();
 
   function setState(s, r, st) {
@@ -667,12 +708,18 @@
     const pk = rider.pickup;
     const pickup = { x: pk.x, y: pk.y, address: addressOf(pk), area: zoneOf(pk), near: approxArea(pk), street: streetOf(pk) };
     const est = estimate(s, pickup, dest, p.option);
+    // Kids Guardian: children count among the passengers, and a child seat adds the admin's flat surcharge.
+    const seats = seatsOf(p.seats);
+    const children = clamp(Math.round(Number(p.children) || 0), 0, Math.min(CFG.MAX_CHILDREN, seats - 1));
+    const childSeat = children > 0 && !!p.childSeat;
     const r = {
       id: 'VA-' + (4100 + s.seq++), state: 'REQUESTED', stateAt: s.realT, timeline: [{ state: 'REQUESTED', t: s.realT }],
-      option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), pickup, dest, pin: String(randInt(1000, 9999)), payment: p.payment || rider.payment,
+      option: p.option, wav: !!p.wav, seats, children, childSeat, kidsSurcharge: childSeat ? s.pricing.kidsSurcharge : 0, pickup, dest, pin: String(randInt(1000, 9999)), payment: p.payment || rider.payment,
       // Booked on behalf of someone without internet: they get the PIN and driver details by SMS.
-      passenger: p.passenger ? { name: String(p.passenger.name).slice(0, 40), phone: String(p.passenger.phone).slice(0, 30) } : null,
+      passenger: p.passenger ? { name: String(p.passenger.name).slice(0, 40), phone: String(p.passenger.phone).slice(0, 30), adult: true } : null,
       surge: s.surge, estimate: est, createdWall: Date.now(), scheduled: !!p.scheduled,
+      // Locked at request, so a price change by an admin never touches a ride already booked.
+      fareLocked: fareFor(p.option, est.distKm, est.priceMin, s.surge, s.pricing.tiers[p.option]), feeRate: null, feeWhy: null,
       approx: { x: pickup.x + rand(-160, 160), y: pickup.y + rand(-160, 160), r: 380 },
       search: { phase: 'scanning', radius: CFG.RADIUS, ranking: [], excluded: [], weights: null, offers: [], declined: [], offer: null },
       driverId: null, eta: { pickupMin: null, tripMin: est.durMin, at: s.realT },
@@ -681,7 +728,7 @@
       riderRating: null, driverRating: null, cancel: null, share: null, driverShare: null, reports: [], driverDone: false, driverCancelled: null,
     };
     s.ride = r;
-    log(s, 'Ride ' + r.id + ' requested: ' + OPTIONS[r.option].short + (r.wav ? ' (wheelchair accessible)' : '') + ' to ' + dest.name + ' · ' + r.seats + ' passenger' + (r.seats > 1 ? 's' : '') + ' · N$' + est.total.toFixed(2) + ' · PIN ' + r.pin, 'state');
+    log(s, 'Ride ' + r.id + ' requested: ' + OPTIONS[r.option].short + (r.wav ? ' (wheelchair accessible)' : '') + ' to ' + dest.name + ' · ' + r.seats + ' passenger' + (r.seats > 1 ? 's' : '') + (children ? ' + ' + children + (children > 1 ? ' children' : ' child') + (childSeat ? ' (child seat)' : '') : '') + ' · N$' + (est.total + r.kidsSurcharge).toFixed(2) + ' · PIN ' + r.pin, 'state');
     if (r.passenger) {
       notify(s, 'rider', 'PIN ' + r.pin + ' sent by SMS to ' + r.passenger.name + ' (' + r.passenger.phone + ')', 'ok');
       log(s, 'Booked for ' + r.passenger.name + ' · PIN and driver details sent by SMS to ' + r.passenger.phone + ' (no app needed)', 'info');
@@ -722,6 +769,10 @@
       d.busy = true;
       d.path = null;
       r.assignedAt = s.realT;
+      // The fee is booked when she accepts, from her own terms (tier, Map Expert or launch promotion).
+      const fee = feeFor(s, d, r.option);
+      r.feeRate = fee.rate;
+      r.feeWhy = fee.why;
       setState(s, r, 'DRIVER_ASSIGNED');
       refreshEta(s);
       log(s, d.name + ' accepted after ' + (entry.after / 1000).toFixed(1) + ' s', 'match');
@@ -841,23 +892,30 @@
     const distKm = Math.max(0.3, r.tripMeters / 1000);
     // The price is locked at request: the rider pays the quote, and the driver earns the quote minus
     // the service fee, however long the trip actually took (detours, traffic or a skipped demo trip).
-    r.fare = fareFor(r.option, r.estimate.distKm, r.estimate.priceMin != null ? r.estimate.priceMin : r.estimate.durMin, r.surge);
+    r.fare = r.fareLocked || fareFor(r.option, r.estimate.distKm, r.estimate.priceMin, r.surge, s.pricing.tiers[r.option]);
+    r.fare.kids = kidsFor(r);
+    r.fare.paid = r2(r.fare.total + r.fare.kids);
     r.durMin = durMin;
     r.distKm = distKm;
     r.rideCheck = null;
     r.stop = null;
     d.busy = false;
     d.path = null;
-    const net = r2(r.fare.total * (1 - OPTIONS[r.option].serviceFee));
+    // No fee is taken on the child seat surcharge: the driver keeps all of it.
+    if (r.feeRate == null) { const fee = feeFor(s, d, r.option); r.feeRate = fee.rate; r.feeWhy = fee.why; }
+    const feeAmt = r2(r.fare.total * r.feeRate);
+    const net = r2(r.fare.total - feeAmt + r.fare.kids);
     r.driverEarning = net;
+    r.fare.fee = feeAmt;
+    s.trips.unshift({ id: r.id, at: Date.now(), option: r.option, driverId: d.id, driverName: d.short, rider: s.rider.profile.name, paid: r.fare.paid, fare: r.fare.total, fee: feeAmt, feeRate: r.feeRate, feeWhy: r.feeWhy, kids: r.fare.kids, children: r.children, earned: net, to: r.dest.name });
     reward(s.rider.priority);
     reward(d.priority);
     d.stats.today = r2(d.stats.today + net);
     d.stats.trips++;
-    d.stats.recent.unshift({ rideId: r.id, rider: firstName(s.rider.profile.name), fare: r.fare.total, earned: net, at: Date.now(), to: r.dest.name, ratingFromRider: null, ratingGiven: null });
-    s.rider.history.unshift({ id: r.id, at: Date.now(), from: r.pickup.address, to: r.dest.name, driverId: d.id, driverName: d.short, option: r.option, fare: r.fare.total, rating: null, status: 'completed', payment: r.payment, distKm, durMin });
+    d.stats.recent.unshift({ rideId: r.id, rider: firstName(s.rider.profile.name), fare: r.fare.paid, earned: net, at: Date.now(), to: r.dest.name, ratingFromRider: null, ratingGiven: null });
+    s.rider.history.unshift({ id: r.id, at: Date.now(), from: r.pickup.address, to: r.dest.name, driverId: d.id, driverName: d.short, option: r.option, fare: r.fare.paid, rating: null, status: 'completed', payment: r.payment, distKm, durMin });
     setState(s, r, 'COMPLETED');
-    notify(s, 'rider', "You've arrived. Total fare N$" +r.fare.total.toFixed(2), 'ok');
+    notify(s, 'rider', "You've arrived. Total fare N$" + r.fare.paid.toFixed(2), 'ok');
     return { ok: true };
   }
 
@@ -1168,6 +1226,147 @@
       log(s, d.name + (d.busy ? ' started another trip (busy)' : ' finished her other trip (available)'), 'scenario');
     },
 
+    // ---- admin dashboard ----------------------------------------------------
+    // Every admin change is audited and takes effect on the phones straight away.
+    A_SET_RATES(s, p) {
+      const t = s.pricing.tiers[p.option];
+      if (!t) return fail('Unknown ride type');
+      const num = (v, lo, hi, name) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < lo || n > hi) throw new Error(name + ' must be between ' + lo + ' and ' + hi);
+        return r2(n);
+      };
+      const next = {
+        base: num(p.base, 0, 500, 'Base fare'), perKm: num(p.perKm, 0, 100, 'Per km'), perMin: num(p.perMin, 0, 50, 'Per minute'),
+        min: num(p.min, 0, 1000, 'Minimum fare'), serviceFee: num(p.feePct, CFG.FEE_MIN * 100, CFG.FEE_MAX * 100, 'Service fee %') / 100,
+      };
+      const before = { ...t };
+      if (Object.keys(next).every((k) => next[k] === before[k])) return fail('Nothing changed');
+      Object.assign(t, next);
+      s.pricing.version++;
+      audit(s, 'pricing.update', OPTIONS[p.option].name + ' rates → version ' + s.pricing.version, { before, after: next });
+      log(s, 'Admin changed ' + OPTIONS[p.option].name + ' rates (pricing version ' + s.pricing.version + '). New quotes use them; booked rides keep their locked price', 'system');
+    },
+    A_SET_DEMAND(s, p) {
+      if (!DEMAND[p.level]) return fail('Unknown demand level');
+      const before = s.settings.demand;
+      H.SET_DEMAND(s, p);
+      audit(s, 'pricing.surge', 'Demand ' + before + ' → ' + p.level + ' (' + DEMAND[p.level].surge.toFixed(1) + '×)');
+    },
+    // The launch date can be moved until the promotion starts; after that it is fixed, as in the real API.
+    A_SET_LAUNCH(s, p) {
+      const cur = promoInfo(s);
+      if (cur.state === 'active' || cur.state === 'ended') return fail('The promotion has started, so its launch date is fixed');
+      const at = p.date == null ? null : Date.parse(p.date + 'T00:00:00');
+      if (p.date != null && !Number.isFinite(at)) return fail('Pick a launch date');
+      if (at != null && at < startOfToday() - DAY_MS) return fail('The launch date cannot be in the past');
+      s.pricing.launchPromo.startsAt = at;
+      const info = promoInfo(s);
+      audit(s, 'pricing.launch_promo', at == null ? 'Launch date cleared' : 'Launch date ' + p.date + ' · 13 % fee until ' + new Date(info.endsAt).toISOString().slice(0, 10));
+      log(s, at == null ? 'Admin cleared the launch date' : 'Admin set the launch date to ' + p.date + (info.state === 'active' ? ': the 13 % launch fee applies from now' : ''), 'system');
+    },
+    A_SET_KIDS(s, p) {
+      const n = Number(p.amount);
+      if (!Number.isFinite(n) || n < 0 || n > CFG.KIDS_SURCHARGE_MAX) return fail('Child seat surcharge must be N$0–' + CFG.KIDS_SURCHARGE_MAX);
+      const before = s.pricing.kidsSurcharge;
+      s.pricing.kidsSurcharge = r2(n);
+      audit(s, 'settings.kids_surcharge', 'Child seat surcharge N$' + before.toFixed(2) + ' → N$' + s.pricing.kidsSurcharge.toFixed(2));
+      log(s, 'Admin set the child seat surcharge to N$' + s.pricing.kidsSurcharge.toFixed(2) + ' (the driver keeps all of it)', 'system');
+    },
+    A_MAP_EXPERT(s, p) {
+      const d = byId(s, p.driverId);
+      if (!d) return fail('No such driver');
+      const until = Date.parse(p.until + 'T23:59:59');
+      if (!Number.isFinite(until) || until <= Date.now()) return fail('Pick an end date in the future');
+      if (until > Date.now() + CFG.MAP_EXPERT_MAX_DAYS * DAY_MS) return fail('A Map Expert grant lasts at most ' + CFG.MAP_EXPERT_MAX_DAYS + ' days');
+      d.mapExpertUntil = until;
+      audit(s, 'driver.map_expert', d.name + ' is a Map Expert until ' + p.until);
+      notify(s, 'driver', "You're a VARA Map Expert until " + p.until + ': your fee is 15 % on every ride type', 'ok', d.id);
+      log(s, d.name + ' made a Map Expert until ' + p.until + ' (flat 15 % fee)', 'system');
+    },
+    A_MAP_EXPERT_END(s, p) {
+      const d = byId(s, p.driverId);
+      if (!d || !d.mapExpertUntil) return fail('She is not a Map Expert');
+      d.mapExpertUntil = null;
+      audit(s, 'driver.map_expert_end', d.name + ' is no longer a Map Expert');
+      log(s, d.name + ' is no longer a Map Expert', 'system');
+    },
+    A_SUSPEND(s, p) {
+      const d = byId(s, p.driverId);
+      if (!d) return fail('No such driver');
+      if (d.hold) return fail('She is already on hold');
+      if (s.ride && s.ride.driverId === d.id && DRIVER_LOCKED.has(s.ride.state)) return fail('She is on a trip. Wait until it ends');
+      const reason = String(p.reason || '').trim().slice(0, 200);
+      if (!reason) return fail('Write a reason');
+      d.hold = { by: 'admin', reason };
+      audit(s, 'driver.suspend', d.name + ': ' + reason);
+      notify(s, 'driver', 'Your account is paused by VARA. You get no requests until it is reviewed.', 'warn', d.id);
+      log(s, 'Admin paused ' + d.name + ' (' + reason + ')', 'safety');
+    },
+    A_RELEASE(s, p) {
+      const d = byId(s, p.driverId);
+      if (!d || !d.hold || d.hold.by !== 'admin') return fail('She is not paused by an admin');
+      d.hold = null;
+      audit(s, 'driver.release', d.name + ' can receive requests again');
+      notify(s, 'driver', 'VARA has finished its review. You can receive requests again.', 'ok', d.id);
+      log(s, 'Admin released ' + d.name, 'safety');
+    },
+    A_APPROVE_RIDER(s) {
+      if (!approveRider(s)) return fail('Nothing is waiting for approval');
+      audit(s, 'verification.approve', 'Rider ' + s.rider.profile.name + ': ID and selfie approved');
+    },
+    A_REJECT_RIDER(s, p) {
+      const v = s.rider.verification;
+      if (v.status !== 'pending') return fail('Nothing is waiting for approval');
+      const reason = String(p.reason || '').trim().slice(0, 200);
+      if (!reason) return fail('Write a reason');
+      Object.assign(v, { status: 'rejected', reason, id: false, selfie: false });
+      audit(s, 'verification.reject', 'Rider ' + s.rider.profile.name + ': ' + reason);
+      notify(s, 'rider', 'Your verification was not approved: ' + reason, 'err');
+      log(s, 'Rider verification rejected: ' + reason, 'system');
+    },
+    A_APPROVE_DOC(s, p) {
+      const dp = s.driverPortals[p.portal];
+      if (!dp || !DRIVER_DOCS.includes(p.doc) || dp.docs[p.doc].status !== 'review') return fail('That document is not in review');
+      dp.docs[p.doc].status = 'approved';
+      audit(s, 'document.approve', (dp.profile ? dp.profile.name : 'Applicant') + ': ' + p.doc);
+      log(s, 'Admin approved ' + (dp.profile ? dp.profile.name : 'an applicant') + "'s " + p.doc + ' document', 'system');
+    },
+    A_APPROVE_APPLICATION(s, p) {
+      const dp = s.driverPortals[p.portal];
+      if (!dp || dp.step !== 'review') return fail('That application is not waiting for review');
+      const name = dp.profile.name;
+      approvePortal(s, dp);
+      audit(s, 'driver.approve', name + ': application approved');
+    },
+    A_CLOSE_INCIDENT(s, p) {
+      const outcome = String(p.outcome || '').trim().slice(0, 300);
+      if (!outcome) return fail('Write the outcome');
+      const inc = s.incidents.find((x) => x.id === p.id);
+      const res = H.X_CLOSE_INCIDENT(s, p);
+      if (res) return res;
+      audit(s, 'incident.close', inc.id + ' (' + inc.kind + ', ' + inc.driverName + '): ' + outcome);
+    },
+    A_ACK_SOS(s, p) {
+      const a = s.sos[p.who];
+      if (!a || a.status !== 'sent') return fail('No SOS alert to acknowledge');
+      if (a.ack) return fail('Already acknowledged');
+      a.ack = true;
+      audit(s, 'sos.acknowledge', 'SOS from the ' + p.who + (a.rideId ? ' on ' + a.rideId : ''));
+      notify(s, p.who, 'The VARA safety desk has your alert and live location.', 'ok', a.driverId);
+      log(s, 'Safety desk acknowledged the ' + p.who + "'s SOS", 'safety');
+    },
+    A_CLOSE_REPORT(s, p) {
+      const rp = s.reports.find((x) => x.id === p.id);
+      if (!rp || rp.status !== 'open') return fail('Report already closed');
+      const outcome = String(p.outcome || '').trim().slice(0, 300);
+      if (!outcome) return fail('Write the outcome');
+      rp.status = 'closed';
+      rp.outcome = outcome;
+      audit(s, 'report.close', rp.id + ' (' + rp.reason + '): ' + outcome);
+      log(s, 'Report ' + rp.id + ' closed: ' + outcome, 'safety');
+    },
+
     // ---- rider: onboarding --------------------------------------------------
     R_GOTO(s, p) { s.rider.step = p.step; },
     R_DEMO_LOGIN(s) {
@@ -1235,13 +1434,15 @@
       if (!s.rider.onboarded || s.rider.verification.status !== 'verified') return fail('Verification required');
       if (!OPTIONS[p.option] || !p.dest) return fail('Choose a destination and ride type');
       if (p.passenger && (!p.passenger.name || !p.passenger.phone)) return fail("Enter the passenger's name and phone number");
+      if (p.passenger && !p.passenger.adult) return fail('Confirm the passenger is an adult woman. Children only ride with an adult.');
       newRide(s, p);
     },
     R_SCHEDULE(s, p) {
       if (!OPTIONS[p.option] || !p.dest || !p.when) return fail('Choose a destination, ride type and time');
+      if (p.passenger && !p.passenger.adult) return fail('Confirm the passenger is an adult woman. Children only ride with an adult.');
       const dp = snap(p.dest);
       const est = estimate(s, s.rider.pickup, dp, p.option);
-      s.rider.scheduled.push({ id: 'S' + s.seq++, when: p.when, option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), payment: p.payment, total: est.total, passenger: p.passenger || null, dest: { x: dp.x, y: dp.y, name: p.dest.name || addressOf(dp) }, low: est.low, high: est.high });
+      s.rider.scheduled.push({ id: 'S' + s.seq++, when: p.when, option: p.option, wav: !!p.wav, seats: seatsOf(p.seats), children: p.children || 0, childSeat: !!p.childSeat, payment: p.payment, total: r2(est.total + (p.childSeat && p.children > 0 ? s.pricing.kidsSurcharge : 0)), passenger: p.passenger || null, dest: { x: dp.x, y: dp.y, name: p.dest.name || addressOf(dp) }, low: est.low, high: est.high });
       notify(s, 'rider', 'Ride scheduled — we will dispatch a driver 10 minutes before pickup', 'ok');
       log(s, 'Ride scheduled for ' + p.when + ' → ' + (p.dest.name || 'dropped pin'), 'state');
     },
@@ -1291,7 +1492,7 @@
       const rec = d.stats.recent.find((x) => x.rideId === r.id);
       if (rec) rec.ratingFromRider = stars;
       notify(s, 'driver', firstName(s.rider.profile.name) + ' rated you ★' + stars, 'ok', d.id);
-      log(s, 'Rider paid N$' + r.fare.total.toFixed(2) + ' (' + r.payment + ') and rated driver ★' + stars, 'info');
+      log(s, 'Rider paid N$' + r.fare.paid.toFixed(2) + ' (' + r.payment + ') and rated driver ★' + stars, 'info');
       if (r.driverRating || r.driverDone) setState(s, r, 'RATED');
     },
     R_RIDECHECK(s, p) {
@@ -1463,6 +1664,8 @@
       const r = rideFor(s);
       if (!r) return fail('No trip');
       r.reports.push({ reason: p.reason, t: s.realT });
+      const d = byId(s, r.driverId);
+      s.reports.unshift({ id: 'RPT-' + (500 + s.seq++), rideId: r.id, reason: p.reason, by: d ? d.short : 'Driver', rider: s.rider.profile.name, at: Date.now(), status: 'open' });
       notify(s, 'driver', 'Report submitted. The VARA safety desk will review it.', 'ok', r.driverId);
       log(s, 'Driver reported rider: ' + p.reason, 'safety');
     },
@@ -1496,6 +1699,6 @@
     Sim, WORLD, BOUNDS, ROADS, PLACES, SUBURBS, HOME, HOTSPOTS, OPTIONS, DEMAND, CFG, STATES, DRIVER_DOCS,
     DEMO_DRIVER_IDS: SEED_DRIVERS.map((d) => d.id), seedDriverPortal,
     snap, route, roadDist, fromLatLng, toLatLng, searchPlaces, polyLen, pointAlong, remainingPath, distToPoly, nextTurn, dist, zoneOf, streetOf, addressOf, approxArea, nearestPlace,
-    estimate, fareFor, rankDrivers, speedMs,
+    estimate, fareFor, rankDrivers, speedMs, feeFor, promoInfo, FEE_WHY, DAY_MS,
   };
 });

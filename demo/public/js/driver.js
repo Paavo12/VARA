@@ -29,10 +29,10 @@
     o[parts[0]] = val;
   }
   // Ride-option picker: higher tiers charge riders more, so the driver sees the rates up front.
-  function tierPicker(selected) {
-    return '<div class="opt-list">' + Object.values(E.OPTIONS).map((o) => '<button class="opt-card" data-a="vtype" data-v="' + o.id + '"' + (o.id === selected ? ' aria-pressed="true"' : '') + '>' +
+  function tierPicker(s, selected) {
+    return '<div class="opt-list">' + Object.values(E.OPTIONS).map((o) => ({ ...o, ...s.pricing.tiers[o.id] })).map((o) => '<button class="opt-card" data-a="vtype" data-v="' + o.id + '"' + (o.id === selected ? ' aria-pressed="true"' : '') + '>' +
       '<div class="opt-main"><div class="opt-name">' + esc(o.name) + '</div><div class="tiny muted">' + esc(o.blurb) + '</div></div>' +
-      '<div class="opt-price">from ' + money(o.min) + '<span class="tiny muted">' + money(o.perKm) + '/km · ' + o.serviceFee * 100 + '% fee</span></div></button>').join('') + '</div>' +
+      '<div class="opt-price">from ' + money(o.min) + '<span class="tiny muted">' + money(o.perKm) + '/km · ' + pct(o.serviceFee) + ' fee</span></div></button>').join('') + '</div>' +
       '<p class="tiny muted">The higher the option, the higher the fare riders pay — and the more you earn per trip.</p>';
   }
 
@@ -42,14 +42,31 @@
     return firstName(p ? p.name : s.rider.profile.name);
   }
 
-  const seatsLabel = (r) => (r.seats || 1) + ' passenger' + ((r.seats || 1) > 1 ? 's' : '');
+  const seatsLabel = (r) => (r.seats || 1) + ' passenger' + ((r.seats || 1) > 1 ? 's' : '') +
+    (r.children ? ' incl. ' + r.children + (r.children > 1 ? ' children' : ' child') : '');
+  // Kids Guardian: what the driver must know before she accepts and at pickup.
+  const kidsNote = (r) => (r.children ? '<div class="note warn">' + ic('users') + '<span><b>' + r.children + (r.children > 1 ? ' children' : ' child') + ' riding with her.</b> ' +
+    (r.childSeat ? 'Bring a child seat' + (r.kidsSurcharge > 0 ? ': +' + money(r.kidsSurcharge) + ' child seat surcharge, all yours.' : '.') : 'No child seat requested.') + '</span></div>' : '');
+  const pct = (f) => +(f * 100).toFixed(1) + '%';
   // A guest booked by someone else has no account: she is not ID-verified and has no rating of her own.
   const riderBadge = (s, r) => (r && r.passenger
     ? ic('user', 'ic-xs') + 'Guest · booked by ' + esc(firstName(s.rider.profile.name)) + ' (verified)'
     : ic('star', 'star-ic', true) + s.rider.rating.toFixed(2) + ' · ' + ic('shieldCheck', 'ic-xs') + 'Verified');
   // The fare is locked at request, so the driver's take is known before she accepts.
   const pinLeftText = (r) => { const n = E.CFG.PIN_MAX_ATTEMPTS - r.pinErrors; return n + (n === 1 ? ' try' : ' tries') + ' left. Ask the rider to read it again'; };
-  const earnFor = (r) => r2(r.estimate.total * (1 - E.OPTIONS[r.option].serviceFee));
+  // Her fee is the lowest that applies to her (tier, Map Expert or launch promotion); the child seat surcharge is fee-free.
+  const earnFor = (s, d, r) => r2(r.estimate.total * (1 - E.feeFor(s, d, r.option).rate) + (r.kidsSurcharge || 0));
+
+  // Her fee on her ride type, and why: shown on the Earnings tab so a Map Expert grant or the launch promotion is visible.
+  function feeCard(s, d) {
+    const f = E.feeFor(s, d, d.vehicle.type), tier = s.pricing.tiers[d.vehicle.type].serviceFee;
+    const why = f.why === 'promo' ? 'Launch promotion · ' + E.promoInfo(s).daysLeft + ' days left'
+      : f.why === 'mapExpert' ? 'Map Expert until ' + new Date(d.mapExpertUntil).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' })
+        : E.OPTIONS[d.vehicle.type].name + ' service fee';
+    return '<div class="card fee-card"><div class="between"><div><div class="eyebrow">Your VARA fee</div><b class="fee-big">' + pct(f.rate) + '</b>' + (f.rate < tier ? ' <s class="tiny muted">' + pct(tier) + '</s>' : '') + '</div>' +
+      (f.why !== 'tier' ? '<span class="chip">' + ic(f.why === 'promo' ? 'zap' : 'pin') + esc(why) + '</span>' : '<span class="tiny muted">' + esc(why) + '</span>') + '</div></div>';
+  }
+  const feeKey = (s, d) => { const f = E.feeFor(s, d, d.vehicle.type); return f.rate + f.why; };
 
   function getPath(obj, path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj); }
 
@@ -194,7 +211,7 @@
                 avatar(d, 38) + '<div class="opt-main"><div class="opt-name">' + esc(d.name) + '</div><div class="tiny muted">' + esc(d.vehicle.color + ' ' + d.vehicle.make + ' ' + d.vehicle.model) + ' · ' + esc(d.vehicle.plate) + '</div></div>' +
                 '<div class="opt-price">' + ic('star', 'star-ic', true) + d.rating.toFixed(2) + '<span class="tiny muted">' + (taken[i] ? 'On another phone' : d.online ? 'Online' : 'Offline') + '</span></div></button>').join('') + '</div>' +
               (taken[demo.findIndex((d) => d.id === u.demoDriver)] ? '<p class="tiny muted">She is signed in on another phone. Signing in here signs her out there.</p>' : '') +
-              '<div class="eyebrow">Ride option</div>' + tierPicker(u.vehicle.type) +
+              '<div class="eyebrow">Ride option</div>' + tierPicker(s, u.vehicle.type) +
               '<div class="stack-sm push-bottom"><button class="btn btn-primary btn-block" data-a="demoLogin">Sign in as ' + esc(firstName((byId(s, u.demoDriver) || {}).name)) + '</button></div></div>',
           };
         }
@@ -229,7 +246,7 @@
             key: 'd-vehicle',
             html: () => '<div class="page">' + head('docs', 3) + '<h2 class="h2">Your vehicle</h2>' +
               '<div class="veh-preview">' + (v.photo ? '<img src="' + v.photo + '" alt="">' : carSVG(v.hex, v.wav)) + '<span class="plate">' + esc(v.plate || 'PLATE') + '</span></div>' +
-              '<div class="eyebrow">Ride option</div>' + tierPicker(v.type) +
+              '<div class="eyebrow">Ride option</div>' + tierPicker(s, v.type) +
               '<div class="grid2">' + field('Make', 'vehicle.make', 'text', 'Toyota') + field('Model', 'vehicle.model', 'text', 'Corolla') + field('Year', 'vehicle.year', 'number', '2022') + field('Plate number', 'vehicle.plate', 'text', 'N 1234 W') + '</div>' +
               '<div class="field"><span>Colour · ' + esc(v.color) + '</span><div class="swatches">' + COLORS.map(([n, h]) => '<button class="swatch' + (v.hex === h ? ' on' : '') + '" style="background:' + h + '" data-a="vcolor" data-v="' + n + '|' + h + '" title="' + n + '"></button>').join('') + '</div></div>' +
               '<label class="toggle-row"><span>' + ic('wheelchair') + ' Wheelchair-accessible vehicle</span><input type="checkbox" class="switch" data-m="vehicle.wav" data-rerender' + (v.wav ? ' checked' : '') + '></label>' +
@@ -299,13 +316,14 @@
             : '<div class="offer-top"><span class="eyebrow">Being offered to a better-matched driver</span></div>') +
           '<div class="req-rider"><span class="initial">' + esc(paxName(s)[0]) + '</span><div class="grow"><b>' + esc(paxName(s)) + '</b>' + (r.passenger ? '' : ' <span class="tiny">' + ic('star', 'star-ic', true) + rd.rating.toFixed(2) + '</span>') +
           '<div class="tiny muted">' + ic('shieldCheck', 'ic-xs') + (r.passenger ? 'Booked by ' + esc(firstName(rd.profile.name)) + ' (verified)' : 'Verified rider') + ' · ' + seatsLabel(r) + '</div></div>' +
-          '<div class="req-fare"><b>' + money(r.estimate.total) + '</b><div class="tiny muted">you earn ' + money(earnFor(r)) + '</div></div></div>' +
+          '<div class="req-fare"><b>' + money(r.estimate.total + (r.kidsSurcharge || 0)) + '</b><div class="tiny muted">you earn ' + money(earnFor(s, d, r)) + '</div></div></div>' +
+          (mine ? kidsNote(r) : '') +
           '<div class="req-loc">' + ic('pin') + '<div><b>' + esc(r.pickup.near) + '</b><div class="tiny muted">Approximate pickup area</div></div></div>' +
           '<div class="req-grid"><div><span class="tiny muted">To pickup</span><b data-b="reqDist"></b></div><div><span class="tiny muted">Trip length</span><b>~' + mins(r.estimate.durMin) + '</b></div><div><span class="tiny muted">Destination</span><b>' + ic('lock', 'ic-xs') + 'Hidden</b></div></div>' +
           (mine ? '<div class="privacy-note">' + ic('lock') + 'Exact pickup is revealed within 50 m, destination after PIN check.</div>' +
             '<div class="row gap"><button class="btn btn-soft grow" data-a="respond" data-v="0">Decline</button><button class="btn btn-primary grow btn-lg" data-a="respond" data-v="1">Accept</button></div>' : '') + '</div>';
       }
-      const key = 'mkt:' + d.id + ':' + (mine ? 'offer' + r.search.offers.length : other ? 'other' : '') + ':' + s.settings.demand + ':' + u.collapsed;
+      const key = 'mkt:' + d.id + ':' + (mine ? 'offer' + r.search.offers.length : other ? 'other' : '') + ':' + s.settings.demand + ':' + u.collapsed + ':' + E.feeFor(s, d, r ? r.option : d.vehicle.type).rate;
       const approx = r && (mine || other) ? r.approx : null;
       return {
         key,
@@ -393,6 +411,7 @@
           '<div class="pin-error" data-bshow="pinErr">' + ic('alert') + 'Incorrect PIN — <span data-b="pinLeft"></span></div>' +
           '<div class="keypad">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].map((k) => '<button data-a="key" data-v="' + k + '">' + k + '</button>').join('') + '</div></div>' +
           '<div class="loc-row locked">' + ic('flag') + '<div class="grow"><b>' + ic('lock', 'ic-xs') + 'Destination hidden until PIN is verified</b></div></div>' +
+          kidsNote(r) +
           (r.wait ? '<div class="note warn">' + ic('clock') + '<span data-b="wait"></span></div>' +
             (expired ? '<button class="btn btn-danger btn-block" data-a="noShow">Cancel — rider did not show up</button>' : '')
             : '<button class="btn btn-soft btn-block" data-a="startWait">' + ic('clock') + 'Rider not here? Start wait timer</button>') +
@@ -436,13 +455,14 @@
 
     tripDone(s, r, d) {
       const u = this.ui, f = r.fare;
-      const fee = r2(f.total - r.driverEarning);
+      const fee = f.fee != null ? f.fee : r2(f.paid - r.driverEarning);
       return {
         key: 'tdone:' + r.id + ':' + !!r.driverRating + ':' + !!r.riderRating,
         html: () => this.sos() + '<div class="page done-page">' +
           '<div class="done-hero"><div class="big-check">' + ic('check') + '</div><div class="h2">Trip complete</div><div class="small muted">' + esc(r.dest.name) + ' · ' + r.distKm.toFixed(1) + ' km · ' + Math.round(r.durMin) + ' min</div></div>' +
-          '<div class="card"><div class="eyebrow">Earnings</div><div class="fare-line"><span>Collect in cash</span><span>' + money(f.total) + '</span></div>' +
-          '<div class="fare-line"><span>VARA service fee (' + E.OPTIONS[r.option].serviceFee * 100 + '%)</span><span>−' + money(fee) + '</span></div>' +
+          '<div class="card"><div class="eyebrow">Earnings</div><div class="fare-line"><span>Collect in cash</span><span>' + money(f.paid) + '</span></div>' +
+          '<div class="fare-line"><span>VARA ' + E.FEE_WHY[r.feeWhy || 'tier'] + ' (' + pct(r.feeRate) + ')</span><span>−' + money(fee) + '</span></div>' +
+          (f.kids > 0 ? '<div class="fare-line"><span>Child seat surcharge (no fee)</span><span>' + money(f.kids) + '</span></div>' : '') +
           '<div class="fare-line total"><span>You earned</span><span>' + money(r.driverEarning) + '</span></div><div class="tiny muted">You keep the cash. The service fee is added to your VARA balance.</div></div>' +
           (r.driverRating ? '<div class="card"><div class="fare-line"><span>You rated ' + esc(paxName(s)) + '</span><span>' + stars(r.driverRating.stars) + '</span></div></div>'
             : '<div class="card"><div class="eyebrow">Rate your rider</div><b>How was ' + esc(paxName(s)) + '?</b>' +
@@ -468,11 +488,12 @@
     // She may stay online during the hold, but gets no requests until the safety desk closes the incident.
     onHold(s, d) {
       return {
-        key: 'hold:' + d.id + ':' + d.online,
+        key: 'hold:' + d.id + ':' + d.online + ':' + (d.hold.by || ''),
         map: { fit: [d], minSpan: 5200, cars: [{ id: d.id, x: d.x, y: d.y, h: d.heading, kind: 'muted' }], pad: { t: 100, r: 20, b: 380, l: 20 } },
         html: () => this.sos() + this.topbar(s, d) +
           '<div class="sheet with-tabs"><div class="h2">Requests paused</div>' +
-          '<div class="note warn">' + ic('shieldCheck') + '<span>After a PIN lockout you get no new requests until the VARA safety desk has reviewed it. They will contact you.</span></div></div>' + this.tabbar('drive'),
+          (d.hold.by === 'admin' ? '<div class="note warn">' + ic('shieldCheck') + '<span>VARA has paused your account while it reviews something: ' + esc(d.hold.reason) + '. You get no new requests until the review is done. They will contact you.</span></div></div>'
+            : '<div class="note warn">' + ic('shieldCheck') + '<span>After a PIN lockout you get no new requests until the VARA safety desk has reviewed it. They will contact you.</span></div></div>') + this.tabbar('drive'),
       };
     }
 
@@ -496,12 +517,13 @@
       week[today] = st.today;
       const max = Math.max(...week, 1);
       return {
-        key: 'earn:' + d.id + ':' + st.trips + ':' + st.recent.map((x) => '' + x.ratingFromRider + x.ratingGiven).join(),
+        key: 'earn:' + d.id + ':' + st.trips + ':' + st.recent.map((x) => '' + x.ratingFromRider + x.ratingGiven).join() + ':' + feeKey(s, d),
         vals: { today: money(st.today), hrs: (st.onlineMs / 3600000).toFixed(1) + ' h' },
         html: () => this.sos() + '<div class="page with-tabs"><div class="h1 page-title">Earnings</div>' +
           '<div class="earn-hero"><span class="tiny">Today</span><b data-b="today"></b><span class="tiny">' + st.trips + ' trips · <span data-b="hrs"></span> online</span></div>' +
           '<div class="bars">' + week.map((v, i) => '<div class="bar' + (i === today ? ' on' : '') + '"><i style="height:' + Math.max(4, (v / max) * 100) + '%"></i><span>' + DAYS[i][0] + '</span></div>').join('') + '</div>' +
           '<div class="stat-grid"><div><b>' + d.rating.toFixed(2) + '</b><span>Your rating</span></div><div><b>' + Math.round(d.acceptProb * 100) + '%</b><span>Acceptance</span></div><div><b>' + d.ratingCount.toLocaleString() + '</b><span>Rated trips</span></div></div>' +
+          feeCard(s, d) +
           '<div class="eyebrow">Recent trips</div>' +
           (st.recent.length ? st.recent.map((t) => '<div class="trip-item"><div class="ti-icon">' + ic('car') + '</div><div class="grow"><b>' + esc(t.rider) + ' → ' + esc(t.to) + '</b>' +
             '<div class="tiny">' + (t.ratingFromRider ? 'Rider rated you ' + stars(t.ratingFromRider) : '<span class="muted">Rider rating pending</span>') + '</div>' +
