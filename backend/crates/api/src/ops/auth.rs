@@ -82,7 +82,7 @@ pub struct StaffSession {
     responses(
         (status = 200, description = "Signed in; the session is in the `vara_ops` cookie (8 hours)", body = StaffSession),
         (status = 401, description = "Email, password or code is wrong (never says which)", body = ErrorBody),
-        (status = 429, description = "5 attempts per 15 minutes per account and IP", body = ErrorBody),
+        (status = 429, description = "5 attempts per 15 minutes per account and IP, 20 per hour per account", body = ErrorBody),
     )
 )]
 pub async fn login(
@@ -93,6 +93,9 @@ pub async fn login(
     let email_key: String =
         s.keys.hasher.hash("staff-email", req.email.as_str().as_bytes()).iter().take(12).map(|b| format!("{b:02x}")).collect();
     s.limiter.check("ops_login", &format!("{email_key}:{ip}"), s.limits.ops_login).await?;
+    // Also per account, whatever the address. A real staff member locked out by someone else's
+    // guessing waits an hour at most; an admin can see the failed attempts in the audit log.
+    s.limiter.check("ops_login_account", &email_key, s.limits.ops_login_account).await?;
 
     let row: Option<StaffRow> = sqlx::query_as(
         "SELECT id, password_hash, totp_secret, totp_last_step, roles::text[] FROM staff_users WHERE email = $1 AND disabled_at IS NULL",

@@ -16,6 +16,8 @@ locals {
     CLAMAV_ADDR     = "${local.internal_ip}:3310"
     ROUTING         = "osrm"
     OSRM_URL        = "http://${local.internal_ip}:5000"
+    # SOS texts and Share trip links (API and worker both send them).
+    TRIP_LINK_BASE = var.trip_link_base
   }
 
   # Secret env vars for the API and worker (name → Secret Manager secret).

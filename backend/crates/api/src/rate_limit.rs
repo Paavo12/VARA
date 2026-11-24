@@ -75,6 +75,8 @@ pub struct RateLimits {
     pub legal: Rule,
     /// `POST /ops/auth/login`, per account + IP.
     pub ops_login: Rule,
+    /// `POST /ops/auth/login`, per account from any IP: guessing spread over many addresses.
+    pub ops_login_account: Rule,
     /// Every signed-in ops request, per staff member.
     pub ops: Rule,
     /// Places search and naming the pickup pin, per user.
@@ -113,6 +115,7 @@ impl Default for RateLimits {
             storage: Rule::per_minute(60),
             legal: Rule::per_minute(60),
             ops_login: Rule { limit: 5, window_s: 900 },
+            ops_login_account: Rule::per_hour(20),
             ops: Rule::per_minute(300),
             places: Rule::per_minute(60),
             quote: Rule::per_minute(30),

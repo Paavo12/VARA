@@ -116,6 +116,8 @@ CREATE TABLE driver_profiles (
   can_go_online         boolean NOT NULL DEFAULT false,  -- maintained by document-expiry job
   payout_account        bytea,             -- 🔒 bank details
   map_expert_until      timestamptz,       -- flat 15 % fee on every tier until then (0015)
+  last_fix              geography(Point, 4326),  -- last believable position; kept when she goes offline (0018)
+  last_fix_at           timestamptz,       -- a new position further than 100 m + 150 km/h since then is ignored
   created_at            timestamptz NOT NULL DEFAULT now(),
   updated_at            timestamptz NOT NULL DEFAULT now()
 );

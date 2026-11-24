@@ -74,7 +74,7 @@ gcloud storage buckets update "gs://$PROJECT_ID-tfstate" --versioning
 
 ```bash
 cd infra/terraform
-cp terraform.tfvars.example terraform.tfvars   # set project_id; terraform.tfvars is git-ignored
+cp terraform.tfvars.example terraform.tfvars   # set project_id and trip_link_base; terraform.tfvars is git-ignored
 terraform init -backend-config="bucket=$PROJECT_ID-tfstate"
 ```
 
@@ -236,6 +236,10 @@ gcloud compute ssh fuber-staging-internal-services --zone=africa-south1-a --tunn
 The first ClamAV start downloads signatures, which takes a few minutes.
 
 ## Known gaps
+
+- **The Share trip page needs a real domain.** `trip_link_base` is required: SOS texts and
+  Share trip links point at it, and the API and worker refuse to start with a placeholder
+  domain such as `vara.example`. The website (which serves `/t/<token>`) must be live there.
 
 - **Uploads don't work on staging yet.** `STORAGE_BACKEND=local` writes to the container's
   own disk, which the worker can't see. The Cloud Storage backend is a later item

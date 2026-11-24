@@ -396,3 +396,45 @@ async fn wrong_user_and_wrong_app_access_is_refused_on_every_trip_endpoint() {
     }
     assert_eq!(t.driver_status(&trip.driver).await["ride"]["pin_attempts_left"], 5);
 }
+
+#[tokio::test]
+async fn a_position_no_car_could_reach_does_not_unlock_the_pickup() {
+    let t = setup!(relaxed());
+    let trip = t.accepted().await;
+    // About 600 m in no time at all: ignored, so the exact pickup stays locked.
+    t.report_position(&trip.driver, POST_ST_MALL).await;
+    assert_ne!(t.ride_state(&trip.id).await, "DRIVER_ARRIVED");
+    assert!(t.driver_status(&trip.driver).await["ride"]["pickup"]["address"].is_null());
+    // A small step (GPS noise or a short drive) still counts.
+    t.report_position(&trip.driver, (NEAR.0 - 0.0005, NEAR.1)).await;
+    let moved: f64 = sqlx::query_scalar("SELECT ST_Distance(location, ST_GeogFromText($2)) FROM driver_presence WHERE driver_id = $1")
+        .bind(trip.driver.user_id)
+        .bind(format!("POINT({} {})", NEAR.1, NEAR.0 - 0.0005))
+        .fetch_one(&t.state.db)
+        .await
+        .unwrap();
+    assert!(moved < 1.0, "{moved}");
+    // Once she could have driven there, the same position marks her arrived.
+    t.drive_to(&trip.driver, POST_ST_MALL).await;
+    assert_eq!(t.ride_state(&trip.id).await, "DRIVER_ARRIVED");
+}
+
+#[tokio::test]
+async fn going_offline_and_back_online_cannot_jump_to_the_pickup() {
+    let t = setup!(relaxed());
+    let trip = t.accepted().await;
+    assert_eq!(t.post("/v1/driver/offline", &trip.driver.access, json!({})).await.0, StatusCode::OK);
+    let (status, body) = t.post("/v1/driver/online", &trip.driver.access, json!({ "at": at(POST_ST_MALL) })).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    // She is back online at her last believable position, not at the pickup.
+    let from_pickup: f64 =
+        sqlx::query_scalar("SELECT ST_Distance(location, ST_GeogFromText($2)) FROM driver_presence WHERE driver_id = $1")
+            .bind(trip.driver.user_id)
+            .bind(format!("POINT({} {})", POST_ST_MALL.1, POST_ST_MALL.0))
+            .fetch_one(&t.state.db)
+            .await
+            .unwrap();
+    assert!(from_pickup > 400.0, "{from_pickup}");
+    assert_eq!(t.trip_action(&trip, "arrive", json!({})).await.0, StatusCode::CONFLICT);
+    assert_ne!(t.ride_state(&trip.id).await, "DRIVER_ARRIVED");
+}

@@ -200,6 +200,8 @@ Security
 12. [ ] Penetration test: no open High/Critical.
 13. [ ] Backups + restore drill done; encryption at rest confirmed.
 
+   **Internal security review, first pass (2026-11-24):** sign-in and sessions, object-level access on ride, chat, report, rating and upload endpoints, ops roles, CSRF and staff login, signed storage URLs, SQL building, token storage on the phones and the Terraform setup were reviewed by reading the code. Four findings, all fixed on `security/review-fixes`: (1) `TRIP_LINK_BASE` was not set in Terraform and the API accepted the `vara.example` placeholder, so SOS and Share trip links would not open; it is now required outside local and placeholder domains are refused; (2) the driver's reported position unlocks the exact pickup, and nothing stopped a modified app from jumping, so a position no car could reach since her last one (100 m plus 150 km/h) is now ignored, also across going offline and back online (migration 0018); device attestation (Play Integrity / App Attest) would close it fully; (3) `@sveltejs/adapter-node` 6.0.0 in the ops and website servers had a crash advisory, now 6.0.5, and CI fails on moderate advisories; (4) staff sign-in is also limited per account (20 per hour), not only per account and IP. Not yet covered: the ops console and website security headers and CSP, the upload sanitising path, deletion and retention end to end, the worker, and the external penetration test (item 12).
+
 Legal & policy
 
 14. [ ] Privacy Policy, Terms & Conditions, Driver Agreement and Cookie Policy reviewed by Namibian counsel and published at stable URLs; versions seeded in `legal_documents`.

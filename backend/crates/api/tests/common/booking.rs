@@ -178,8 +178,24 @@ impl T {
         Trip { id: ride["id"].as_str().unwrap().to_owned(), pin: ride["pin"].as_str().unwrap().to_owned(), rider, driver }
     }
 
-    /// Reports the driver's position the way the app does every few seconds.
+    /// Reports the driver's position the way the app does every few seconds, after enough time
+    /// for her to have driven there (positions no car could reach are ignored).
     pub async fn drive_to(&self, d: &Session, p: (f64, f64)) {
+        self.time_passes(d).await;
+        self.report_position(d, p).await;
+    }
+
+    /// An hour passes since her last accepted position.
+    pub async fn time_passes(&self, d: &Session) {
+        sqlx::query("UPDATE driver_profiles SET last_fix_at = last_fix_at - interval '1 hour' WHERE user_id = $1")
+            .bind(d.user_id)
+            .execute(&self.state.db)
+            .await
+            .unwrap();
+    }
+
+    /// Reports a position at once, with no time to get there.
+    pub async fn report_position(&self, d: &Session, p: (f64, f64)) {
         let (status, body) = self.put("/v1/driver/location", &d.access, json!({ "at": at(p), "speed_kmh": 30.0 })).await;
         assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
     }

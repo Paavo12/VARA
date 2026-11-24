@@ -13,7 +13,7 @@ use axum::{
 };
 use fuber_common::validate::LatLng;
 use fuber_db::{
-    presence::{self, NotEligible, Position},
+    presence::{self, Fix, NotEligible, Position},
     rides,
 };
 use fuber_domain::{Party, RideEvent};
@@ -112,6 +112,9 @@ pub async fn go_online(
     let at = req.position()?;
     let mut tx = s.db.begin().await?;
     match presence::go_online(&mut tx, user.user_id, user.session_id, at).await? {
+        Ok(online) if online.fix_ignored => {
+            tracing::warn!(security_event = "implausible_location", driver_id = %user.user_id, "going online: position ignored, kept her last one");
+        }
         Ok(_) => {}
         Err(NotEligible::Suspended) => {
             return Err(ApiError::forbidden("account_suspended", "Your account is suspended. Please contact VARA support."));
@@ -142,9 +145,16 @@ pub async fn go_offline(State(s): State<AppState>, DriverUser(user): DriverUser)
 
 /// Records a position. During a trip it also moves her car on the rider's map, marks her
 /// arrived within 50 m of the pickup and samples the trip track (`trip::on_location`).
+/// A position no car could have reached is dropped without telling the phone (it keeps
+/// reporting, and the next reachable position counts); the server logs it.
 pub(crate) async fn record_location(s: &AppState, user: &AuthUser, at: Position) -> Result<bool, ApiError> {
-    if !presence::update_location(&s.db, user.user_id, user.session_id, at).await? {
-        return Ok(false);
+    match presence::update_location(&s.db, user.user_id, user.session_id, at).await? {
+        Fix::Offline => return Ok(false),
+        Fix::Implausible => {
+            tracing::warn!(security_event = "implausible_location", driver_id = %user.user_id, "position ignored: too far from her last one");
+            return Ok(true);
+        }
+        Fix::Recorded => {}
     }
     trip::on_location(&s.db, user.user_id, LatLng { lat: at.lat, lon: at.lon }, at.heading, at.speed_kmh).await?;
     Ok(true)

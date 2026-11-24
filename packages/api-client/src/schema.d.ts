@@ -3902,7 +3902,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description 5 attempts per 15 minutes per account and IP */
+            /** @description 5 attempts per 15 minutes per account and IP, 20 per hour per account */
             429: {
                 headers: {
                     [name: string]: unknown;

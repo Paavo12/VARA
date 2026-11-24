@@ -1,6 +1,10 @@
 # Copy to terraform.tfvars (git-ignored) and fill in. No secrets belong here.
 project_id = "your-project-id"
 
+# Required: the website's Share trip page. SOS texts and Share trip links point here, so it must
+# be a real domain the website is served on (the API refuses to start with a placeholder).
+trip_link_base = "https://staging.your-domain/t"
+
 # Defaults suit staging; uncomment to change.
 # region            = "africa-south1"
 # zone              = "africa-south1-a"
