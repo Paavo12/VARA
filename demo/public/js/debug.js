@@ -9,9 +9,9 @@
 
   // What exists outside this simulation. Keep it in step with docs/06-implementation-plan.md.
   const PRODUCT_STATUS = [
-    ['Built, in testing (not live yet)', 'built', ['Phone sign-up, ID and document checks', 'Booking, locked fares and driver matching', 'PIN check and the block after 5 wrong PINs', 'SOS and the ops safety desk', 'Cash payments, 15–18% fees, ratings and earnings']],
-    ['Previewed here, not built yet', 'next', ['In-app chat (next up)', 'Share trip', 'RideCheck', 'Report an issue']],
-    ['Later', 'later', ['Card payments, after the cash pilot', 'Real SMS provider', 'Private calling', 'Direct emergency-services calling', 'Map Experts', 'Staffed 24/7 safety desk', 'Legal sign-off']],
+    ['Built, in testing (not live yet)', 'built', ['Phone sign-up, ID and document checks', 'Booking, locked fares and driver matching', 'PIN check and the block after 5 wrong PINs', 'SOS, Share trip, RideCheck, Report an issue and the safety desk', 'In-app chat', 'Cash payments, 15–18% fees, ratings, earnings and weekly settlements', 'Map Experts (15%) and the launch promotion (13% for 90 days)', 'Kids Guardian: children with her, child seat surcharge', 'Ops console: verifications, drivers, pricing, audit log']],
+    ['Previewed here, not built yet', 'next', ['Live map in the ops console (needs a map provider)', 'Separate staff roles in this demo admin (one demo admin here)']],
+    ['Later', 'later', ['Card payments, after the cash pilot', 'Real SMS provider and push notifications', 'Private calling', 'Direct emergency-services calling', 'Staffed 24/7 safety desk', 'Legal sign-off (incl. the age limit for boys; unaccompanied minors stay off)']],
   ];
   const statusList = () => PRODUCT_STATUS.map(([title, tone, items]) =>
     '<div class="status-group" data-tone="' + tone + '"><b>' + title + '</b><ul>' + items.map((x) => '<li>' + x + '</li>').join('') + '</ul></div>').join('');

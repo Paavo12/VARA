@@ -18,12 +18,13 @@
   document.getElementById('app').innerHTML =
     '<header class="topbar">' +
     '<div class="tb-brand"><span class="logo">' + ic('shieldCheck') + '</span><div><b>VARA</b><span>Women-only ride-hailing · Windhoek · Simulated demo</span></div></div>' +
-    '<div class="tb-group"><span class="tb-label">Show</span><div class="tb-seg" data-group="view"><button data-v="both">Both portals</button><button data-v="rider">Rider</button><button data-v="driver">Driver</button></div></div>' +
+    '<div class="tb-group"><span class="tb-label">Show</span><div class="tb-seg" data-group="view"><button data-v="both">Both portals</button><button data-v="rider">Rider</button><button data-v="driver">Driver</button><button data-v="admin">Admin</button><button data-v="all">Phones + admin</button></div></div>' +
     '<div class="tb-group"><span class="tb-label">Demand</span><div class="tb-seg" data-group="demand"><button data-v="normal">Normal</button><button data-v="high">High</button><button data-v="peak">Peak</button></div><span class="tb-surge" id="tbSurge"></span></div>' +
     '<div class="tb-right"><span class="tb-mode" id="tbMode"></span>' +
     '<label class="tb-toggle"><input type="checkbox" id="tbPres"><span>Presentation mode</span></label>' +
     '<button class="tb-reset" id="tbReset">' + ic('refresh') + '<span>Reset demo</span></button></div></header>' +
     '<main class="stage">' + phoneHtml('rider', 'Rider app', 'Book · track · stay safe') + phoneHtml('driver', 'Driver app', 'Accept · navigate · verify PIN') +
+    '<section class="admin-wrap" id="admin" aria-label="Admin dashboard"></section>' +
     '<aside class="debug" id="debug"></aside></main>';
 
   const riderEl = document.querySelector('[data-portal="rider"]');
@@ -32,25 +33,32 @@
   const driver = new DriverApp(driverEl);
   const debugEl = document.getElementById('debug');
   const debug = new DebugPanel(debugEl);
+  const adminEl = document.getElementById('admin');
+  const admin = new AdminApp(adminEl);
 
   // View / presentation state
   let view = params.get('view') || store.get('view', 'both');
   let pres = params.has('debug') ? params.get('debug') !== '0' : store.get('pres', '1') === '1';
-  const solo = params.has('view') && window.matchMedia('(max-width: 600px)').matches;
+  const solo = params.has('view') && view !== 'admin' && view !== 'all' && window.matchMedia('(max-width: 600px)').matches;
   if (solo) document.body.classList.add('solo');
 
   function applyLayout() {
-    riderEl.hidden = view === 'driver';
-    driverEl.hidden = view === 'rider';
-    debugEl.hidden = !pres || solo;
+    // The admin dashboard is a desktop screen: on its own, or next to both phones.
+    riderEl.hidden = view === 'driver' || view === 'admin';
+    driverEl.hidden = view === 'rider' || view === 'admin';
+    adminEl.hidden = view !== 'admin' && view !== 'all';
+    document.body.classList.toggle('admin-only', view === 'admin');
+    debugEl.hidden = !pres || solo || view === 'admin';
     for (const b of document.querySelectorAll('[data-group="view"] button')) b.setAttribute('aria-pressed', String(b.dataset.v === view));
     document.getElementById('tbPres').checked = pres;
     fit();
+    admin.render(Store.state, true);
   }
 
   function fit() {
     if (solo) return;
     const top = document.querySelector('.topbar').offsetHeight;
+    document.documentElement.style.setProperty('--tbh', top + 'px');
     const avail = window.innerHeight - top - 64;
     const s = Math.max(0.5, Math.min(1, avail / 844));
     document.documentElement.style.setProperty('--ps', s.toFixed(3));
@@ -98,6 +106,7 @@
     rider.render(s);
     driver.render(s);
     debug.render(s);
+    admin.render(s);
     for (const b of document.querySelectorAll('[data-group="demand"] button')) b.setAttribute('aria-pressed', String(b.dataset.v === s.settings.demand));
     const sg = document.getElementById('tbSurge');
     sg.textContent = s.surge > 1 ? s.surge.toFixed(1) + '× surge' : '1.0× no surge';

@@ -50,7 +50,7 @@
         modal: null, signup: { name: '', contact: '', password: '', photo: null }, contacts: [{ name: '', phone: '' }],
         consent: { sos: true, rideCheck: true, shareEta: true }, idPreview: null, selfiePreview: null,
         rating: { stars: 0, tags: [], favourite: false, comment: '' }, payMethod: null, chat: '', newContact: { name: '', phone: '' },
-        callStart: 0, forOther: false, guest: { name: '', phone: '' }, seats: 1,
+        callStart: 0, forOther: false, guest: { name: '', phone: '', adult: false }, seats: 1, children: 0, childSeat: false,
       };
     }
 
@@ -169,7 +169,9 @@
               '<button class="btn btn-sm btn-link" data-a="sampleDoc" data-v="' + doc + '">Sample</button></div>') + '</div>';
         };
         let status = '';
-        if (v.status === 'none') status = '<button class="btn btn-primary btn-block" data-a="submitVerify"' + (v.id && v.selfie ? '' : ' disabled') + '>Submit for verification</button>';
+        if (v.status === 'rejected') status = '<div class="note warn">' + ic('alert') + '<span><b>Not approved.</b> ' + esc(v.reason || '') + ' Upload your documents again.</span></div>' +
+          '<button class="btn btn-primary btn-block" data-a="submitVerify"' + (v.id && v.selfie ? '' : ' disabled') + '>Submit for verification</button>';
+        else if (v.status === 'none') status = '<button class="btn btn-primary btn-block" data-a="submitVerify"' + (v.id && v.selfie ? '' : ' disabled') + '>Submit for verification</button>';
         else if (v.status === 'pending') status = '<div class="verify-state pending">' + ic('clock') + '<div><b>Pending verification</b><div class="tiny muted">Our safety team is reviewing your documents</div></div></div>' +
           '<button class="btn btn-primary btn-block" data-a="approveNow">' + ic('shieldCheck') + 'Approve verification</button>';
         else status = '<div class="verify-state verified"><div class="big-check">' + ic('check') + '</div><div><b>Verified</b><div class="tiny muted">Welcome to a women-only community</div></div></div>' +
@@ -298,13 +300,15 @@
         if (first) u.option = first.o.id;
       }
       const sel = opts.find((x) => x.o.id === u.option) || opts[0];
+      // Kids Guardian: the child seat surcharge comes on top of the locked fare.
+      const kids = u.children > 0 && u.childSeat ? s.pricing.kidsSurcharge : 0;
       const pay = u.payMethod || s.rider.payment;
       const vals = {};
       for (const x of opts) vals['eta_' + x.o.id] = x.avail ? mins(x.best) + ' away' : (u.wav ? 'No accessible car online within 3 km' : 'No driver online within 3 km');
       vals.tripLine = sel.est.distKm.toFixed(1) + ' km · ~' + mins(sel.est.durMin) + ' trip · arrive ~' + arriveAt(sel.est.durMin + (sel.best || 0));
       const route = E.route(pk, dest);
       return {
-        key: 'opts:' + dest.x + ',' + dest.y + ':' + s.surge + ':' + opts.map((x) => x.avail ? 1 : 0).join('') + ':' + pay,
+        key: 'opts:' + dest.x + ',' + dest.y + ':' + s.surge + ':' + opts.map((x) => x.avail ? 1 : 0).join('') + ':' + pay + ':' + s.pricing.version + ':' + s.pricing.kidsSurcharge,
         map: { fit: [pk, dest], route, pickup: { x: pk.x, y: pk.y, label: 'Pickup' }, dest: { x: dest.x, y: dest.y, label: shortName(dest.name) }, cars: this.nearbyCars(s, pk), minSpan: 1400, pad: { t: 90, r: 40, b: 560, l: 40 } },
         vals,
         html: () => this.sos() + '<button class="icon-btn float-back" data-a="flow" data-v="search">' + ic('chevronLeft') + '</button>' +
@@ -315,8 +319,13 @@
           '<div class="seg"><button data-a="rideFor" data-v="me"' + (u.forOther ? '' : ' aria-pressed="true"') + '>' + ic('user') + 'For me</button>' +
           '<button data-a="rideFor" data-v="other"' + (u.forOther ? ' aria-pressed="true"' : '') + '>' + ic('users') + 'Someone else</button></div>' +
           (u.forOther ? '<div class="grid2">' + this.field('Passenger name', 'guest.name', 'text', 'e.g. Ndapandula Shikongo') + this.field('Passenger phone', 'guest.phone', 'tel', '+264 81 …') + '</div>' +
-            '<div class="note">' + ic('message') + '<span>They do not need the app or internet. We text them the PIN and driver details by SMS. Set the pickup pin to where they are. <button class="btn-link" data-a="fillGuest">Fill sample</button></span></div>' : '') +
-          '<div class="eyebrow">Passengers · women only</div><div class="seg">' + [1, 2, 3, 4].map((n) => '<button data-a="seats" data-v="' + n + '"' + (u.seats === n ? ' aria-pressed="true"' : '') + '>' + ic(n > 1 ? 'users' : 'user') + n + '</button>').join('') + '</div>' +
+            '<div class="note">' + ic('message') + '<span>They do not need the app or internet. We text them the PIN and driver details by SMS. Set the pickup pin to where they are. <button class="btn-link" data-a="fillGuest">Fill sample</button></span></div>' +
+            '<label class="toggle-row"><span>The passenger is an adult woman<br><small class="muted">Children only ride with an adult woman</small></span><input type="checkbox" class="switch" data-live="guestAdult"' + (u.guest.adult ? ' checked' : '') + '></label>' : '') +
+          '<div class="eyebrow">Passengers · women and their children</div><div class="seg">' + [1, 2, 3, 4].map((n) => '<button data-a="seats" data-v="' + n + '"' + (u.seats === n ? ' aria-pressed="true"' : '') + (n < u.children + 1 ? ' disabled' : '') + '>' + ic(n > 1 ? 'users' : 'user') + n + '</button>').join('') + '</div>' +
+          '<div class="kids-row"><div class="grow"><b>Children with her</b><div class="tiny muted">Count every child in the passengers</div></div>' +
+          '<div class="stepper"><button data-a="kids" data-v="-1" aria-label="Fewer children"' + (u.children <= 0 ? ' disabled' : '') + '>−</button><output>' + u.children + '</output>' +
+          '<button data-a="kids" data-v="1" aria-label="More children"' + (u.children >= E.CFG.MAX_CHILDREN ? ' disabled' : '') + '>+</button></div></div>' +
+          (u.children > 0 ? '<label class="toggle-row"><span>Child seat' + (s.pricing.kidsSurcharge > 0 ? ' (+' + money(s.pricing.kidsSurcharge) + ')' : ' (no charge)') + '</span><input type="checkbox" class="switch" data-live="childSeat"' + (u.childSeat ? ' checked' : '') + '></label>' : '') +
           '<div class="opt-list">' + opts.map((x) => '<button class="opt-card" data-a="opt" data-v="' + x.o.id + '"' + (x.o.id === u.option ? ' aria-pressed="true"' : '') + (x.avail ? '' : ' disabled') + '>' +
             '<div class="opt-car">' + carSVG(x.o.id === 'softlife' ? '#6b2c91' : x.o.id === 'comfort' ? '#47506a' : '#e0457b', u.wav) + '</div>' +
             '<div class="opt-main"><div class="opt-name">' + esc(x.o.name) + '</div><div class="tiny muted">' + esc(x.o.blurb) + '</div><div class="tiny strong" data-b="eta_' + x.o.id + '"></div></div>' +
@@ -326,8 +335,9 @@
           (u.when === 'later' ? '<label class="field"><span>Pickup time</span><input class="input" type="datetime-local" data-m="schedAt" value="' + esc(u.schedAt) + '"></label>' : '') +
           '<div class="row gap"><button class="pay-chip" data-a="cyclePay">' + ic(PAY[pay].icon) + PAY[pay].label + '</button>' +
           '<span class="badge-wo">' + ic('shieldCheck') + 'Women-only</span></div>' +
-          '<button class="btn btn-primary btn-block btn-lg" data-a="request"' + (sel.avail ? '' : ' disabled') + '>' + (u.when === 'later' ? 'Schedule ' : 'Request ') + esc(sel.o.short) + ' · ' + money(sel.est.total) + '</button>' +
-          '<p class="tiny muted center">Up to ' + E.CFG.MAX_SEATS + ' passengers · no shared rides with strangers · price locked at request</p></div>',
+          '<button class="btn btn-primary btn-block btn-lg" data-a="request"' + (sel.avail ? '' : ' disabled') + '>' + (u.when === 'later' ? 'Schedule ' : 'Request ') + esc(sel.o.short) + ' · ' + money(sel.est.total + kids) + '</button>' +
+          '<p class="tiny muted center">Up to ' + E.CFG.MAX_SEATS + ' passengers · no shared rides with strangers · price locked at request</p>' +
+          '<p class="tiny muted center">Verified women and their young children only. Children never ride alone.</p></div>',
       };
     }
 
@@ -373,7 +383,7 @@
             '<div class="searching-head"><div class="radar"><span></span><span></span>' + ic('car') + '</div><div><div class="h2">Finding your driver…</div><div class="small muted" data-b="searchSub"></div></div></div>' +
             '<div class="offer-timer" data-bshow="offerShow"><div data-bw="offerPct"></div></div>' +
             '<ul class="check-list"><li>' + ic('check') + 'Only verified women drivers</li><li>' + ic('check') + 'No shared rides with strangers</li><li>' + ic('check') + 'Your exact address is shared only on arrival</li></ul>' +
-            '<div class="trip-mini">' + ic('car') + '<span><b>' + esc(opt.short) + '</b> to ' + esc(r.dest.name) + (r.passenger ? ' · for ' + esc(firstName(r.passenger.name)) : '') + ' · ' + r.seats + ' passenger' + (r.seats > 1 ? 's' : '') + '</span><span class="grow"></span><b>' + money(r.estimate.total) + '</b></div>' +
+            '<div class="trip-mini">' + ic('car') + '<span><b>' + esc(opt.short) + '</b> to ' + esc(r.dest.name) + (r.passenger ? ' · for ' + esc(firstName(r.passenger.name)) : '') + ' · ' + r.seats + ' passenger' + (r.seats > 1 ? 's' : '') + (r.children ? ' incl. ' + r.children + (r.children > 1 ? ' children' : ' child') : '') + '</span><span class="grow"></span><b>' + money(r.estimate.total + (r.kidsSurcharge || 0)) + '</b></div>' +
             '<button class="btn btn-ghost btn-block" data-a="cancelRide">Cancel request</button>') +
           '</div>',
       };
@@ -470,8 +480,9 @@
           line('Base fare', money(f.base)) + line('Distance (' + f.distKm.toFixed(1) + ' km)', money(f.distance)) + line('Time (' + Math.round(f.durMin) + ' min)', money(f.time)) +
           (f.minAdj > 0 ? line('Minimum fare adjustment', money(f.minAdj)) : '') +
           (f.surge > 1 ? line('Demand multiplier ' + f.surge.toFixed(1) + '×', money(f.surgeAmt), 'surge') : '') +
-          line('Total', money(f.total), 'total') + '</div>' +
-          (rated ? '<div class="note ok">' + ic('check') + '<span><b>Paid ' + money(f.total) + '.</b> Waiting for ' + esc(d.first) + ' to rate the trip…</span></div>' :
+          (f.kids > 0 ? line('Child seat', money(f.kids)) : '') +
+          line('Total', money(f.paid), 'total') + '</div>' +
+          (rated ? '<div class="note ok">' + ic('check') + '<span><b>Paid ' + money(f.paid) + '.</b> Waiting for ' + esc(d.first) + ' to rate the trip…</span></div>' :
             '<div class="card"><div class="eyebrow">Pay with</div><div class="pay-list">' + Object.entries(PAY).map(([k, p]) =>
               '<button class="pay-opt" data-a="payMethod" data-v="' + k + '"' + (pay === k ? ' aria-pressed="true"' : '') + '>' + ic(p.icon) + '<span class="grow">' + p.label + ' · pay your driver</span><i class="radio"></i></button>').join('') + CARD_SOON + '</div></div>' +
             '<div class="card"><div class="rate-head">' + avatar(d, 48) + '<div><div class="eyebrow">Rate your driver</div><b>How was your ride with ' + esc(d.first) + '?</b></div></div>' +
@@ -479,7 +490,7 @@
             '<div class="tag-list">' + RATE_TAGS.map((t) => '<button class="tag' + (u.rating.tags.includes(t) ? ' on' : '') + '" data-a="tag" data-v="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>' +
             '<label class="toggle-row fav-row"><span>' + ic('heart', '', true) + ' Add ' + esc(d.first) + ' to Favourite Drivers<br><small class="muted">Favourites get priority when they\'re nearby</small></span><input type="checkbox" class="switch" data-m="rating.favourite"' + (u.rating.favourite ? ' checked' : '') + '></label>' +
             '<textarea class="input" rows="2" placeholder="Add a comment (optional)" data-m="rating.comment">' + esc(u.rating.comment) + '</textarea></div>' +
-            '<button class="btn btn-primary btn-block btn-lg" data-a="payRate"' + (u.rating.stars ? '' : ' disabled') + '>Pay ' + money(f.total) + ' in cash & submit rating</button>') +
+            '<button class="btn btn-primary btn-block btn-lg" data-a="payRate"' + (u.rating.stars ? '' : ' disabled') + '>Pay ' + money(f.paid) + ' in cash & submit rating</button>') +
           '</div>',
       };
     }
@@ -488,7 +499,7 @@
       return {
         key: 'rated:' + r.id + ':' + !!r.driverRating,
         html: () => this.sos() + '<div class="page done-page"><div class="done-hero"><div class="big-check">' + ic('heart', '', true) + '</div><div class="h2">Thanks for riding with VARA</div>' +
-          '<div class="small muted">Paid ' + money(r.fare.total) + ' with ' + PAY[r.payment].label + '</div></div>' +
+          '<div class="small muted">Paid ' + money(r.fare.paid) + ' with ' + PAY[r.payment].label + '</div></div>' +
           '<div class="card"><div class="fare-line"><span>You rated ' + esc(d.first) + '</span><span>' + stars(r.riderRating.stars) + '</span></div>' +
           '<div class="fare-line"><span>' + esc(d.first) + ' rated you</span><span>' + (r.driverRating ? stars(r.driverRating.stars) : '<span class="tiny muted">' + (r.driverDone ? 'not rated' : 'pending…') + '</span>') + '</span></div>' +
           (s.rider.favourites.includes(d.id) ? '<div class="note ok">' + ic('heart', '', true) + '<span>' + esc(d.first) + ' is in your Favourite Drivers. She\'ll get priority when nearby.</span></div>' : '') + '</div>' +
@@ -660,6 +671,8 @@
     async onChange(e) {
       const el = e.target;
       if (el.dataset.live === 'wav') { this.set({ wav: el.checked }); return; }
+      if (el.dataset.live === 'childSeat') { this.set({ childSeat: el.checked }); return; }
+      if (el.dataset.live === 'guestAdult') { this.ui.guest.adult = el.checked; this.set({}); return; }
       if (el.dataset.consent) { this.act('R_SET_CONSENT', { key: el.dataset.consent, value: el.checked }); return; }
       if (el.dataset.file) {
         const img = await Hera.readImage(el.files[0], el.dataset.file === 'photo' ? 128 : 96);
@@ -718,7 +731,13 @@
         case 'opt': this.set({ option: v }); break;
         case 'rideFor': this.set({ forOther: v === 'other' }); break;
         case 'seats': this.set({ seats: Number(v) }); break;
-        case 'fillGuest': this.set({ guest: { name: 'Ndapandula Shikongo', phone: '+264 81 555 0177' } }); break;
+        case 'kids': {
+          const n = Math.max(0, Math.min(E.CFG.MAX_CHILDREN, u.children + Number(v)));
+          // Children ride with an adult: never fewer passengers than children + 1.
+          this.set({ children: n, seats: Math.max(u.seats, Math.min(E.CFG.MAX_SEATS, n + 1)), childSeat: n > 0 && u.childSeat });
+          break;
+        }
+        case 'fillGuest': this.set({ guest: { name: 'Ndapandula Shikongo', phone: '+264 81 555 0177', adult: u.guest.adult } }); break;
         case 'when': this.set({ when: v }); break;
         case 'cyclePay': {
           const keys = Object.keys(PAY), cur = u.payMethod || s.rider.payment;
@@ -727,8 +746,9 @@
         }
         case 'request': {
           if (u.forOther && (!u.guest.name.trim() || !u.guest.phone.trim())) return toast(this.phone, "Enter the passenger's name and phone number", 'err');
-          const passenger = u.forOther ? { name: u.guest.name.trim(), phone: u.guest.phone.trim() } : null;
-          const payload = { option: u.option, wav: u.wav, seats: u.seats, dest: u.dest, payment: u.payMethod || s.rider.payment, passenger };
+          if (u.forOther && !u.guest.adult) return toast(this.phone, 'Confirm the passenger is an adult woman. Children only ride with an adult.', 'err');
+          const passenger = u.forOther ? { name: u.guest.name.trim(), phone: u.guest.phone.trim(), adult: true } : null;
+          const payload = { option: u.option, wav: u.wav, seats: u.seats, children: u.children, childSeat: u.children > 0 && u.childSeat, dest: u.dest, payment: u.payMethod || s.rider.payment, passenger };
           if (u.when === 'later') {
             const r = await this.act('R_SCHEDULE', { ...payload, when: u.schedAt });
             if (r.ok) this.set({ flow: 'idle', tab: 'trips', dest: null });
