@@ -240,10 +240,7 @@ pub async fn contacts(State(s): State<AppState>, user: AuthUser) -> Result<Json<
         .into_iter()
         .map(|(name, phone)| {
             let phone = s.keys.sealer.open_str(CONTACT_PHONE_AAD, &phone).map_err(ApiError::internal)?;
-            Ok(EmergencyContact {
-                name: PersonName::parse(&name).map_err(|e| ApiError::internal(e.0))?,
-                phone: PhoneE164::parse(&phone).map_err(|e| ApiError::internal(e.0))?,
-            })
+            Ok(EmergencyContact { name: PersonName::stored(name), phone: PhoneE164::parse(&phone).map_err(|e| ApiError::internal(e.0))? })
         })
         .collect::<Result<_, ApiError>>()?;
     Ok(Json(EmergencyContacts { contacts }))

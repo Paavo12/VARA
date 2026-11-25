@@ -246,14 +246,29 @@ pub async fn erase_account(ctx: &Ctx, user_id: Uuid) -> Result<(), JobError> {
         "DELETE FROM ride_messages m USING rides r
          WHERE r.id = m.ride_id AND (r.rider_id = $1 OR m.driver_id = $1)
            AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = m.ride_id AND i.hold_data)",
+        // So is the GPS track (her home, her routes), on the same terms.
+        "DELETE FROM ride_track_points p USING rides r
+         WHERE r.id = p.ride_id AND (r.rider_id = $1 OR r.driver_id = $1)
+           AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = p.ride_id AND i.hold_data)",
+        // Her rides stay for accounting (schema §12) but anonymised: no guest's name or number,
+        // no addresses, and the points kept only to ~1 km.
+        "UPDATE rides r SET guest_name = NULL, guest_phone = NULL, pickup_address = '', dropoff_address = '',
+                pickup = ST_SnapToGrid(pickup::geometry, 0.01)::geography,
+                pickup_fuzzed = ST_SnapToGrid(pickup_fuzzed::geometry, 0.01)::geography,
+                dropoff = ST_SnapToGrid(dropoff::geometry, 0.01)::geography
+         WHERE r.rider_id = $1
+           AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = r.id AND i.hold_data)",
         "DELETE FROM identity_verifications WHERE user_id = $1",
         "DELETE FROM driver_documents WHERE driver_id = $1",
         "DELETE FROM uploads WHERE user_id = $1",
         "DELETE FROM emergency_contacts WHERE user_id = $1",
         "DELETE FROM saved_places WHERE user_id = $1",
+        "DELETE FROM favourite_drivers WHERE rider_id = $1 OR driver_id = $1",
         "DELETE FROM payment_methods WHERE user_id = $1",
         "DELETE FROM sessions WHERE user_id = $1",
-        "UPDATE driver_profiles SET payout_account = NULL, active_vehicle_id = NULL, can_go_online = false WHERE user_id = $1",
+        "UPDATE driver_profiles SET payout_account = NULL, active_vehicle_id = NULL, can_go_online = false,
+                                    last_fix = NULL, last_fix_at = NULL
+         WHERE user_id = $1",
         "DELETE FROM vehicles v WHERE driver_id = $1 AND NOT EXISTS (SELECT 1 FROM rides r WHERE r.vehicle_id = v.id)",
         "UPDATE users SET phone_e164 = NULL, full_name = NULL, display_name = NULL, email = NULL, date_of_birth = NULL,
                           national_id = NULL, national_id_hash = NULL, photo_key = NULL
@@ -442,6 +457,34 @@ pub async fn cleanup(ctx: &Ctx) -> Result<(), JobError> {
     sqlx::query("DELETE FROM uploads WHERE id = ANY($1)").bind(&uploads).execute(&ctx.db).await?;
     for key in old.into_iter().flat_map(|(a, b, _, _)| [a, b]).flatten() {
         delete_object(ctx, &key).await;
+    }
+    // Driver documents: kept while she drives with VARA, plus 1 year (Privacy Policy §7). A driver
+    // who has not started a shift for a year loses them and must upload them again to drive;
+    // an incident that holds data on one of her rides keeps them.
+    // A document still uploading (or refused before it arrived) has no file yet.
+    let mut tx = ctx.db.begin().await?;
+    let stale: Vec<(Uuid, Option<String>, Option<Uuid>)> = sqlx::query_as(
+        "DELETE FROM driver_documents d
+         WHERE d.created_at < now() - interval '1 year'
+           AND NOT EXISTS (SELECT 1 FROM driver_shifts s WHERE s.driver_id = d.driver_id
+                           AND (s.ended_at IS NULL OR s.started_at > now() - interval '1 year'))
+           AND NOT EXISTS (SELECT 1 FROM safety_incidents i JOIN rides r ON r.id = i.ride_id
+                           WHERE r.driver_id = d.driver_id AND i.hold_data)
+         RETURNING d.driver_id, d.storage_key, d.upload_id",
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    let drivers: Vec<Uuid> = stale.iter().map(|(d, _, _)| *d).collect();
+    let uploads: Vec<Uuid> = stale.iter().filter_map(|(_, _, u)| *u).collect();
+    sqlx::query("UPDATE driver_profiles SET can_go_online = false WHERE user_id = ANY($1)").bind(&drivers).execute(&mut *tx).await?;
+    sqlx::query("DELETE FROM uploads WHERE id = ANY($1)").bind(&uploads).execute(&mut *tx).await?;
+    tx.commit().await?;
+    let keys = stale.iter().filter_map(|(_, k, _)| k.clone()).chain(uploads.iter().map(|id| format!("quarantine/{id}")));
+    for key in keys {
+        delete_object(ctx, &key).await;
+    }
+    if !stale.is_empty() {
+        tracing::info!(documents = stale.len(), "driver documents past retention deleted");
     }
     Ok(())
 }

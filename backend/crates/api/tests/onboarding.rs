@@ -394,6 +394,13 @@ async fn account_deletion_signs_out_and_erases_after_grace() {
     t.patch("/v1/me", &rider.access, json!({ "full_name": "Ndeshi Shikongo", "date_of_birth": "1994-03-12" })).await;
     t.put("/v1/me/emergency-contacts", &rider.access, json!({ "contacts": [{ "name": "Martha", "phone": "+264812223344" }] })).await;
     t.photo(&rider.access, "identity").await;
+    let favourite = t.approved_driver("Hilma Nangolo", "classic", false).await;
+    sqlx::query("INSERT INTO favourite_drivers (rider_id, driver_id) VALUES ($1, $2)")
+        .bind(rider.user_id)
+        .bind(favourite.user_id)
+        .execute(&t.state.db)
+        .await
+        .unwrap();
 
     let (status, body) = t.call(Method::DELETE, "/v1/me", Some(&rider.access), None).await;
     assert_eq!(status, StatusCode::ACCEPTED, "{body}");
@@ -433,15 +440,16 @@ async fn account_deletion_signs_out_and_erases_after_grace() {
         .await
         .unwrap();
     t.work().await;
-    let (phone_after, name, contacts, uploads): (Option<String>, Option<String>, i64, i64) = sqlx::query_as(
-        "SELECT phone_e164, full_name, (SELECT count(*) FROM emergency_contacts WHERE user_id = $1), (SELECT count(*) FROM uploads WHERE user_id = $1)
+    let (phone_after, name, contacts, uploads, favourites): (Option<String>, Option<String>, i64, i64, i64) = sqlx::query_as(
+        "SELECT phone_e164, full_name, (SELECT count(*) FROM emergency_contacts WHERE user_id = $1), (SELECT count(*) FROM uploads WHERE user_id = $1),
+                (SELECT count(*) FROM favourite_drivers WHERE rider_id = $1)
          FROM users WHERE id = $1",
     )
     .bind(rider.user_id)
     .fetch_one(&t.state.db)
     .await
     .unwrap();
-    assert_eq!((phone_after, name, contacts, uploads), (None, None, 0, 0));
+    assert_eq!((phone_after, name, contacts, uploads, favourites), (None, None, 0, 0, 0));
     // The number is free to sign up again as a new person.
     let fresh = t.sign_in(&phone, "rider").await;
     assert!(fresh.new_user);
@@ -634,4 +642,96 @@ async fn legal_documents_are_public_and_rate_limited_routes_answer_429() {
     }
     let (status, _) = t.call(Method::POST, "/v1/auth/otp/request", None, Some(json!({ "phone": phone }))).await;
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
+}
+
+/// An approved licence uploaded `age` ago (a Postgres interval).
+async fn old_document(db: &sqlx::PgPool, driver: Uuid, age: &str) {
+    sqlx::query(
+        "INSERT INTO driver_documents (driver_id, kind, storage_key, mime_type, size_bytes, sha256, status, created_at)
+         VALUES ($1, 'licence', 'docs/' || gen_random_uuid(), 'image/jpeg', 1000, '\\x00', 'approved', now() - $2::interval)",
+    )
+    .bind(driver)
+    .bind(age)
+    .execute(db)
+    .await
+    .unwrap();
+}
+
+/// An 8-hour shift that started `ago` (a Postgres interval).
+async fn old_shift(db: &sqlx::PgPool, driver: Uuid, ago: &str) {
+    sqlx::query(
+        "INSERT INTO driver_shifts (driver_id, vehicle_id, tier, started_at, ended_at)
+         SELECT $1, active_vehicle_id, 'classic', now() - $2::interval, now() - $2::interval + interval '8 hours'
+         FROM driver_profiles WHERE user_id = $1",
+    )
+    .bind(driver)
+    .bind(ago)
+    .execute(db)
+    .await
+    .unwrap();
+}
+
+/// Her documents left, and whether she may still go online.
+async fn documents_left(db: &sqlx::PgPool, driver: Uuid) -> (i64, bool) {
+    sqlx::query_as(
+        "SELECT (SELECT count(*) FROM driver_documents WHERE driver_id = $1), can_go_online FROM driver_profiles WHERE user_id = $1",
+    )
+    .bind(driver)
+    .fetch_one(db)
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn driver_documents_go_a_year_after_she_stops_driving() {
+    let t = setup!();
+    let db = &t.state.db;
+    // Stopped driving two years ago, drove last month, and never drove since applying 18 months ago.
+    let stopped = t.approved_driver("Selma Nghipandulwa", "classic", false).await;
+    let active = t.approved_driver("Hilma Nangolo", "classic", false).await;
+    let never = t.approved_driver("Ester Shilongo", "classic", false).await;
+    old_document(db, stopped.user_id, "2 years").await;
+    old_document(db, active.user_id, "2 years").await;
+    old_document(db, never.user_id, "18 months").await;
+    old_shift(db, stopped.user_id, "2 years").await;
+    old_shift(db, active.user_id, "30 days").await;
+
+    fuber_worker::cleanup(&t.ctx).await.unwrap();
+
+    assert_eq!(documents_left(db, stopped.user_id).await, (0, false));
+    assert_eq!(documents_left(db, never.user_id).await, (0, false));
+    assert_eq!(documents_left(db, active.user_id).await, (1, true));
+}
+
+#[tokio::test]
+async fn erased_riders_rides_are_anonymised() {
+    let t = setup!();
+    let db = &t.state.db;
+    let trip = t.completed().await;
+    let ride: Uuid = trip.id.parse().unwrap();
+    sqlx::query("UPDATE rides SET guest_name = 'Martha', guest_phone = '\x00' WHERE id = $1").bind(ride).execute(db).await.unwrap();
+    sqlx::query("INSERT INTO ride_track_points (ride_id, at, location) VALUES ($1, now(), 'POINT(17.0870 -22.5750)')")
+        .bind(ride)
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE users SET status = 'deleted', deleted_at = now() - interval '31 days' WHERE id = $1")
+        .bind(trip.rider.user_id)
+        .execute(db)
+        .await
+        .unwrap();
+
+    fuber_worker::erase_account(&t.ctx, trip.rider.user_id).await.unwrap();
+
+    let (guest, address, pickup, tracks): (Option<String>, String, String, i64) = sqlx::query_as(
+        "SELECT guest_name, pickup_address, ST_AsText(pickup), (SELECT count(*) FROM ride_track_points WHERE ride_id = $1)
+         FROM rides WHERE id = $1",
+    )
+    .bind(ride)
+    .fetch_one(db)
+    .await
+    .unwrap();
+    assert_eq!((guest, address.as_str(), tracks), (None, "", 0));
+    // The ride is still there for the accounts, its pickup only to ~1 km.
+    assert_eq!(pickup, "POINT(17.08 -22.57)");
 }

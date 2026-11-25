@@ -8,8 +8,11 @@ use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, Limits, codecs
 
 /// Longest edge kept after re-encoding: plenty for reading an ID card, small enough for review.
 pub const MAX_EDGE_PX: u32 = 3000;
-const MAX_DECODE_PX: u32 = 12_000;
-const MAX_DECODE_ALLOC: u64 = 512 * 1024 * 1024;
+const MAX_DECODE_PX: u32 = 10_000;
+/// The worker has 512 MiB (infra/terraform/run.tf) and also sends SOS texts, so a small file that
+/// decodes to a huge picture must be refused, not crash it. 160 MiB holds a 48 MP phone photo;
+/// the decoded picture plus its downsized copy stay under ~250 MiB.
+const MAX_DECODE_ALLOC: u64 = 160 * 1024 * 1024;
 const JPEG_QUALITY: u8 = 88;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,28 +71,46 @@ pub fn sanitize(bytes: &[u8], declared_mime: &str) -> Result<Sanitized, Rejected
     }
 }
 
-fn reencode(bytes: &[u8], format: ImageFormat) -> Result<Sanitized, Rejected> {
-    let unreadable = || Rejected("This photo couldn't be read. Please take a new photo.");
+const UNREADABLE: Rejected = Rejected("This photo couldn't be read. Please take a new photo.");
+/// Too big to decode safely. The image crate checks `max_alloc` only against some decoders' own
+/// buffers, never against the decoded picture, so its size is checked here from the header.
+const TOO_LARGE: Rejected = Rejected("This photo is too large. Please take a new photo.");
+
+/// A decoder for `bytes`, refused before any picture data is read if it would decode too large.
+fn open(bytes: &[u8], format: ImageFormat) -> Result<impl ImageDecoder + '_, Rejected> {
     let mut limits = Limits::default();
     limits.max_image_width = Some(MAX_DECODE_PX);
     limits.max_image_height = Some(MAX_DECODE_PX);
     limits.max_alloc = Some(MAX_DECODE_ALLOC);
     let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
     reader.limits(limits);
-    let mut decoder = reader.into_decoder().map_err(|_| unreadable())?;
+    let decoder = reader.into_decoder().map_err(|e| match e {
+        image::ImageError::Limits(_) => TOO_LARGE,
+        _ => UNREADABLE,
+    })?;
+    if decoder.total_bytes() > MAX_DECODE_ALLOC {
+        return Err(TOO_LARGE);
+    }
+    Ok(decoder)
+}
+
+fn reencode(bytes: &[u8], format: ImageFormat) -> Result<Sanitized, Rejected> {
+    let unreadable = |_| UNREADABLE;
+    let mut decoder = open(bytes, format)?;
     // Phones store "rotate 90°" in EXIF; apply it before EXIF is dropped.
-    let orientation = decoder.orientation().map_err(|_| unreadable())?;
-    let mut img = DynamicImage::from_decoder(decoder).map_err(|_| unreadable())?;
-    img.apply_orientation(orientation);
+    let orientation = decoder.orientation().map_err(unreadable)?;
+    let mut img = DynamicImage::from_decoder(decoder).map_err(unreadable)?;
     if img.width() < 200 || img.height() < 200 {
         return Err(Rejected("This photo is too small to read. Please take a new photo."));
     }
+    // Downsize first, so turning and converting copy the small picture, never the full one.
     if img.width().max(img.height()) > MAX_EDGE_PX {
         img = img.resize(MAX_EDGE_PX, MAX_EDGE_PX, FilterType::Triangle);
     }
+    img.apply_orientation(orientation);
     let rgb = DynamicImage::ImageRgb8(img.to_rgb8());
     let mut out = Vec::new();
-    rgb.write_with_encoder(JpegEncoder::new_with_quality(&mut out, JPEG_QUALITY)).map_err(|_| unreadable())?;
+    rgb.write_with_encoder(JpegEncoder::new_with_quality(&mut out, JPEG_QUALITY)).map_err(unreadable)?;
     Ok(Sanitized { bytes: out, mime: "image/jpeg", extension: "jpg" })
 }
 
@@ -110,10 +131,33 @@ fn check_pdf(bytes: &[u8]) -> Result<(), Rejected> {
     if !tail.windows(5).any(|w| w == b"%%EOF") {
         return Err(Rejected("This PDF is incomplete. Please upload it again."));
     }
-    if PDF_ACTIVE_CONTENT.iter().any(|name| contains_name(bytes, name)) {
+    // A name may spell any byte as `#` + two hex digits (`/Java#53cript` is `/JavaScript`), so
+    // the check reads the names as a PDF reader would.
+    let decoded = decode_name_escapes(bytes);
+    if PDF_ACTIVE_CONTENT.iter().any(|name| contains_name(&decoded, name)) {
         return Err(Rejected("PDFs with scripts, forms or attachments aren't accepted. Please upload a photo instead."));
     }
     Ok(())
+}
+
+/// Every `#hh` turned into its byte. Only used to look for names: decoding outside names too
+/// can only add matches, never hide one.
+fn decode_name_escapes(bytes: &[u8]) -> Vec<u8> {
+    let hex = |b: u8| (b as char).to_digit(16).map(|d| d as u8);
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'#'
+            && let (Some(hi), Some(lo)) = (bytes.get(i + 1).copied().and_then(hex), bytes.get(i + 2).copied().and_then(hex))
+        {
+            out.push(hi << 4 | lo);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    out
 }
 
 /// `name` followed by a PDF delimiter, so `/JS` matches but `/JSFoo` does not.
@@ -202,5 +246,40 @@ mod tests {
         assert!(sanitize(js, "application/pdf").is_err());
         assert!(sanitize(b"%PDF-1.7\n no trailer", "application/pdf").is_err());
         assert!(!contains_name(b"/JSFoo ", b"/JS"));
+        // The same names spelt with #hh escapes.
+        for hidden in [&b"/S /Java#53cript "[..], b"/J#53 (app.alert(1))", b"/#4Caunch <<", b"/Embedded#46ile ["] {
+            let pdf = [&b"%PDF-1.7\n1 0 obj << "[..], hidden, b" >> endobj\n%%EOF"].concat();
+            assert!(sanitize(&pdf, "application/pdf").is_err(), "{}", String::from_utf8_lossy(hidden));
+        }
+    }
+
+    /// A PNG header claiming `w`×`h` 16-bit RGBA (8 bytes a pixel), with no picture data.
+    fn png_header(w: u32, h: u32) -> Vec<u8> {
+        fn chunk(out: &mut Vec<u8>, kind: &[u8], data: &[u8]) {
+            out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+            let body = [kind, data].concat();
+            out.extend_from_slice(&body);
+            let mut crc = !0u32;
+            for b in &body {
+                crc ^= u32::from(*b);
+                for _ in 0..8 {
+                    crc = if crc & 1 == 1 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
+                }
+            }
+            out.extend_from_slice(&(!crc).to_be_bytes());
+        }
+        let mut out = b"\x89PNG\r\n\x1a\n".to_vec();
+        chunk(&mut out, b"IHDR", &[&w.to_be_bytes()[..], &h.to_be_bytes(), &[16, 6, 0, 0, 0]].concat());
+        chunk(&mut out, b"IDAT", &[]);
+        out
+    }
+
+    #[test]
+    fn decompression_bombs_refused_before_decoding() {
+        // 4000×4000×8 bytes = 122 MiB fits; 5000×5000 (191 MiB) and 12000×100 (too wide) don't.
+        assert!(open(&png_header(4000, 4000), ImageFormat::Png).is_ok());
+        for (w, h) in [(5000, 5000), (12_000, 100)] {
+            assert_eq!(sanitize(&png_header(w, h), "image/png").unwrap_err(), TOO_LARGE, "{w}x{h}");
+        }
     }
 }

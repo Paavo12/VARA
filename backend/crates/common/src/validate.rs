@@ -75,7 +75,9 @@ impl From<PhoneE164> for String {
 
 // ---------------------------------------------------------------------------------------------
 
-/// A person's name: 1–80 characters of letters (any script), spaces, and `-'.`.
+/// A person's name: 1–80 characters of letters (any script), spaces, and `-'.`. A full stop
+/// ends an initial ("J. Shikongo"), so it is never followed straight by a letter: names reach
+/// other people in VARA's own SMS (a guest's ride text), and `vara-help.com` must not.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct PersonName(String);
@@ -93,7 +95,16 @@ impl PersonName {
         if !s.chars().any(char::is_alphabetic) {
             return Err(Invalid("name must contain letters"));
         }
+        if s.chars().zip(s.chars().skip(1)).any(|(a, b)| a == '.' && b.is_alphabetic()) {
+            return Err(Invalid("a full stop in a name must be followed by a space"));
+        }
         Ok(PersonName(s))
+    }
+
+    /// A name read back from the database: it was checked when it was saved, perhaps under an
+    /// older rule, so reading it never fails.
+    pub fn stored(name: String) -> Self {
+        PersonName(name)
     }
 
     pub fn as_str(&self) -> &str {
@@ -435,6 +446,12 @@ mod tests {
         assert!(PersonName::parse("Martha van Wyk").is_ok());
         assert!(PersonName::parse("O'Neill-Hamutenya").is_ok());
         assert!(PersonName::parse("Zoë").is_ok());
+        assert!(PersonName::parse("J. Shikongo").is_ok());
+        assert!(PersonName::parse("Martha Jr.").is_ok());
+        // Nothing that reads as a web address can ride along in VARA's own SMS.
+        for link in ["vara-help.com", "Ndapandula see vara.na", "Selma.Pay"] {
+            assert!(PersonName::parse(link).is_err(), "{link}");
+        }
         for bad in ["", "   ", "<script>", "Robert'); DROP TABLE users;--", "a\u{0000}b", "---", &"a".repeat(81)] {
             assert!(PersonName::parse(bad).is_err(), "{bad:?}");
         }
