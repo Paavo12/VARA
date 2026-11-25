@@ -10,7 +10,9 @@ const API_ORIGIN = new URL(process.env.VITE_API_URL ?? 'http://127.0.0.1:8080')
 // bucket's path, never all of Cloud Storage (infra/terraform/README.md, "Known gaps").
 const STORAGE_URL = process.env.VITE_STORAGE_URL;
 if (STORAGE_URL && !/^https:\/\/storage\.googleapis\.com\/[a-z0-9_-]+\/$/.test(STORAGE_URL)) {
-	throw new Error(`VITE_STORAGE_URL must be https://storage.googleapis.com/<bucket>/ (got ${STORAGE_URL})`);
+	throw new Error(
+		`VITE_STORAGE_URL must be https://storage.googleapis.com/<bucket>/ (got ${STORAGE_URL})`
+	);
 }
 const STORAGE = (STORAGE_URL ? [STORAGE_URL] : []) as `${string}://${string}.${string}:${number}`[];
 
