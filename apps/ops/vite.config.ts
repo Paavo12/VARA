@@ -6,6 +6,14 @@ import { sveltekit } from '@sveltejs/kit/vite';
 const API_ORIGIN = new URL(process.env.VITE_API_URL ?? 'http://127.0.0.1:8080')
 	.origin as `${string}://${string}.${string}:${number}`;
 
+// With Cloud Storage the files go to and from the documents bucket itself: allow only that
+// bucket's path, never all of Cloud Storage (infra/terraform/README.md, "Known gaps").
+const STORAGE_URL = process.env.VITE_STORAGE_URL;
+if (STORAGE_URL && !/^https:\/\/storage\.googleapis\.com\/[a-z0-9_-]+\/$/.test(STORAGE_URL)) {
+	throw new Error(`VITE_STORAGE_URL must be https://storage.googleapis.com/<bucket>/ (got ${STORAGE_URL})`);
+}
+const STORAGE = (STORAGE_URL ? [STORAGE_URL] : []) as `${string}://${string}.${string}:${number}`[];
+
 export default defineConfig({
 	plugins: [
 		sveltekit({
@@ -22,7 +30,7 @@ export default defineConfig({
 					'default-src': ['self'],
 					'script-src': ['self'],
 					'style-src': ['self', 'unsafe-inline'],
-					'img-src': ['self', 'data:', API_ORIGIN],
+					'img-src': ['self', 'data:', API_ORIGIN, ...STORAGE],
 					'connect-src': ['self', API_ORIGIN],
 					'font-src': ['self'],
 					'object-src': ['none'],

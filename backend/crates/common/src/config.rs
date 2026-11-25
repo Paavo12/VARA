@@ -69,8 +69,10 @@ pub enum RoutingConfig {
 pub enum StorageConfig {
     /// Files on local disk, uploaded and downloaded through signed URLs that the API serves
     /// itself. For development and single-machine test environments, never production.
-    /// S3-compatible storage is added once the cloud provider is chosen (PRD §10).
     Local { dir: std::path::PathBuf, public_url: String },
+    /// A private Google Cloud Storage bucket. Clients upload and reviewers download through
+    /// V4 signed URLs; credentials come from the service's own identity (metadata server).
+    Gcs { bucket: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -201,8 +203,15 @@ impl Config {
                 dir: get("STORAGE_DIR").unwrap_or_else(|| "var/storage".into()).into(),
                 public_url: get("PUBLIC_API_URL").unwrap_or_else(|| format!("http://{bind_addr}")).trim_end_matches('/').to_owned(),
             },
+            "gcs" => match get("GCS_BUCKET") {
+                Some(bucket) if valid_bucket(&bucket) => StorageConfig::Gcs { bucket },
+                _ => {
+                    errors.push("STORAGE_BACKEND=gcs needs GCS_BUCKET, a bucket name (lowercase letters, digits, - and _)".into());
+                    StorageConfig::Gcs { bucket: String::new() }
+                }
+            },
             other => {
-                errors.push(format!("STORAGE_BACKEND must be local (got {other:?})"));
+                errors.push(format!("STORAGE_BACKEND must be local or gcs (got {other:?})"));
                 StorageConfig::Local { dir: "var/storage".into(), public_url: String::new() }
             }
         };
@@ -293,6 +302,15 @@ impl Config {
             trip_link_base,
         })
     }
+}
+
+/// A Cloud Storage bucket name, without the dotted (domain) form: 3–63 lowercase letters,
+/// digits, `-` and `_`, starting and ending with a letter or digit.
+fn valid_bucket(name: &str) -> bool {
+    (3..=63).contains(&name.len())
+        && name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
+        && name.bytes().next().is_some_and(|b| b.is_ascii_alphanumeric())
+        && name.bytes().last().is_some_and(|b| b.is_ascii_alphanumeric())
 }
 
 /// Hosts reserved for examples and testing (RFC 2606), which no real link can use.
@@ -432,5 +450,17 @@ mod tests {
     #[test]
     fn wildcard_cors_rejected() {
         assert!(load(&[("APP_ENV", "local"), ("DATABASE_URL", "x"), ("REDIS_URL", "y"), ("CORS_ORIGINS", "*")]).is_err());
+    }
+
+    #[test]
+    fn gcs_storage_needs_a_bucket() {
+        let base = [("APP_ENV", "local"), ("DATABASE_URL", "x"), ("REDIS_URL", "y"), ("STORAGE_BACKEND", "gcs")];
+        assert!(load(&base).unwrap_err().to_string().contains("GCS_BUCKET"));
+        for bad in ["ab", "Vara-docs", "vara.docs", "-vara", "vara-", "vara/docs"] {
+            assert!(load(&[&base[..], &[("GCS_BUCKET", bad)]].concat()).is_err(), "{bad}");
+        }
+        let c = load(&[&base[..], &[("GCS_BUCKET", "vara-staging-documents")]].concat()).unwrap();
+        assert!(matches!(c.storage, StorageConfig::Gcs { bucket } if bucket == "vara-staging-documents"));
+        assert!(load(&[("STORAGE_BACKEND", "s3"), ("APP_ENV", "local"), ("DATABASE_URL", "x"), ("REDIS_URL", "y")]).is_err());
     }
 }

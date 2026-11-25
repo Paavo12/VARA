@@ -41,7 +41,7 @@ pub enum Routing {
 
 impl Routing {
     pub fn osrm(base_url: &str) -> Routing {
-        let http = reqwest::Client::builder().timeout(TIMEOUT).build().expect("HTTP client builds");
+        let http = crate::http_client(TIMEOUT);
         Routing::Osrm { base_url: base_url.trim_end_matches('/').to_owned(), http }
     }
 

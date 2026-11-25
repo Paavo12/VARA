@@ -4,7 +4,7 @@
 //! signed URL and upload straight to storage (TRD §7.2). With the `Local` backend the "storage
 //! service" is a directory on disk and the signed URLs point at `/v1/storage/...` on the API,
 //! which checks the signature, expiry, content type and size exactly as S3 checks a
-//! pre-signed request. An S3-compatible backend is added once the cloud provider is chosen.
+//! pre-signed request. On Google Cloud the bucket does all of this itself (`crate::gcs`).
 
 use std::{
     io,
@@ -13,6 +13,8 @@ use std::{
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as B64};
 use fuber_common::crypto::{Hasher, ct_eq};
+
+use crate::gcs::{Endpoints, Gcs};
 
 pub const MAX_UPLOAD_BYTES: u64 = 10 * 1024 * 1024;
 
@@ -52,6 +54,7 @@ pub struct Grant {
 
 pub enum ObjectStore {
     Local(LocalDisk),
+    Gcs(Gcs),
 }
 
 impl ObjectStore {
@@ -60,30 +63,36 @@ impl ObjectStore {
     pub fn from_config(config: &fuber_common::Config, hasher: Hasher) -> ObjectStore {
         match &config.storage {
             fuber_common::StorageConfig::Local { dir, public_url } => ObjectStore::Local(LocalDisk::new(dir.clone(), public_url, hasher)),
+            fuber_common::StorageConfig::Gcs { bucket } => ObjectStore::Gcs(Gcs::new(bucket, Endpoints::default())),
         }
     }
 
-    pub fn presign_put(&self, key: &str, content_type: &str, max_bytes: u64, expires_at: i64) -> PresignedUpload {
+    /// Signing with GCS asks Google, so it can fail.
+    pub async fn presign_put(&self, key: &str, content_type: &str, max_bytes: u64, expires_at: i64) -> io::Result<PresignedUpload> {
         match self {
-            ObjectStore::Local(l) => l.presign_put(key, content_type, max_bytes, expires_at),
+            ObjectStore::Local(l) => Ok(l.presign_put(key, content_type, max_bytes, expires_at)),
+            ObjectStore::Gcs(g) => g.presign_put(key, content_type, max_bytes, expires_at).await,
         }
     }
 
-    pub fn presign_get(&self, key: &str, expires_at: i64) -> String {
+    pub async fn presign_get(&self, key: &str, expires_at: i64) -> io::Result<String> {
         match self {
-            ObjectStore::Local(l) => l.presign_get(key, expires_at),
+            ObjectStore::Local(l) => Ok(l.presign_get(key, expires_at)),
+            ObjectStore::Gcs(g) => g.presign_get(key, expires_at).await,
         }
     }
 
     pub async fn read(&self, key: &str) -> io::Result<Vec<u8>> {
         match self {
             ObjectStore::Local(l) => tokio::fs::read(l.path(key)?).await,
+            ObjectStore::Gcs(g) => g.read(key).await,
         }
     }
 
     pub async fn write(&self, key: &str, bytes: &[u8]) -> io::Result<()> {
         match self {
             ObjectStore::Local(l) => l.write(key, bytes).await,
+            ObjectStore::Gcs(g) => g.write(key, bytes).await,
         }
     }
 
@@ -94,12 +103,14 @@ impl ObjectStore {
                 Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
                 r => r,
             },
+            ObjectStore::Gcs(g) => g.delete(key).await,
         }
     }
 
     pub fn local(&self) -> Option<&LocalDisk> {
         match self {
             ObjectStore::Local(l) => Some(l),
+            ObjectStore::Gcs(_) => None,
         }
     }
 }

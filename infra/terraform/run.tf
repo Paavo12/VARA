@@ -9,8 +9,8 @@ locals {
   common_env = {
     APP_ENV         = var.environment
     RUST_LOG        = "info"
-    STORAGE_BACKEND = "local" # Until the GCS backend lands (implementation plan, Phase 1 vendors).
-    STORAGE_DIR     = "/tmp/storage"
+    STORAGE_BACKEND = "gcs"
+    GCS_BUCKET      = google_storage_bucket.documents.name
     PUBLIC_API_URL  = local.api_url
     VIRUS_SCAN      = "clamav"
     CLAMAV_ADDR     = "${local.internal_ip}:3310"

@@ -136,7 +136,11 @@ pub async fn create(
     .bind(expires_at)
     .fetch_one(&s.db)
     .await?;
-    let p = s.store.presign_put(&quarantine_key(id), req.content_type.as_str(), req.size_bytes.get() as u64, expires_at.unix_timestamp());
+    let p = s
+        .store
+        .presign_put(&quarantine_key(id), req.content_type.as_str(), req.size_bytes.get() as u64, expires_at.unix_timestamp())
+        .await
+        .map_err(ApiError::internal)?;
     let headers = p.headers.into_iter().map(|(k, v)| (k.to_owned(), v)).collect();
     Ok((StatusCode::CREATED, Json(UploadTarget { upload_id: id, method: p.method, url: p.url, headers, expires_at })))
 }
