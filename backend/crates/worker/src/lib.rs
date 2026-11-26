@@ -220,6 +220,17 @@ async fn delete_object(ctx: &Ctx, key: &str) {
 
 /// Erases a deleted account's personal data. Rides, payments and consents stay, linked to an
 /// anonymous user row, for the periods the Privacy Policy allows.
+/// What an anonymised ride keeps (`SET` list for `rides r`): no guest's name or number, no
+/// addresses, no route lines, and the points only to ~1 km.
+const ANONYMISED_RIDE: &str = "guest_name = NULL, guest_phone = NULL, pickup_address = '', dropoff_address = '',
+    pickup = ST_SnapToGrid(pickup::geometry, 0.01)::geography,
+    pickup_fuzzed = ST_SnapToGrid(pickup_fuzzed::geometry, 0.01)::geography,
+    dropoff = ST_SnapToGrid(dropoff::geometry, 0.01)::geography,
+    planned_route = NULL, route_driven = NULL";
+
+/// Ride `r` is not held by a safety incident.
+const NOT_HELD: &str = "NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = r.id AND i.hold_data)";
+
 pub async fn erase_account(ctx: &Ctx, user_id: Uuid) -> Result<(), JobError> {
     let due: Option<bool> =
         sqlx::query_scalar("SELECT deleted_at <= now() - interval '30 days' FROM users WHERE id = $1 AND status = 'deleted'")
@@ -250,14 +261,9 @@ pub async fn erase_account(ctx: &Ctx, user_id: Uuid) -> Result<(), JobError> {
         "DELETE FROM ride_track_points p USING rides r
          WHERE r.id = p.ride_id AND (r.rider_id = $1 OR r.driver_id = $1)
            AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = p.ride_id AND i.hold_data)",
-        // Her rides stay for accounting (schema §12) but anonymised: no guest's name or number,
-        // no addresses, and the points kept only to ~1 km.
-        "UPDATE rides r SET guest_name = NULL, guest_phone = NULL, pickup_address = '', dropoff_address = '',
-                pickup = ST_SnapToGrid(pickup::geometry, 0.01)::geography,
-                pickup_fuzzed = ST_SnapToGrid(pickup_fuzzed::geometry, 0.01)::geography,
-                dropoff = ST_SnapToGrid(dropoff::geometry, 0.01)::geography
-         WHERE r.rider_id = $1
-           AND NOT EXISTS (SELECT 1 FROM safety_incidents i WHERE i.ride_id = r.id AND i.hold_data)",
+        // Her rides stay for accounting (schema §12) but anonymised.
+        format!("UPDATE rides r SET {ANONYMISED_RIDE} WHERE r.rider_id = $1 AND {NOT_HELD}").as_str(),
+        format!("UPDATE ride_checks c SET location = NULL FROM rides r WHERE r.id = c.ride_id AND r.rider_id = $1 AND {NOT_HELD}").as_str(),
         "DELETE FROM identity_verifications WHERE user_id = $1",
         "DELETE FROM driver_documents WHERE driver_id = $1",
         "DELETE FROM uploads WHERE user_id = $1",
@@ -460,31 +466,53 @@ pub async fn cleanup(ctx: &Ctx) -> Result<(), JobError> {
     }
     // Driver documents: kept while she drives with VARA, plus 1 year (Privacy Policy §7). A driver
     // who has not started a shift for a year loses them and must upload them again to drive;
-    // an incident that holds data on one of her rides keeps them.
+    // an incident that holds data on one of her rides keeps them. A document she replaced goes a
+    // year after its replacement arrived, even while she still drives; she stays online.
     // A document still uploading (or refused before it arrived) has no file yet.
     let mut tx = ctx.db.begin().await?;
-    let stale: Vec<(Uuid, Option<String>, Option<Uuid>)> = sqlx::query_as(
+    let stale: Vec<(Uuid, Option<String>, Option<Uuid>, bool)> = sqlx::query_as(
         "DELETE FROM driver_documents d
-         WHERE d.created_at < now() - interval '1 year'
-           AND NOT EXISTS (SELECT 1 FROM driver_shifts s WHERE s.driver_id = d.driver_id
-                           AND (s.ended_at IS NULL OR s.started_at > now() - interval '1 year'))
+         WHERE ((d.created_at < now() - interval '1 year'
+                 AND NOT EXISTS (SELECT 1 FROM driver_shifts s WHERE s.driver_id = d.driver_id
+                                 AND (s.ended_at IS NULL OR s.started_at > now() - interval '1 year')))
+                OR EXISTS (SELECT 1 FROM driver_documents n
+                           WHERE n.id = d.superseded_by AND n.created_at < now() - interval '1 year'))
            AND NOT EXISTS (SELECT 1 FROM safety_incidents i JOIN rides r ON r.id = i.ride_id
                            WHERE r.driver_id = d.driver_id AND i.hold_data)
-         RETURNING d.driver_id, d.storage_key, d.upload_id",
+         RETURNING d.driver_id, d.storage_key, d.upload_id, d.superseded_by IS NULL",
     )
     .fetch_all(&mut *tx)
     .await?;
-    let drivers: Vec<Uuid> = stale.iter().map(|(d, _, _)| *d).collect();
-    let uploads: Vec<Uuid> = stale.iter().filter_map(|(_, _, u)| *u).collect();
+    let drivers: Vec<Uuid> = stale.iter().filter(|(_, _, _, current)| *current).map(|(d, _, _, _)| *d).collect();
+    let uploads: Vec<Uuid> = stale.iter().filter_map(|(_, _, u, _)| *u).collect();
     sqlx::query("UPDATE driver_profiles SET can_go_online = false WHERE user_id = ANY($1)").bind(&drivers).execute(&mut *tx).await?;
     sqlx::query("DELETE FROM uploads WHERE id = ANY($1)").bind(&uploads).execute(&mut *tx).await?;
     tx.commit().await?;
-    let keys = stale.iter().filter_map(|(_, k, _)| k.clone()).chain(uploads.iter().map(|id| format!("quarantine/{id}")));
+    let keys = stale.iter().filter_map(|(_, k, _, _)| k.clone()).chain(uploads.iter().map(|id| format!("quarantine/{id}")));
     for key in keys {
         delete_object(ctx, &key).await;
     }
     if !stale.is_empty() {
         tracing::info!(documents = stale.len(), "driver documents past retention deleted");
     }
+    // Rides: kept 5 years for tax and accounting (Privacy Policy §7), then anonymised like an
+    // erased account's. A ride an incident holds waits for the incident's review.
+    let mut tx = ctx.db.begin().await?;
+    let old_rides = format!(
+        "r.created_at < now() - interval '5 years'
+         AND (r.pickup_address <> '' OR r.dropoff_address <> '' OR r.guest_phone IS NOT NULL
+              OR r.planned_route IS NOT NULL OR r.route_driven IS NOT NULL)
+         AND {NOT_HELD}"
+    );
+    sqlx::query(&format!("UPDATE ride_checks c SET location = NULL FROM rides r WHERE r.id = c.ride_id AND {old_rides}"))
+        .execute(&mut *tx)
+        .await?;
+    let rides = sqlx::query(&format!("UPDATE rides r SET {ANONYMISED_RIDE} WHERE {old_rides}")).execute(&mut *tx).await?.rows_affected();
+    tx.commit().await?;
+    if rides > 0 {
+        tracing::info!(rides, "rides past retention anonymised");
+    }
+    // Audit log: 5 years (schema §12).
+    sqlx::query("DELETE FROM audit_log WHERE at < now() - interval '5 years'").execute(&ctx.db).await?;
     Ok(())
 }
