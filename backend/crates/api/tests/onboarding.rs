@@ -709,7 +709,11 @@ async fn erased_riders_rides_are_anonymised() {
     let db = &t.state.db;
     let trip = t.completed().await;
     let ride: Uuid = trip.id.parse().unwrap();
-    sqlx::query("UPDATE rides SET guest_name = 'Martha', guest_phone = '\x00' WHERE id = $1").bind(ride).execute(db).await.unwrap();
+    sqlx::query("UPDATE rides SET guest_name = 'Martha', guest_phone = decode('00', 'hex') WHERE id = $1")
+        .bind(ride)
+        .execute(db)
+        .await
+        .unwrap();
     sqlx::query("INSERT INTO ride_track_points (ride_id, at, location) VALUES ($1, now(), 'POINT(17.0870 -22.5750)')")
         .bind(ride)
         .execute(db)
@@ -724,7 +728,7 @@ async fn erased_riders_rides_are_anonymised() {
     fuber_worker::erase_account(&t.ctx, trip.rider.user_id).await.unwrap();
 
     let (guest, address, pickup, tracks): (Option<String>, String, String, i64) = sqlx::query_as(
-        "SELECT guest_name, pickup_address, ST_AsText(pickup), (SELECT count(*) FROM ride_track_points WHERE ride_id = $1)
+        "SELECT guest_name, pickup_address, ST_AsText(pickup, 6), (SELECT count(*) FROM ride_track_points WHERE ride_id = $1)
          FROM rides WHERE id = $1",
     )
     .bind(ride)
