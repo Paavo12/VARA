@@ -709,11 +709,14 @@ async fn erased_riders_rides_are_anonymised() {
     let db = &t.state.db;
     let trip = t.completed().await;
     let ride: Uuid = trip.id.parse().unwrap();
-    sqlx::query("UPDATE rides SET guest_name = 'Martha', guest_phone = decode('00', 'hex') WHERE id = $1")
-        .bind(ride)
-        .execute(db)
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE rides SET guest_name = 'Martha', guest_phone = decode('00', 'hex'),
+                route_driven = 'LINESTRING(17.0870 -22.5750, 17.0900 -22.5800)' WHERE id = $1",
+    )
+    .bind(ride)
+    .execute(db)
+    .await
+    .unwrap();
     sqlx::query("INSERT INTO ride_track_points (ride_id, at, location) VALUES ($1, now(), 'POINT(17.0870 -22.5750)')")
         .bind(ride)
         .execute(db)
@@ -738,4 +741,128 @@ async fn erased_riders_rides_are_anonymised() {
     assert_eq!((guest, address.as_str(), tracks), (None, "", 0));
     // The ride is still there for the accounts, its pickup only to ~1 km.
     assert_eq!(pickup, "POINT(17.08 -22.57)");
+    assert!(!has_route(db, ride).await, "no route lines from her home");
+}
+
+/// A `kind` document uploaded `old` ago and replaced by one uploaded `new` ago (Postgres intervals).
+async fn replaced_document(db: &sqlx::PgPool, driver: Uuid, kind: &str, old: &str, new: &str) {
+    let (old_id, new_id) = (Uuid::new_v4(), Uuid::new_v4());
+    // Both rows in one statement: only one document per kind may be current at a time.
+    sqlx::query(
+        "INSERT INTO driver_documents (id, driver_id, kind, storage_key, mime_type, size_bytes, sha256, status, superseded_by, created_at)
+         VALUES ($1, $3, $4::document_kind, 'docs/' || $1, 'image/jpeg', 1000, '\\x00', 'approved', $2, now() - $5::interval),
+                ($2, $3, $4::document_kind, 'docs/' || $2, 'image/jpeg', 1000, '\\x00', 'approved', NULL, now() - $6::interval)",
+    )
+    .bind(old_id)
+    .bind(new_id)
+    .bind(driver)
+    .bind(kind)
+    .bind(old)
+    .bind(new)
+    .execute(db)
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn replaced_documents_go_a_year_after_their_replacement() {
+    let t = setup!();
+    let db = &t.state.db;
+    let d = t.approved_driver("Hilma Nangolo", "classic", false).await;
+    old_shift(db, d.user_id, "30 days").await;
+    // Licence replaced 18 months ago; insurance replaced 6 months ago.
+    replaced_document(db, d.user_id, "licence", "3 years", "18 months").await;
+    replaced_document(db, d.user_id, "insurance", "2 years", "6 months").await;
+
+    fuber_worker::cleanup(&t.ctx).await.unwrap();
+
+    let kinds: Vec<(String, bool)> =
+        sqlx::query_as("SELECT kind::text, superseded_by IS NULL FROM driver_documents WHERE driver_id = $1 ORDER BY kind, created_at")
+            .bind(d.user_id)
+            .fetch_all(db)
+            .await
+            .unwrap();
+    assert_eq!(
+        kinds,
+        [("insurance".to_owned(), false), ("insurance".to_owned(), true), ("licence".to_owned(), true)],
+        "only the licence she replaced over a year ago is gone"
+    );
+    assert!(documents_left(db, d.user_id).await.1, "she can still drive");
+}
+
+async fn has_route(db: &sqlx::PgPool, ride: Uuid) -> bool {
+    sqlx::query_scalar(
+        "SELECT planned_route IS NOT NULL OR route_driven IS NOT NULL
+                OR EXISTS (SELECT 1 FROM ride_checks WHERE ride_id = $1 AND location IS NOT NULL)
+         FROM rides WHERE id = $1",
+    )
+    .bind(ride)
+    .fetch_one(db)
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn rides_are_anonymised_after_five_years() {
+    let t = setup!();
+    let db = &t.state.db;
+    let trip = t.completed().await;
+    let ride: Uuid = trip.id.parse().unwrap();
+    sqlx::query(
+        "UPDATE rides SET route_driven = 'LINESTRING(17.0870 -22.5750, 17.0900 -22.5800)', planned_route = route_driven
+         WHERE id = $1",
+    )
+    .bind(ride)
+    .execute(db)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO ride_checks (ride_id, kind, location) VALUES ($1, 'stop', 'POINT(17.0870 -22.5750)')")
+        .bind(ride)
+        .execute(db)
+        .await
+        .unwrap();
+    let address = || async {
+        sqlx::query_scalar::<_, String>("SELECT pickup_address FROM rides WHERE id = $1").bind(ride).fetch_one(db).await.unwrap()
+    };
+
+    // A recent ride keeps everything.
+    fuber_worker::cleanup(&t.ctx).await.unwrap();
+    assert_ne!(address().await, "");
+    assert!(has_route(db, ride).await);
+
+    // After 5 years, an incident that holds the ride still keeps it.
+    sqlx::query("UPDATE rides SET created_at = now() - interval '5 years 1 day' WHERE id = $1").bind(ride).execute(db).await.unwrap();
+    let incident: Uuid = sqlx::query_scalar("INSERT INTO safety_incidents (ride_id, kind) VALUES ($1, 'sos') RETURNING id")
+        .bind(ride)
+        .fetch_one(db)
+        .await
+        .unwrap();
+    fuber_worker::cleanup(&t.ctx).await.unwrap();
+    assert_ne!(address().await, "");
+
+    // Once released, the ride is anonymised but stays for the accounts.
+    sqlx::query("UPDATE safety_incidents SET hold_data = false WHERE id = $1").bind(incident).execute(db).await.unwrap();
+    fuber_worker::cleanup(&t.ctx).await.unwrap();
+    assert_eq!(address().await, "");
+    assert!(!has_route(db, ride).await);
+    let fare: i64 = sqlx::query_scalar("SELECT fare_cents FROM rides WHERE id = $1").bind(ride).fetch_one(db).await.unwrap();
+    assert!(fare > 0);
+}
+
+#[tokio::test]
+async fn audit_entries_go_after_five_years() {
+    let t = setup!();
+    let db = &t.state.db;
+    sqlx::query(
+        "INSERT INTO audit_log (action, target_type, target_id, at)
+         VALUES ('test.old', 'test', 'a', now() - interval '5 years 1 day'), ('test.recent', 'test', 'b', now() - interval '4 years')",
+    )
+    .execute(db)
+    .await
+    .unwrap();
+
+    fuber_worker::cleanup(&t.ctx).await.unwrap();
+
+    let left: Vec<String> = sqlx::query_scalar("SELECT action FROM audit_log WHERE target_type = 'test'").fetch_all(db).await.unwrap();
+    assert_eq!(left, ["test.recent"]);
 }
