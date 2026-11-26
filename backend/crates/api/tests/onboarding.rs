@@ -746,24 +746,22 @@ async fn erased_riders_rides_are_anonymised() {
 
 /// A `kind` document uploaded `old` ago and replaced by one uploaded `new` ago (Postgres intervals).
 async fn replaced_document(db: &sqlx::PgPool, driver: Uuid, kind: &str, old: &str, new: &str) {
-    let mut tx = db.begin().await.unwrap();
-    // The replacement must exist before it is current, so insert both in one go (the
-    // superseded_by key is checked at commit).
+    let (old_id, new_id) = (Uuid::new_v4(), Uuid::new_v4());
+    // Both rows in one statement: only one document per kind may be current at a time.
     sqlx::query(
-        "WITH ids AS (SELECT gen_random_uuid() AS old_id, gen_random_uuid() AS new_id)
-         INSERT INTO driver_documents (id, driver_id, kind, storage_key, mime_type, size_bytes, sha256, status, superseded_by, created_at)
-         SELECT old_id, $1, $2::document_kind, 'docs/' || old_id, 'image/jpeg', 1000, '\\x00'::bytea, 'approved', new_id, now() - $3::interval FROM ids
-         UNION ALL
-         SELECT new_id, $1, $2::document_kind, 'docs/' || new_id, 'image/jpeg', 1000, '\\x00'::bytea, 'approved', NULL, now() - $4::interval FROM ids",
+        "INSERT INTO driver_documents (id, driver_id, kind, storage_key, mime_type, size_bytes, sha256, status, superseded_by, created_at)
+         VALUES ($1, $3, $4::document_kind, 'docs/' || $1, 'image/jpeg', 1000, '\\x00', 'approved', $2, now() - $5::interval),
+                ($2, $3, $4::document_kind, 'docs/' || $2, 'image/jpeg', 1000, '\\x00', 'approved', NULL, now() - $6::interval)",
     )
+    .bind(old_id)
+    .bind(new_id)
     .bind(driver)
     .bind(kind)
     .bind(old)
     .bind(new)
-    .execute(&mut *tx)
+    .execute(db)
     .await
     .unwrap();
-    tx.commit().await.unwrap();
 }
 
 #[tokio::test]
@@ -786,7 +784,7 @@ async fn replaced_documents_go_a_year_after_their_replacement() {
             .unwrap();
     assert_eq!(
         kinds,
-        [("licence".to_owned(), true), ("insurance".to_owned(), false), ("insurance".to_owned(), true)],
+        [("insurance".to_owned(), false), ("insurance".to_owned(), true), ("licence".to_owned(), true)],
         "only the licence she replaced over a year ago is gone"
     );
     assert!(documents_left(db, d.user_id).await.1, "she can still drive");
