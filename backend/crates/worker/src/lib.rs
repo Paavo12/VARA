@@ -4,6 +4,7 @@
 //! - `upload.process`: virus scan, type check and re-encode an upload (TRD §7.2).
 //! - `account.erase`: erase a deleted account after its 30-day grace period (PRD A-8).
 //! - `safety.sos_sms`: resend SOS texts the API could not send (PRD S-1).
+//! - `push.notice`: push a notice to her devices, SMS if none gets it (see [`push`]).
 //! - Daily document check: expire documents and send 30/7/1-day warnings (PRD A-5).
 //! - Hourly cleanup: OTP challenges, old sessions, abandoned uploads (retention, schema §12).
 //! - Every second: matching (see [`dispatch`]).
@@ -11,6 +12,7 @@
 //! - Hourly: close last week's driver statements (see [`settlement`]; changes nothing once done).
 
 pub mod dispatch;
+pub mod push;
 pub mod ridecheck;
 pub mod settlement;
 
@@ -26,6 +28,7 @@ use fuber_db::{
 };
 use fuber_integrations::{
     media,
+    push::PushGateway,
     routing::Routing,
     sms::SmsGateway,
     storage::ObjectStore,
@@ -46,6 +49,7 @@ pub struct Ctx {
     pub store: ObjectStore,
     pub scanner: VirusScanner,
     pub sms: SmsGateway,
+    pub push: PushGateway,
     pub routing: Routing,
 }
 
@@ -87,6 +91,7 @@ async fn run(ctx: &Ctx, job: &Job) -> Result<(), JobError> {
         jobs::kind::PROCESS_UPLOAD => process_upload(ctx, id("upload_id")?).await,
         jobs::kind::ERASE_ACCOUNT => erase_account(ctx, id("user_id")?).await,
         jobs::kind::GUEST_SMS => guest_sms(ctx, id("ride_id")?).await,
+        jobs::kind::PUSH => push::notice(ctx, &job.payload).await,
         jobs::kind::SOS_SMS => {
             let positions: Vec<i16> = job
                 .payload
@@ -361,7 +366,7 @@ fn document_name(kind: &str) -> &'static str {
     }
 }
 
-async fn notify(ctx: &Ctx, phone: Option<String>, body: &str) {
+pub(crate) async fn notify(ctx: &Ctx, phone: Option<String>, body: &str) {
     let Some(phone) = phone.and_then(|p| PhoneE164::parse(&p).ok()) else { return };
     if let Err(e) = ctx.sms.send(&phone, body).await {
         tracing::warn!(error = %e, to = %mask_phone(phone.as_str()), "notification SMS failed");
@@ -389,26 +394,34 @@ pub async fn check_documents(ctx: &Ctx, today: Date) -> Result<(), JobError> {
             &format!("VARA: your {name} has expired, so you can't go online. Upload the new one in the VARA driver app to drive again."),
         )
         .await;
+        push::document(ctx, driver, "A document has expired", "You can't go online until you upload the new one.").await;
     }
     // Smallest threshold first, so a document already inside 7 days gets only the 7-day warning.
     for days in [1_i16, 7, 30] {
-        let due: Vec<(String, Date, Option<String>)> = sqlx::query_as(
+        let due: Vec<(Uuid, String, Date, Option<String>)> = sqlx::query_as(
             "UPDATE driver_documents d SET expiry_warned_days = $2 FROM users u
              WHERE u.id = d.driver_id AND d.status = 'approved' AND d.superseded_by IS NULL
                AND d.expires_on >= $1 AND d.expires_on <= $1 + $2::int
                AND (d.expiry_warned_days IS NULL OR d.expiry_warned_days > $2)
-             RETURNING d.kind::text, d.expires_on, u.phone_e164",
+             RETURNING d.driver_id, d.kind::text, d.expires_on, u.phone_e164",
         )
         .bind(today)
         .bind(days)
         .fetch_all(&ctx.db)
         .await?;
-        for (kind, on, phone) in due {
+        for (driver, kind, on, phone) in due {
             let name = document_name(&kind);
             notify(
                 ctx,
                 phone,
                 &format!("VARA: your {name} expires on {on}. Upload the new one in the VARA driver app before then to keep driving."),
+            )
+            .await;
+            push::document(
+                ctx,
+                driver,
+                "A document expires soon",
+                &format!("Your {name} expires on {on}. Upload the new one to keep driving."),
             )
             .await;
         }

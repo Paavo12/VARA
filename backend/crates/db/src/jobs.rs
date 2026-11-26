@@ -15,6 +15,9 @@ pub mod kind {
     /// `{"incident_id": uuid, "positions": [1, 3]}`: resend SOS texts to the emergency contacts
     /// at these positions after the API's own attempt failed (PRD S-1).
     pub const SOS_SMS: &str = "safety.sos_sms";
+    /// `{"notice": "driver_assigned", "ride_id": uuid}` or `{"notice": ..., "user_id": uuid}`:
+    /// push a notice to her devices (see [`crate::push`]).
+    pub const PUSH: &str = "push.notice";
 }
 
 /// How long a claimed job is hidden from other workers before it is retried.

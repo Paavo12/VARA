@@ -16,6 +16,9 @@ locals {
     CLAMAV_ADDR     = "${local.internal_ip}:3310"
     ROUTING         = "osrm"
     OSRM_URL        = "http://${local.internal_ip}:5000"
+    # Push notifications through Firebase in this project (only the worker sends them).
+    PUSH_PROVIDER  = "fcm"
+    FCM_PROJECT_ID = var.project_id
     # SOS texts and Share trip links (API and worker both send them).
     TRIP_LINK_BASE = var.trip_link_base
   }

@@ -133,6 +133,7 @@ pub fn router(state: AppState) -> Router {
         .route("/me", get(routes::me::get).patch(routes::me::update).delete(routes::me::delete))
         .route("/me/emergency-contacts", get(routes::me::contacts).put(routes::me::replace_contacts))
         .route("/me/verification", post(routes::me::submit_verification))
+        .route("/me/push-token", put(routes::me::set_push_token).delete(routes::me::clear_push_token))
         // Uploads
         .route("/uploads", post(routes::uploads::create))
         .route("/uploads/{id}", get(routes::uploads::status))

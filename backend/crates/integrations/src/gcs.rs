@@ -3,18 +3,18 @@
 //! key file, so URLs are signed with IAM Credentials `signBlob`, which only the API may call
 //! (infra/terraform/iam.tf). The worker reads, writes and deletes but never signs.
 
-use std::{
-    io,
-    time::{Duration, Instant},
-};
+use std::{io, time::Duration};
 
 use base64::{Engine, engine::general_purpose::STANDARD as B64};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
-use tokio::sync::{Mutex, OnceCell};
+use tokio::sync::OnceCell;
 
-use crate::storage::{PresignedUpload, valid_key};
+use crate::{
+    google::MetadataToken,
+    storage::{PresignedUpload, valid_key},
+};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
 /// Longest a V4 signed URL may live.
@@ -42,8 +42,7 @@ pub struct Gcs {
     bucket: String,
     at: Endpoints,
     http: reqwest::Client,
-    /// Access token and when to fetch a new one.
-    token: Mutex<Option<(String, Instant)>>,
+    token: MetadataToken,
     /// The service account the URLs are signed as.
     email: OnceCell<String>,
 }
@@ -51,27 +50,12 @@ pub struct Gcs {
 impl Gcs {
     pub fn new(bucket: &str, at: Endpoints) -> Self {
         let http = crate::http_client(TIMEOUT);
-        Gcs { bucket: bucket.to_owned(), at, http, token: Mutex::new(None), email: OnceCell::new() }
+        let token = MetadataToken::new(&at.metadata, http.clone());
+        Gcs { bucket: bucket.to_owned(), at, http, token, email: OnceCell::new() }
     }
 
     async fn token(&self) -> io::Result<String> {
-        #[derive(Deserialize)]
-        struct Token {
-            access_token: String,
-            expires_in: u64,
-        }
-        let mut cached = self.token.lock().await;
-        if let Some((token, until)) = &*cached
-            && Instant::now() < *until
-        {
-            return Ok(token.clone());
-        }
-        let url = format!("{}/computeMetadata/v1/instance/service-accounts/default/token", self.at.metadata);
-        let t: Token =
-            check(self.http.get(url).header("Metadata-Flavor", "Google").send().await, "token")?.json().await.map_err(failed("token"))?;
-        // Renew a minute early, so a token never expires mid-request.
-        *cached = Some((t.access_token.clone(), Instant::now() + Duration::from_secs(t.expires_in.saturating_sub(60))));
-        Ok(t.access_token)
+        self.token.get().await.map_err(failed("token"))
     }
 
     async fn email(&self) -> io::Result<&str> {

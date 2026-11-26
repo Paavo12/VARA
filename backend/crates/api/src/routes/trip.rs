@@ -210,7 +210,7 @@ pub async fn wait(State(s): State<AppState>, DriverUser(user): DriverUser, Path(
         .await?;
     if started.rows_affected() == 1 {
         // Not a state change, but the rider should see "Your driver is waiting" at once.
-        rides::record(&mut *tx, id, Some(state), state, Party::Driver, Some(user.user_id), Some(json!({ "wait_started": true }))).await?;
+        rides::record(&mut tx, id, Some(state), state, Party::Driver, Some(user.user_id), Some(json!({ "wait_started": true }))).await?;
     }
     tx.commit().await?;
     view(&s, user.user_id, id).await

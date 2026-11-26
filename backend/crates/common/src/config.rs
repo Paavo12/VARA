@@ -42,6 +42,7 @@ pub struct Config {
     /// The previous signing key, still accepted for verification during rotation.
     pub jwt_previous: Option<(String, SecretString)>,
     pub sms_provider: SmsProvider,
+    pub push: PushConfig,
     pub storage: StorageConfig,
     pub virus_scan: VirusScan,
     pub routing: RoutingConfig,
@@ -54,6 +55,15 @@ pub enum SmsProvider {
     /// Records messages in memory and, in local development only, prints them to the log.
     /// Real providers are added once the SMS vendors are chosen (PRD §10).
     Fake,
+}
+
+/// Push notifications (App Flow §10).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PushConfig {
+    /// Records messages in memory; nothing reaches a phone. Not allowed in production.
+    Fake,
+    /// Firebase Cloud Messaging in this Google Cloud project, as the service's own identity.
+    Fcm { project: String },
 }
 
 /// Road routing for quotes and ETAs (TRD §2.1).
@@ -198,6 +208,21 @@ impl Config {
             }
         };
 
+        let push = match get("PUSH_PROVIDER").as_deref().unwrap_or("fake") {
+            "fake" => PushConfig::Fake,
+            "fcm" => match get("FCM_PROJECT_ID") {
+                Some(project) if valid_project(&project) => PushConfig::Fcm { project },
+                _ => {
+                    errors.push("PUSH_PROVIDER=fcm needs FCM_PROJECT_ID, the Firebase (Google Cloud) project ID".into());
+                    PushConfig::Fcm { project: String::new() }
+                }
+            },
+            other => {
+                errors.push(format!("PUSH_PROVIDER must be fake or fcm (got {other:?})"));
+                PushConfig::Fake
+            }
+        };
+
         let storage = match get("STORAGE_BACKEND").as_deref().unwrap_or("local") {
             "local" => StorageConfig::Local {
                 dir: get("STORAGE_DIR").unwrap_or_else(|| "var/storage".into()).into(),
@@ -267,6 +292,9 @@ impl Config {
             if sms_provider == SmsProvider::Fake {
                 errors.push("SMS_PROVIDER=fake is not allowed in production".into());
             }
+            if push == PushConfig::Fake {
+                errors.push("PUSH_PROVIDER=fake is not allowed in production".into());
+            }
             if matches!(storage, StorageConfig::Local { .. }) {
                 errors.push("STORAGE_BACKEND=local is not allowed in production".into());
             }
@@ -296,6 +324,7 @@ impl Config {
             jwt_secret: jwt_secret.into(),
             jwt_previous: jwt_previous.map(|(k, s)| (k, s.into())),
             sms_provider,
+            push,
             storage,
             virus_scan,
             routing,
@@ -311,6 +340,14 @@ fn valid_bucket(name: &str) -> bool {
         && name.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
         && name.bytes().next().is_some_and(|b| b.is_ascii_alphanumeric())
         && name.bytes().last().is_some_and(|b| b.is_ascii_alphanumeric())
+}
+
+/// A Google Cloud project ID: 6–30 lowercase letters, digits and hyphens, starting with a letter.
+fn valid_project(id: &str) -> bool {
+    (6..=30).contains(&id.len())
+        && id.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+        && id.bytes().next().is_some_and(|b| b.is_ascii_lowercase())
+        && !id.ends_with('-')
 }
 
 /// Hosts reserved for examples and testing (RFC 2606), which no real link can use.
@@ -369,8 +406,8 @@ mod tests {
             ("CLAMAV_ADDR", "clamav:3310"),
         ])
         .unwrap_err();
-        // Dev password, plain Redis, fake SMS gateway, local storage, estimated routing, no trip link.
-        assert_eq!(e.0.len(), 6, "{e}");
+        // Dev password, plain Redis, fake SMS and push, local storage, estimated routing, no trip link.
+        assert_eq!(e.0.len(), 7, "{e}");
     }
 
     #[test]
@@ -462,5 +499,17 @@ mod tests {
         let c = load(&[&base[..], &[("GCS_BUCKET", "vara-staging-documents")]].concat()).unwrap();
         assert!(matches!(c.storage, StorageConfig::Gcs { bucket } if bucket == "vara-staging-documents"));
         assert!(load(&[("STORAGE_BACKEND", "s3"), ("APP_ENV", "local"), ("DATABASE_URL", "x"), ("REDIS_URL", "y")]).is_err());
+    }
+
+    #[test]
+    fn fcm_needs_a_project() {
+        let base = [("APP_ENV", "local"), ("DATABASE_URL", "x"), ("REDIS_URL", "y"), ("PUSH_PROVIDER", "fcm")];
+        assert!(load(&base).unwrap_err().to_string().contains("FCM_PROJECT_ID"));
+        for bad in ["", "Vara", "1vara-staging", "vara-", "a/b/c/d/e"] {
+            assert!(load(&[&base[..], &[("FCM_PROJECT_ID", bad)]].concat()).is_err(), "{bad}");
+        }
+        let c = load(&[&base[..], &[("FCM_PROJECT_ID", "vara-staging")]].concat()).unwrap();
+        assert_eq!(c.push, PushConfig::Fcm { project: "vara-staging".into() });
+        assert_eq!(load(&base[..3]).unwrap().push, PushConfig::Fake);
     }
 }

@@ -8,6 +8,7 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 pub mod drivers;
 pub mod jobs;
 pub mod presence;
+pub mod push;
 pub mod rides;
 pub mod safety;
 pub mod settings;

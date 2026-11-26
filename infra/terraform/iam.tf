@@ -57,6 +57,14 @@ resource "google_artifact_registry_repository_iam_member" "internal_pulls" {
   member     = "serviceAccount:${google_service_account.runtime["internal"].email}"
 }
 
+# Push notifications: only the worker sends them. FCM has no per-resource IAM, so this is
+# project-wide; the role covers Cloud Messaging only.
+resource "google_project_iam_member" "worker_fcm" {
+  project = var.project_id
+  role    = "roles/firebasecloudmessaging.admin"
+  member  = "serviceAccount:${google_service_account.runtime["worker"].email}"
+}
+
 # --- GitHub Actions deploys through Workload Identity Federation (no key files) -------------
 
 resource "google_service_account" "deployer" {
