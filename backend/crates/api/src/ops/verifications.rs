@@ -10,7 +10,7 @@ use time::{Duration, OffsetDateTime};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::{Decision, Staff, Verdict};
+use super::{Decision, Staff, Verdict, presign_get};
 use crate::{
     AppState, audit,
     error::{ApiError, ErrorBody},
@@ -135,8 +135,8 @@ pub async fn detail(
         full_name,
         date_of_birth: open("users.date_of_birth", dob)?,
         national_id: open("users.national_id", nid)?,
-        id_document_url: id_key.map(|k| s.store.presign_get(&k, exp)),
-        selfie_url: selfie_key.map(|k| s.store.presign_get(&k, exp)),
+        id_document_url: presign_get(&s, id_key, exp).await?,
+        selfie_url: presign_get(&s, selfie_key, exp).await?,
         previous: previous
             .into_iter()
             .map(|(status, reject_reason, created_at)| PreviousAttempt { status, reject_reason, created_at })

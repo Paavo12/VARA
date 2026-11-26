@@ -241,9 +241,10 @@ The first ClamAV start downloads signatures, which takes a few minutes.
   Share trip links point at it, and the API and worker refuse to start with a placeholder
   domain such as `vara.example`. The website (which serves `/t/<token>`) must be live there.
 
-- **Uploads don't work on staging yet.** `STORAGE_BACKEND=local` writes to the container's
-  own disk, which the worker can't see. The Cloud Storage backend is a later item
-  (implementation plan, Phase 1 vendors); the bucket and permissions are already here.
+- **Apps must be built with the bucket's address.** Uploads go straight to the documents
+  bucket (`STORAGE_BACKEND=gcs`). The rider and driver apps' CSP only allows it when they are
+  built with `VITE_STORAGE_URL=https://storage.googleapis.com/<documents_bucket>/` (the
+  `documents_bucket` output), and the ops console needs it to show review images.
 - **No load balancer / Cloud Armor yet.** The TRD's "CDN + WAF" edge is a production step:
   an external Application Load Balancer with a serverless NEG and Cloud Armor rate rules.
 - **Single zone.** Cloud SQL is zonal and Redis is Basic on staging; `environment =

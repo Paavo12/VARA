@@ -163,6 +163,14 @@ pub fn csrf_token(s: &AppState, token: &str) -> String {
     URL_SAFE_NO_PAD.encode(s.keys.hasher.hash("staff-csrf", token.as_bytes()))
 }
 
+/// A short-lived link for a reviewer to view a stored file.
+pub async fn presign_get(s: &AppState, key: Option<String>, expires_at: i64) -> Result<Option<String>, ApiError> {
+    match key {
+        Some(k) => s.store.presign_get(&k, expires_at).await.map(Some).map_err(ApiError::internal),
+        None => Ok(None),
+    }
+}
+
 fn cookie_token(parts: &Parts) -> Option<&str> {
     parts
         .headers

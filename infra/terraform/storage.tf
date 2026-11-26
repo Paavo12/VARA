@@ -40,6 +40,15 @@ resource "google_storage_bucket" "documents" {
     default_kms_key_name = google_kms_crypto_key.documents.id
   }
 
+  # The phone apps upload straight to the bucket through signed URLs, so the WebView asks
+  # first (CORS). Reviewers' images are plain <img> loads and need none.
+  cors {
+    origin          = var.cors_origins
+    method          = ["PUT"]
+    response_header = ["Content-Type", "X-Goog-Content-Length-Range"]
+    max_age_seconds = 3600
+  }
+
   # Documents are deleted by the application's retention jobs; soft delete keeps an
   # accidental deletion recoverable for a week.
   soft_delete_policy {

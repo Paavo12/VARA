@@ -13,7 +13,7 @@ use time::{Date, OffsetDateTime};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use super::{Decision, Staff, Verdict, verifications::IMAGE_URL_TTL};
+use super::{Decision, Staff, Verdict, presign_get, verifications::IMAGE_URL_TTL};
 use crate::{
     AppState, audit,
     error::{ApiError, ErrorBody},
@@ -157,6 +157,11 @@ pub async fn detail(
     .await?;
     let exp = (OffsetDateTime::now_utc() + IMAGE_URL_TTL).unix_timestamp();
     let date_of_birth = dob.map(|d| s.keys.sealer.open_str("users.date_of_birth", &d)).transpose().map_err(ApiError::internal)?;
+    let mut documents = Vec::with_capacity(docs.len());
+    for (id, kind, status, exp_on, reject_reason, mime_type, key) in docs {
+        let url = presign_get(&s, key, exp).await?;
+        documents.push(ReviewDocument { id, kind, status, expires_on: exp_on.map(|d| d.to_string()), reject_reason, mime_type, url });
+    }
     Ok(Json(DriverReview {
         user_id: id,
         full_name,
@@ -169,18 +174,7 @@ pub async fn detail(
         vehicle: vehicle.map(|(id, make, model, colour, year, plate, seats, wheelchair_accessible, approved, reject_reason)| {
             ReviewVehicle { id, make, model, colour, year, plate, seats, wheelchair_accessible, approved, reject_reason }
         }),
-        documents: docs
-            .into_iter()
-            .map(|(id, kind, status, exp_on, reject_reason, mime_type, key)| ReviewDocument {
-                id,
-                kind,
-                status,
-                expires_on: exp_on.map(|d| d.to_string()),
-                reject_reason,
-                mime_type,
-                url: key.map(|k| s.store.presign_get(&k, exp)),
-            })
-            .collect(),
+        documents,
     }))
 }
 
