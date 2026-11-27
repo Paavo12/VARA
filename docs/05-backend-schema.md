@@ -748,4 +748,6 @@ Migration `0008_payments_ratings.sql` (0007 is the service-fee change) adds `rid
 | Audit log | 5 years | Deleted |
 | Deleted accounts | 30-day grace | Personal fields erased; rides anonymised |
 
+Safety incidents (migration 0019): once closed for 5 years, an incident that still holds its ride's data appears on the ops console's *Retention* page (admins only). *Keep* needs a reason and holds it another year; *Release* sets `hold_data = false`, removes the outcome, location, staff notes and the linked report's text, and keeps only the kind and dates for statistics. The hourly clean-up then deletes the ride's track and chat and anonymises the ride if it is past 5 years. Both decisions are audited.
+
 These periods are proposals; the [Privacy Policy](legal/privacy-policy.md) must match the final, counsel-approved values.

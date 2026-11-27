@@ -46,6 +46,8 @@ pub fn router(_: &AppState) -> Router<AppState> {
         .route("/incidents", get(incidents::queue))
         .route("/incidents/{id}/messages", get(incidents::messages))
         .route("/incidents/{id}/close", post(incidents::close))
+        .route("/incidents/retention", get(incidents::retention_queue))
+        .route("/incidents/{id}/retention", post(incidents::decide_retention))
         .route("/drivers", get(drivers::queue))
         .route("/drivers/{id}", get(drivers::detail))
         .route("/drivers/{id}/tiers", put(drivers::set_tiers))

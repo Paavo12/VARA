@@ -255,3 +255,132 @@ pub async fn close(
     tx.commit().await?;
     Ok(StatusCode::NO_CONTENT)
 }
+
+// --- Retention review (schema §12) -------------------------------------------------------------
+
+/// A closed incident past its 5 years, waiting for an admin to keep or release it.
+#[derive(Debug, Serialize, ToSchema, sqlx::FromRow)]
+pub struct RetentionItem {
+    pub id: Uuid,
+    pub kind: String,
+    pub ride_code: Option<String>,
+    pub escalated_to_police: bool,
+    /// How the desk closed it. Plain text: render it as text, never as HTML.
+    pub outcome: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub closed_at: OffsetDateTime,
+    /// Set when an earlier review kept it.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub kept_until: Option<OffsetDateTime>,
+}
+
+/// A kept incident comes back for review after this.
+const KEEP_FOR: &str = "1 year";
+
+#[utoipa::path(
+    get, path = "/v1/ops/incidents/retention", operation_id = "incident_retention_queue", tag = "ops", security(("staff" = [])),
+    responses((status = 200, body = Vec<RetentionItem>), (status = 403, description = "Not an admin", body = ErrorBody))
+)]
+pub async fn retention_queue(State(s): State<AppState>, staff: Staff) -> Result<Json<Vec<RetentionItem>>, ApiError> {
+    staff.require_admin()?;
+    let items: Vec<RetentionItem> = sqlx::query_as(&format!(
+        "SELECT i.id, i.kind::text AS kind, r.code AS ride_code, i.escalated_to_police, i.outcome, i.created_at, i.closed_at,
+                i.retain_until AS kept_until
+         FROM safety_incidents i LEFT JOIN rides r ON r.id = i.ride_id
+         WHERE {DUE} ORDER BY i.closed_at LIMIT 200"
+    ))
+    .fetch_all(&s.db)
+    .await?;
+    Ok(Json(items))
+}
+
+/// Incident `i` is due for its retention review: closed over 5 years ago and still holding data.
+const DUE: &str = "i.status = 'closed' AND i.hold_data AND i.closed_at < now() - interval '5 years'
+                   AND (i.retain_until IS NULL OR i.retain_until < now())";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Retention {
+    /// Hold it another year (an open legal claim, a police case).
+    Keep,
+    /// Let its ride's data go and remove its free text.
+    Release,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RetentionDecision {
+    pub decision: Retention,
+    /// Required to keep it: why it is still needed.
+    #[schema(value_type = Option<String>, example = "Police case 123/2031 still open.")]
+    pub reason: Option<PlainText<300>>,
+}
+
+#[utoipa::path(
+    post, path = "/v1/ops/incidents/{id}/retention", operation_id = "decide_incident_retention", tag = "ops", security(("staff" = [])),
+    params(("id" = Uuid, Path)),
+    request_body = RetentionDecision,
+    responses(
+        (status = 204, description = "Kept for another year, or released"),
+        (status = 403, description = "Not an admin", body = ErrorBody),
+        (status = 404, description = "No such incident, or not due for review", body = ErrorBody),
+        (status = 422, description = "Keeping it needs a reason", body = ErrorBody),
+    )
+)]
+pub async fn decide_retention(
+    State(s): State<AppState>,
+    staff: Staff,
+    ClientIp(ip): ClientIp,
+    Path(id): Path<Uuid>,
+    ValidJson(body): ValidJson<RetentionDecision>,
+) -> Result<StatusCode, ApiError> {
+    staff.require_admin()?;
+    let reason = body.reason.as_ref().map(|r| r.as_str());
+    if body.decision == Retention::Keep && reason.is_none() {
+        return Err(ApiError::invalid("keeping an incident needs a reason"));
+    }
+    let mut tx = s.db.begin().await?;
+    let due: Option<String> =
+        sqlx::query_scalar(&format!("SELECT i.kind::text FROM safety_incidents i WHERE i.id = $1 AND {DUE} FOR UPDATE"))
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let kind = due.ok_or_else(ApiError::not_found)?;
+    let action = match body.decision {
+        Retention::Keep => {
+            sqlx::query(&format!("UPDATE safety_incidents SET retain_until = now() + interval '{KEEP_FOR}' WHERE id = $1"))
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
+            "incident.retain"
+        }
+        Retention::Release => {
+            for q in [
+                "UPDATE safety_incidents SET hold_data = false, released_at = now(), outcome = NULL, location = NULL, retain_until = NULL
+                 WHERE id = $1",
+                "DELETE FROM incident_notes WHERE incident_id = $1",
+                "UPDATE issue_reports SET body = '(removed after the retention review)' WHERE incident_id = $1",
+            ] {
+                sqlx::query(q).bind(id).execute(&mut *tx).await?;
+            }
+            "incident.release"
+        }
+    };
+    audit::record(
+        &mut *tx,
+        audit::Entry {
+            staff_id: Some(staff.id),
+            user_id: None,
+            action,
+            target_type: "incident",
+            target_id: id.to_string(),
+            detail: Some(json!({ "kind": kind, "reason": reason })),
+            ip: Some(ip),
+        },
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}

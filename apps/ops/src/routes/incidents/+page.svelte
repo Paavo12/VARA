@@ -6,16 +6,9 @@
 -->
 <script lang="ts">
 	import { Button, Notice, TextField } from '@fuber/ui';
-	import { formatWhen, messageOf } from '#lib/format.ts';
+	import { INCIDENT_KINDS, formatWhen, messageOf } from '#lib/format.ts';
 	import { api, staff, type IncidentItem, type IncidentMessage } from '#lib/staff.svelte.ts';
 
-	const KINDS: Record<string, string> = {
-		sos: 'SOS',
-		pin_lockout: 'PIN lockout',
-		ridecheck_deviation: 'RideCheck: route',
-		ridecheck_stop: 'RideCheck: stop',
-		report: 'Report'
-	};
 	const URGENT = ['sos', 'ridecheck_deviation', 'ridecheck_stop'];
 	const CATEGORIES: Record<string, string> = {
 		harassment: 'Harassment or threats',
@@ -124,7 +117,7 @@
 			{#each incidents as i (i.id)}
 				<li>
 					<div class="head">
-						<strong>{KINDS[i.kind] ?? i.kind}</strong>
+						<strong>{INCIDENT_KINDS[i.kind] ?? i.kind}</strong>
 						<span>{i.ride_code ?? 'No trip'}</span>
 						<span>{formatWhen(i.created_at)}</span>
 					</div>

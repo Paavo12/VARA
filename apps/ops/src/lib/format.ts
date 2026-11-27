@@ -44,3 +44,12 @@ export function formatDetail(detail: unknown): string {
 			: value
 	);
 }
+
+/** Incident kinds as the safety desk names them. */
+export const INCIDENT_KINDS: Record<string, string> = {
+	sos: 'SOS',
+	pin_lockout: 'PIN lockout',
+	ridecheck_deviation: 'RideCheck: route',
+	ridecheck_stop: 'RideCheck: stop',
+	report: 'Report'
+};

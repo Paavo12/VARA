@@ -17,6 +17,7 @@ export type VerificationQueueItem = components['schemas']['QueueItem'];
 export type VerificationDetail = components['schemas']['VerificationDetail'];
 export type Tier = components['schemas']['Tier'];
 export type IncidentItem = components['schemas']['IncidentItem'];
+export type RetentionItem = components['schemas']['RetentionItem'];
 export type SettlementItem = components['schemas']['SettlementItem'];
 export type UserItem = components['schemas']['UserItem'];
 export type UserDetail = components['schemas']['UserDetail'];
