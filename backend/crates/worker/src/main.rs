@@ -4,11 +4,12 @@
 use std::{process::ExitCode, time::Duration};
 
 use fuber_common::{
-    Config, Environment, RoutingConfig, SmsProvider, VirusScan,
+    Config, Environment, PushConfig, RoutingConfig, SmsProvider, VirusScan,
     crypto::{Hasher, Sealer},
     telemetry,
 };
 use fuber_integrations::{
+    push::{FakePush, Fcm, FcmEndpoints, PushGateway},
     routing::Routing,
     sms::{FakeSms, SmsGateway},
     storage::ObjectStore,
@@ -55,6 +56,13 @@ async fn main() -> ExitCode {
         },
         sms: match config.sms_provider {
             SmsProvider::Fake => SmsGateway::Fake(FakeSms::new(config.env == Environment::Local)),
+        },
+        push: match &config.push {
+            PushConfig::Fcm { project } => PushGateway::Fcm(Box::new(Fcm::new(project, FcmEndpoints::default()))),
+            PushConfig::Fake => {
+                tracing::warn!("push notifications are faked: nothing reaches a phone");
+                PushGateway::Fake(FakePush::default())
+            }
         },
         routing: match &config.routing {
             RoutingConfig::Osrm(url) => Routing::osrm(url),

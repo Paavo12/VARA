@@ -496,7 +496,7 @@ pub async fn create(
         }
         Err(e) => return Err(e.into()),
     };
-    rides::record(&mut *tx, ride_id, None, initial, Party::Rider, Some(user.user_id), None).await?;
+    rides::record(&mut tx, ride_id, None, initial, Party::Rider, Some(user.user_id), None).await?;
     if initial == RideState::Requested {
         rides::transition(&mut tx, ride_id, RideEvent::StartSearch, Party::System, None, None).await.map_err(ride_error)?;
         sqlx::query("UPDATE rides SET search_started_at = now() WHERE id = $1").bind(ride_id).execute(&mut *tx).await?;

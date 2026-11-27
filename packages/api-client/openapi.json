@@ -1045,6 +1045,60 @@
         ]
       }
     },
+    "/v1/me/push-token": {
+      "put": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "set_push_token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushToken"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Notices for this app now reach this device"
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "me"
+        ],
+        "operationId": "clear_push_token",
+        "responses": {
+          "204": {
+            "description": "This device gets no more notices"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/me/verification": {
       "post": {
         "tags": [
@@ -7252,6 +7306,27 @@
             "format": "int32"
           }
         }
+      },
+      "PushToken": {
+        "type": "object",
+        "description": "This device's push token (App Flow §10), from Firebase Cloud Messaging on Android and iOS.",
+        "required": [
+          "token",
+          "platform"
+        ],
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Only `fcm` for now; iPhones get theirs through Firebase too.",
+            "example": "fcm"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
       },
       "QueueItem": {
         "type": "object",

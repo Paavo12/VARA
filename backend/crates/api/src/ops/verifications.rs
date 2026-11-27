@@ -4,6 +4,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
+use fuber_db::push::Notice;
 use serde::Serialize;
 use serde_json::json;
 use time::{Duration, OffsetDateTime};
@@ -203,6 +204,8 @@ pub async fn decide(
         },
     )
     .await?;
+    let notice = if d.decision == Verdict::Approve { Notice::RiderVerified } else { Notice::RiderNotVerified };
+    fuber_db::push::user(&mut *tx, notice, user_id).await?;
     tx.commit().await?;
     tracing::info!(verification = %id, decision = ?d.decision, "identity verification decided");
     detail(State(s), staff, ip, Path(id)).await

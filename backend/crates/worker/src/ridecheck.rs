@@ -170,6 +170,8 @@ async fn ask(db: &PgPool) -> Result<usize, sqlx::Error> {
         .await?;
         if id.is_some() {
             notify(&mut tx, ride_id).await?;
+            // Reaches her even with the app closed (App Flow §10).
+            fuber_db::push::ride(&mut *tx, fuber_db::push::Notice::RideCheck, ride_id).await?;
             n += 1;
         }
         tx.commit().await?;

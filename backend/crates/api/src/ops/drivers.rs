@@ -6,6 +6,7 @@ use axum::{
     extract::{Path, State},
 };
 use fuber_db::drivers::{REQUIRED_DOCUMENTS, refresh_can_go_online};
+use fuber_db::push::Notice;
 use fuber_domain::Tier;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -416,6 +417,8 @@ pub async fn decide(
         },
     )
     .await?;
+    let notice = if d.decision == Verdict::Approve { Notice::DriverApproved } else { Notice::DriverNotApproved };
+    fuber_db::push::user(&mut *tx, notice, id).await?;
     tx.commit().await?;
     detail(State(s), staff, ip, Path(id)).await
 }

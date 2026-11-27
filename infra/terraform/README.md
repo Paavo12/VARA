@@ -245,6 +245,12 @@ The first ClamAV start downloads signatures, which takes a few minutes.
   bucket (`STORAGE_BACKEND=gcs`). The rider and driver apps' CSP only allows it when they are
   built with `VITE_STORAGE_URL=https://storage.googleapis.com/<documents_bucket>/` (the
   `documents_bucket` output), and the ops console needs it to show review images.
+- **Push notifications need Firebase on the project.** The worker sends through FCM as its
+  own identity (`PUSH_PROVIDER=fcm`, role `roles/firebasecloudmessaging.admin`), but Firebase
+  must first be added to this project once in the Firebase console, with the Android and iOS
+  apps registered (their `google-services.json` / `GoogleService-Info.plist` go into the app
+  builds) and an APNs key uploaded for iPhones. Until then the sends fail and the worker
+  texts riders "driver assigned" / "arrived" instead.
 - **No load balancer / Cloud Armor yet.** The TRD's "CDN + WAF" edge is a production step:
   an external Application Load Balancer with a serverless NEG and Cloud Armor rate rules.
 - **Single zone.** Cloud SQL is zonal and Redis is Basic on staging; `environment =

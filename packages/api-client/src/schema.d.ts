@@ -357,6 +357,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/push-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["set_push_token"];
+        post?: never;
+        delete: operations["clear_push_token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/verification": {
         parameters: {
             query?: never;
@@ -2190,6 +2206,15 @@ export interface components {
             /** Format: int32 */
             points: number;
         };
+        /** @description This device's push token (App Flow §10), from Firebase Cloud Messaging on Android and iOS. */
+        PushToken: {
+            /**
+             * @description Only `fcm` for now; iPhones get theirs through Firebase too.
+             * @example fcm
+             */
+            platform: string;
+            token: string;
+        };
         QueueItem: {
             display_name?: string | null;
             /** Format: uuid */
@@ -3686,6 +3711,54 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Removed (also when she wasn't a favourite) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    set_push_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushToken"];
+            };
+        };
+        responses: {
+            /** @description Notices for this app now reach this device */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    clear_push_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description This device gets no more notices */
             204: {
                 headers: {
                     [name: string]: unknown;

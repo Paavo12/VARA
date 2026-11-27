@@ -16,6 +16,7 @@ resource "google_project_service" "apis" {
     "artifactregistry.googleapis.com",
     "cloudkms.googleapis.com",
     "compute.googleapis.com",
+    "fcm.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "iap.googleapis.com",

@@ -54,7 +54,7 @@ pub struct Grant {
 
 pub enum ObjectStore {
     Local(LocalDisk),
-    Gcs(Gcs),
+    Gcs(Box<Gcs>),
 }
 
 impl ObjectStore {
@@ -63,7 +63,7 @@ impl ObjectStore {
     pub fn from_config(config: &fuber_common::Config, hasher: Hasher) -> ObjectStore {
         match &config.storage {
             fuber_common::StorageConfig::Local { dir, public_url } => ObjectStore::Local(LocalDisk::new(dir.clone(), public_url, hasher)),
-            fuber_common::StorageConfig::Gcs { bucket } => ObjectStore::Gcs(Gcs::new(bucket, Endpoints::default())),
+            fuber_common::StorageConfig::Gcs { bucket } => ObjectStore::Gcs(Box::new(Gcs::new(bucket, Endpoints::default()))),
         }
     }
 

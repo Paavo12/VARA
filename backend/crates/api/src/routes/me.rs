@@ -390,3 +390,56 @@ pub(crate) async fn usable_upload(
         Some((_, _, key)) => Ok(key),
     }
 }
+
+/// This device's push token (App Flow §10), from Firebase Cloud Messaging on Android and iOS.
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PushToken {
+    #[schema(min_length = 1, max_length = 4096)]
+    pub token: String,
+    /// Only `fcm` for now; iPhones get theirs through Firebase too.
+    #[schema(example = "fcm")]
+    pub platform: String,
+}
+
+#[utoipa::path(
+    put, path = "/v1/me/push-token", tag = "me", security(("bearer" = [])),
+    request_body = PushToken,
+    responses((status = 204, description = "Notices for this app now reach this device"), (status = 422, body = ErrorBody))
+)]
+pub async fn set_push_token(
+    State(s): State<AppState>,
+    user: AuthUser,
+    ValidJson(req): ValidJson<PushToken>,
+) -> Result<StatusCode, ApiError> {
+    if req.platform != "fcm" {
+        return Err(ApiError::invalid("platform must be fcm"));
+    }
+    if req.token.is_empty() || req.token.len() > 4096 || !req.token.bytes().all(|b| b.is_ascii_graphic()) {
+        return Err(ApiError::invalid("token must be 1 to 4096 printable characters"));
+    }
+    let mut tx = s.db.begin().await?;
+    // A device belongs to one session: whoever signed in on it before stops getting its notices.
+    sqlx::query("UPDATE sessions SET push_token = NULL, push_platform = NULL WHERE push_token = $1 AND id <> $2")
+        .bind(&req.token)
+        .bind(user.session_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("UPDATE sessions SET push_token = $2, push_platform = $3 WHERE id = $1")
+        .bind(user.session_id)
+        .bind(&req.token)
+        .bind(&req.platform)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    delete, path = "/v1/me/push-token", tag = "me", security(("bearer" = [])),
+    responses((status = 204, description = "This device gets no more notices"))
+)]
+pub async fn clear_push_token(State(s): State<AppState>, user: AuthUser) -> Result<StatusCode, ApiError> {
+    sqlx::query("UPDATE sessions SET push_token = NULL, push_platform = NULL WHERE id = $1").bind(user.session_id).execute(&s.db).await?;
+    Ok(StatusCode::NO_CONTENT)
+}

@@ -31,6 +31,7 @@ use fuber_common::{
 };
 use fuber_db::sqlx::{self, PgPool};
 use fuber_integrations::{
+    push::{FakePush, PushGateway},
     routing::Routing,
     sms::{FakeSms, SmsGateway},
     storage::ObjectStore,
@@ -140,6 +141,7 @@ impl T {
             store,
             scanner: VirusScanner::Disabled,
             sms: SmsGateway::Fake(FakeSms::new(false)),
+            push: PushGateway::Fake(FakePush::default()),
             routing: Routing::Estimate,
         };
         let state = AppState::new(cfg, db, RateLimiter::memory_only(), limits);

@@ -8,6 +8,8 @@ use serde_json::Value;
 use sqlx::{PgConnection, PgExecutor};
 use uuid::Uuid;
 
+use crate::push;
+
 /// States in which a ride occupies its rider (matches the `one_active_ride_rider` index).
 pub const RIDER_ACTIVE: [&str; 8] =
     ["REQUESTED", "SEARCHING", "NO_DRIVERS", "DRIVER_ASSIGNED", "DRIVER_EN_ROUTE", "DRIVER_ARRIVED", "PIN_VERIFIED", "IN_TRIP"];
@@ -61,9 +63,10 @@ pub async fn transition(
     Ok(to)
 }
 
-/// Appends a row to the ride's history (and so notifies both parties on commit).
-pub async fn record<'e>(
-    db: impl PgExecutor<'e>,
+/// Appends a row to the ride's history (and so notifies both parties on commit), and queues
+/// the rider's push notice for the change, if it has one.
+pub async fn record(
+    conn: &mut PgConnection,
     ride_id: Uuid,
     from: Option<RideState>,
     to: RideState,
@@ -81,9 +84,12 @@ pub async fn record<'e>(
     .bind(party_str(actor))
     .bind(actor_id)
     .bind(detail)
-    .execute(db)
-    .await
-    .map(|_| ())
+    .execute(&mut *conn)
+    .await?;
+    if let Some(notice) = push::Notice::for_ride(from, to) {
+        push::ride(&mut *conn, notice, ride_id).await?;
+    }
+    Ok(())
 }
 
 /// Takes priority points for a cancellation or no-show (PRD D-5) and records the entry.
