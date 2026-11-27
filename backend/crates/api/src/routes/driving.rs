@@ -23,6 +23,7 @@ use time::OffsetDateTime;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::routes::legal::require_consents;
 use crate::{
     AppState,
     auth::{AuthUser, DriverUser},
@@ -109,6 +110,7 @@ pub async fn go_online(
     DriverUser(user): DriverUser,
     ValidJson(req): ValidJson<LocationUpdate>,
 ) -> Result<Json<DriverStatus>, ApiError> {
+    require_consents(&s.db, &user).await?;
     let at = req.position()?;
     let mut tx = s.db.begin().await?;
     match presence::go_online(&mut tx, user.user_id, user.session_id, at).await? {

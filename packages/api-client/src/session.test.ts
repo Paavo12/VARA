@@ -104,6 +104,28 @@ describe('createSession', () => {
 		expect(await store.get()).toBeNull();
 	});
 
+	it('tells the app when new terms must be accepted', async () => {
+		let asked = 0;
+		const fetchImpl = async (req: Request) =>
+			req.url.endsWith('/v1/rides/active')
+				? json({ error: { code: 'forbidden', message: '' } }, 403)
+				: json({ error: { code: 'consent_required', message: '' } }, 403);
+		const s = createSession({
+			baseUrl: 'https://api.test',
+			app: 'rider',
+			store: memoryTokenStore(),
+			fetch: fetchImpl,
+			onConsentRequired: () => asked++
+		});
+		const { response } = await s.api.POST('/v1/uploads', {
+			body: { purpose: 'selfie', content_type: 'image/png', size_bytes: 10 }
+		});
+		expect(response.status).toBe(403);
+		expect(asked).toBe(1);
+		await s.api.GET('/v1/rides/active');
+		expect(asked).toBe(1);
+	});
+
 	it('keeps the stored token when the network is down', async () => {
 		const store = memoryTokenStore();
 		await store.set('keep'.padEnd(43, 'x'));

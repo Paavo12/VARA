@@ -32,6 +32,11 @@ export interface SessionOptions {
 	appVersion?: string;
 	/** Called when the session ends (signed out, refresh rejected, account deleted). */
 	onSignedOut?: () => void;
+	/**
+	 * Called when the server holds something back until she accepts new Terms (403
+	 * `consent_required`), so the app can show its consent screen.
+	 */
+	onConsentRequired?: () => void;
 	fetch?: typeof fetch;
 }
 
@@ -116,6 +121,13 @@ export function createSession(opts: SessionOptions) {
 		fetch: async (request: Request) => {
 			const retry = request.clone();
 			const res = await doFetch(request);
+			if (res.status === 403 && opts.onConsentRequired) {
+				const body = await res
+					.clone()
+					.json()
+					.catch(() => null);
+				if (body?.error?.code === 'consent_required') opts.onConsentRequired();
+			}
 			if (res.status !== 401 || !(await refresh()) || !access) return res;
 			retry.headers.set('authorization', `Bearer ${access}`);
 			return doFetch(retry);

@@ -15,7 +15,7 @@ use crate::{
     auth::{AuthUser, RiderUser},
     error::{ApiError, ErrorBody},
     extract::ValidJson,
-    routes::legal::{LegalDocument, pending_consents},
+    routes::legal::{LegalDocument, pending_consents, require_consents},
 };
 
 /// Deleted accounts are erased after this grace period (docs/05-backend-schema.md §12).
@@ -256,6 +256,7 @@ pub async fn replace_contacts(
     user: AuthUser,
     ValidJson(req): ValidJson<EmergencyContacts>,
 ) -> Result<Json<EmergencyContacts>, ApiError> {
+    require_consents(&s.db, &user).await?;
     if req.contacts.len() > 3 {
         return Err(ApiError::invalid("you can add up to 3 emergency contacts"));
     }
@@ -317,6 +318,7 @@ pub async fn submit_verification(
     RiderUser(user): RiderUser,
     ValidJson(req): ValidJson<VerificationRequest>,
 ) -> Result<(StatusCode, Json<VerificationSubmitted>), ApiError> {
+    require_consents(&s.db, &user).await?;
     let mut tx = s.db.begin().await?;
     let (complete, verification): (bool, String) = sqlx::query_as(
         "SELECT full_name IS NOT NULL AND date_of_birth IS NOT NULL, verification::text FROM users WHERE id = $1 FOR UPDATE",

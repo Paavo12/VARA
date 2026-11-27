@@ -41,12 +41,16 @@
 	let error = $state<string | null>(null);
 	let busy = $state(false);
 
-	const session = driverSession(() => {
-		me = null;
-		app = null;
-		push = null;
-		view = 'signin';
-	});
+	const session = driverSession(
+		() => {
+			me = null;
+			app = null;
+			push = null;
+			view = 'signin';
+		},
+		// New Terms published: refreshing shows the consent screen.
+		() => void refresh()
+	);
 	provideSession(session);
 
 	// Push (App Flow §10) starts once she reaches the application, so she hears the review's

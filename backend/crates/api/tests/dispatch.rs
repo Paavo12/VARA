@@ -370,6 +370,7 @@ async fn only_approved_drivers_signed_in_on_a_phone_receive_requests() {
     let t = setup!(relaxed());
     // Not approved: can't go online.
     let pending = t.sign_in(&new_phone(), "driver").await;
+    t.accept_consents(&pending).await;
     let (status, e) = t.post("/v1/driver/online", &pending.access, json!({ "at": at(NEAR) })).await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{e}");
     assert_eq!(e["error"]["code"], "not_approved");
