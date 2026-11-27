@@ -38,7 +38,7 @@ pub struct PushMessage {
 
 pub enum PushGateway {
     Fake(FakePush),
-    Fcm(Fcm),
+    Fcm(Box<Fcm>),
 }
 
 impl PushGateway {

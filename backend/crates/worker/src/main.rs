@@ -58,7 +58,7 @@ async fn main() -> ExitCode {
             SmsProvider::Fake => SmsGateway::Fake(FakeSms::new(config.env == Environment::Local)),
         },
         push: match &config.push {
-            PushConfig::Fcm { project } => PushGateway::Fcm(Fcm::new(project, FcmEndpoints::default())),
+            PushConfig::Fcm { project } => PushGateway::Fcm(Box::new(Fcm::new(project, FcmEndpoints::default()))),
             PushConfig::Fake => {
                 tracing::warn!("push notifications are faked: nothing reaches a phone");
                 PushGateway::Fake(FakePush::default())
