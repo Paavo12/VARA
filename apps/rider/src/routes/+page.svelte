@@ -37,11 +37,15 @@
 	let me = $state<Me | null>(null);
 	let askedForContacts = $state(false);
 
-	const session = riderSession(() => {
-		me = null;
-		push = null;
-		view = 'signin';
-	});
+	const session = riderSession(
+		() => {
+			me = null;
+			push = null;
+			view = 'signin';
+		},
+		// New Terms published: refreshing shows the consent screen.
+		() => void refresh()
+	);
 	provideSession(session);
 
 	// Push (App Flow §10) starts once onboarding is done, so she hears when she is verified. A

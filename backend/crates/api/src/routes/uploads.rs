@@ -19,6 +19,7 @@ use time::{Duration, OffsetDateTime};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::routes::legal::require_consents;
 use crate::{
     AppState,
     auth::{App, AuthUser},
@@ -117,6 +118,7 @@ pub async fn create(
     user: AuthUser,
     ValidJson(req): ValidJson<CreateUpload>,
 ) -> Result<(StatusCode, Json<UploadTarget>), ApiError> {
+    require_consents(&s.db, &user).await?;
     if req.purpose.driver_only() && user.app != App::Driver {
         return Err(ApiError::forbidden("wrong_app", "Driver documents are uploaded from the VARA driver app."));
     }

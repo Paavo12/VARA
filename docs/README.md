@@ -10,6 +10,7 @@ These documents take VARA from the working demo (`demo/`) to a production app bu
 | 4 | [UI/UX Design Brief](04-ui-ux-design-brief.md) | Brand, design principles, screens and components for the designer |
 | 5 | [Backend Schema](05-backend-schema.md) | PostgreSQL/PostGIS tables, Redis keys, API surface |
 | 6 | [Implementation Plan](06-implementation-plan.md) | Phases, milestones, team, exit criteria |
+| 7 | [Threat Model](07-threat-model.md) | STRIDE review of auth, staff, dispatch, safety, data and payments; open security findings |
 | L1 | [Privacy Policy](legal/privacy-policy.md) | Draft — needs Namibian legal review |
 | L2 | [Terms & Conditions](legal/terms-and-conditions.md) | Draft — needs Namibian legal review |
 | L3 | [Cookie Policy](legal/cookie-policy.md) | Draft — web properties only |

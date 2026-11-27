@@ -7,12 +7,14 @@ export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1
 /** The safety desk's SMS number, for the SOS fallback when the API can't be reached. */
 export const SAFETY_DESK_PHONE: string | undefined = import.meta.env.VITE_SAFETY_DESK_PHONE;
 
-export function riderSession(onSignedOut: () => void) {
+/** `onConsentRequired`: the server is holding something back until she accepts new Terms. */
+export function riderSession(onSignedOut: () => void, onConsentRequired: () => void) {
 	return createSession({
 		baseUrl: API_URL,
 		app: 'rider',
 		store: deviceTokenStore('rider'),
 		appVersion: import.meta.env.VITE_APP_VERSION,
-		onSignedOut
+		onSignedOut,
+		onConsentRequired
 	});
 }

@@ -111,6 +111,15 @@ async fn rider_onboarding_through_ops_approval() {
     let t = setup!();
     let rider = t.sign_in(&new_phone(), "rider").await;
 
+    // Nothing is collected before she accepts the Terms and Privacy Policy (PRD A-7).
+    let (status, body) =
+        t.post("/v1/uploads", &rider.access, json!({ "purpose": "identity", "content_type": "image/png", "size_bytes": 1000 })).await;
+    assert_eq!((status, body["error"]["code"].as_str()), (StatusCode::FORBIDDEN, Some("consent_required")));
+    let (_, me) = t.get("/v1/me", &rider.access).await;
+    let kinds: Vec<&str> = me["pending_consents"].as_array().unwrap().iter().map(|d| d["kind"].as_str().unwrap()).collect();
+    assert_eq!(kinds, ["privacy", "terms"]);
+    t.accept_consents(&rider).await;
+
     // Verification needs the profile first.
     let id_doc = t.photo(&rider.access, "identity").await;
     let selfie = t.photo(&rider.access, "selfie").await;
@@ -129,10 +138,7 @@ async fn rider_onboarding_through_ops_approval() {
     assert_eq!(me["display_name"], "Ndeshi");
     assert_eq!(me["email"], "ndeshi@example.com");
     assert_eq!(me["profile_complete"], true);
-    let kinds: Vec<&str> = me["pending_consents"].as_array().unwrap().iter().map(|d| d["kind"].as_str().unwrap()).collect();
-    assert_eq!(kinds, ["privacy", "terms"]);
-    let ids: Vec<Value> = me["pending_consents"].as_array().unwrap().iter().map(|d| d["id"].clone()).collect();
-    assert_eq!(t.post("/v1/consents", &rider.access, json!({ "document_ids": ids })).await.0, StatusCode::NO_CONTENT);
+    assert_eq!(me["pending_consents"], json!([]));
 
     // Date of birth is stored encrypted, never as text.
     let raw: Vec<u8> =
@@ -359,6 +365,7 @@ async fn driver_onboarding_approval_and_document_expiry() {
 async fn emergency_contacts_are_encrypted_and_validated() {
     let t = setup!();
     let rider = t.sign_in(&new_phone(), "rider").await;
+    t.accept_consents(&rider).await;
     let contacts = json!({ "contacts": [{ "name": "Martha Shikongo", "phone": "081 222 3344" }, { "name": "Anna Nghifikwa", "phone": "+264 85 111 2222" }] });
     let (status, body) = t.put("/v1/me/emergency-contacts", &rider.access, contacts).await;
     assert_eq!(status, StatusCode::OK, "{body}");
@@ -391,6 +398,7 @@ async fn account_deletion_signs_out_and_erases_after_grace() {
     let t = setup!();
     let phone = new_phone();
     let rider = t.sign_in(&phone, "rider").await;
+    t.accept_consents(&rider).await;
     t.patch("/v1/me", &rider.access, json!({ "full_name": "Ndeshi Shikongo", "date_of_birth": "1994-03-12" })).await;
     t.put("/v1/me/emergency-contacts", &rider.access, json!({ "contacts": [{ "name": "Martha", "phone": "+264812223344" }] })).await;
     t.photo(&rider.access, "identity").await;

@@ -60,6 +60,7 @@ impl T {
     /// Phase 1), not yet online.
     pub async fn approved_driver(&self, name: &str, tier: &str, wheelchair: bool) -> Session {
         let s = self.sign_in(&new_phone(), "driver").await;
+        self.accept_consents(&s).await;
         let db = &self.state.db;
         sqlx::query("UPDATE users SET full_name = $2, display_name = split_part($2, ' ', 1), status = 'active' WHERE id = $1")
             .bind(s.user_id)

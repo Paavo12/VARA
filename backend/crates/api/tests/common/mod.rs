@@ -269,6 +269,15 @@ impl T {
         }
     }
 
+    /// Accepts every document she still has to accept (as the app's consent screen does).
+    pub async fn accept_consents(&self, s: &Session) {
+        let (_, me) = self.get("/v1/me", &s.access).await;
+        let ids: Vec<Value> = me["pending_consents"].as_array().unwrap().iter().map(|d| d["id"].clone()).collect();
+        if !ids.is_empty() {
+            assert_eq!(self.post("/v1/consents", &s.access, json!({ "document_ids": ids })).await.0, StatusCode::NO_CONTENT);
+        }
+    }
+
     /// A signed-in user with name and date of birth filled in and legal documents accepted.
     pub async fn onboarded(&self, app: &str) -> Session {
         let s = self.sign_in(&new_phone(), app).await;

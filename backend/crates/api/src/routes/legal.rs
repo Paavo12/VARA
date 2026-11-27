@@ -1,6 +1,7 @@
 //! Legal documents and consent (PRD A-7). Consent is recorded per document version with the
 //! time, IP and app version; a newer version that requires re-acceptance shows up again in
-//! `pending_consents` on `GET /me`.
+//! `pending_consents` on `GET /me`, and [`require_consents`] holds back new activity until it
+//! is accepted.
 
 use axum::{
     Json,
@@ -78,6 +79,20 @@ pub async fn pending_consents<'e>(db: impl PgExecutor<'e>, user_id: Uuid, app: A
     .bind(required_kinds(app))
     .fetch_all(db)
     .await
+}
+
+/// Refuses with 403 `consent_required` until she has accepted the current Terms and Privacy
+/// Policy (and, for drivers, the Driver Agreement). Checked where something new starts or she
+/// hands over personal data: uploads, verification, emergency contacts, booking, going online,
+/// submitting an application. Never on anything a ride in progress needs (trip actions, SOS,
+/// RideCheck, chat, cancelling, rating), nor on reading or deleting her account: new terms
+/// must not block her safety.
+pub async fn require_consents(db: &sqlx::PgPool, user: &AuthUser) -> Result<(), ApiError> {
+    if pending_consents(db, user.user_id, user.app).await?.is_empty() {
+        Ok(())
+    } else {
+        Err(ApiError::forbidden("consent_required", "Please accept the latest Terms and Privacy Policy in the app first."))
+    }
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

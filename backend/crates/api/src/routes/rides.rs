@@ -31,6 +31,7 @@ use time::{Duration, OffsetDateTime};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
+use crate::routes::legal::require_consents;
 use crate::{
     AppState,
     auth::RiderUser,
@@ -375,6 +376,7 @@ pub async fn create(
         let ride = views::rider_ride(&s.db, user.user_id, id).await?.ok_or_else(ApiError::not_found)?;
         return Ok((StatusCode::OK, Json(ride)));
     }
+    require_consents(&s.db, &user).await?;
     let uid = user.user_id.to_string();
     s.limiter.check("ride_request", &uid, s.limits.ride_request).await?;
     s.limiter.check("ride_request_hourly", &uid, s.limits.ride_request_hourly).await?;
