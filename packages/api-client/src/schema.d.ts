@@ -581,6 +581,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ops/incidents/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["incident_retention_queue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ops/incidents/{id}/close": {
         parameters: {
             query?: never;
@@ -607,6 +623,22 @@ export interface paths {
         get: operations["messages"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/incidents/{id}/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["decide_incident_retention"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2309,6 +2341,35 @@ export interface components {
             note?: string | null;
             /** @description `in_progress` or `resolved`. */
             status: string;
+        };
+        /** @enum {string} */
+        Retention: "keep" | "release";
+        RetentionDecision: {
+            decision: components["schemas"]["Retention"];
+            /**
+             * @description Required to keep it: why it is still needed.
+             * @example Police case 123/2031 still open.
+             */
+            reason?: string | null;
+        };
+        /** @description A closed incident past its 5 years, waiting for an admin to keep or release it. */
+        RetentionItem: {
+            /** Format: date-time */
+            closed_at: string;
+            /** Format: date-time */
+            created_at: string;
+            escalated_to_police: boolean;
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: date-time
+             * @description Set when an earlier review kept it.
+             */
+            kept_until?: string | null;
+            kind: string;
+            /** @description How the desk closed it. Plain text: render it as text, never as HTML. */
+            outcome?: string | null;
+            ride_code?: string | null;
         };
         ReviewDocument: {
             /** Format: date */
@@ -4203,6 +4264,34 @@ export interface operations {
             };
         };
     };
+    incident_retention_queue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetentionItem"][];
+                };
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     close: {
         parameters: {
             query?: never;
@@ -4285,6 +4374,57 @@ export interface operations {
             };
             /** @description No such incident */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    decide_incident_retention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetentionDecision"];
+            };
+        };
+        responses: {
+            /** @description Kept for another year, or released */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such incident, or not due for review */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Keeping it needs a reason */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

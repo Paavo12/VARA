@@ -48,7 +48,9 @@
 				>
 				<a class="link" href={resolve('/settings')} aria-current={here('/settings')}>Settings</a>
 				<a class="link" href={resolve('/pricing')} aria-current={here('/pricing')}>Pricing</a>
-				<a class="link" href={resolve('/audit')} aria-current={here('/audit')}>Audit log</a>{/if}
+				<a class="link" href={resolve('/audit')} aria-current={here('/audit')}>Audit log</a>
+				<a class="link" href={resolve('/retention')} aria-current={here('/retention')}>Retention</a
+				>{/if}
 		</nav>
 		<span class="who">{staff.session.roles.join(', ').replaceAll('ops_', '')}</span>
 		<button type="button" class="link" onclick={signOut}>Sign out</button>

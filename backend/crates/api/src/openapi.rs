@@ -36,7 +36,7 @@ use crate::{ops, routes};
         ops::verifications::queue, ops::verifications::detail, ops::verifications::decide,
         ops::drivers::queue, ops::drivers::detail, ops::drivers::set_tiers, ops::drivers::decide,
         ops::drivers::decide_document, ops::drivers::decide_vehicle,
-        ops::incidents::queue, ops::incidents::messages, ops::incidents::close,
+        ops::incidents::queue, ops::incidents::messages, ops::incidents::close, ops::incidents::retention_queue, ops::incidents::decide_retention,
         ops::settlements::queue, ops::settlements::settle,
         ops::support::search, ops::support::detail, ops::support::suspend, ops::support::reinstate,
         ops::support::adjust_priority, ops::support::grant_map_expert, ops::support::end_map_expert, ops::support::reports, ops::support::set_report_status,

@@ -1747,6 +1747,44 @@
         ]
       }
     },
+    "/v1/ops/incidents/retention": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "incident_retention_queue",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RetentionItem"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
     "/v1/ops/incidents/{id}/close": {
       "post": {
         "tags": [
@@ -1859,6 +1897,75 @@
           },
           "404": {
             "description": "No such incident",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "staff": []
+          }
+        ]
+      }
+    },
+    "/v1/ops/incidents/{id}/retention": {
+      "post": {
+        "tags": [
+          "ops"
+        ],
+        "operationId": "decide_incident_retention",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetentionDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Kept for another year, or released"
+          },
+          "403": {
+            "description": "Not an admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such incident, or not due for review",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Keeping it needs a reason",
             "content": {
               "application/json": {
                 "schema": {
@@ -7590,6 +7697,85 @@
           }
         },
         "additionalProperties": false
+      },
+      "Retention": {
+        "type": "string",
+        "enum": [
+          "keep",
+          "release"
+        ]
+      },
+      "RetentionDecision": {
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/Retention"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required to keep it: why it is still needed.",
+            "example": "Police case 123/2031 still open."
+          }
+        },
+        "additionalProperties": false
+      },
+      "RetentionItem": {
+        "type": "object",
+        "description": "A closed incident past its 5 years, waiting for an admin to keep or release it.",
+        "required": [
+          "id",
+          "kind",
+          "escalated_to_police",
+          "created_at",
+          "closed_at"
+        ],
+        "properties": {
+          "closed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "escalated_to_police": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kept_until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Set when an earlier review kept it."
+          },
+          "kind": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "How the desk closed it. Plain text: render it as text, never as HTML."
+          },
+          "ride_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
       },
       "ReviewDocument": {
         "type": "object",
