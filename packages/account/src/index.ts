@@ -10,4 +10,5 @@ export { default as ShareTrip } from './ShareTrip.svelte';
 export { default as Sos } from './Sos.svelte';
 export { messageOf, provideSession, useSession } from './context';
 export { adultMaxDate, normalisePhone } from './phone';
+export { readTap, startPush, type Push, type PushTap } from './push';
 export { deviceTokenStore } from './tokenStore';
