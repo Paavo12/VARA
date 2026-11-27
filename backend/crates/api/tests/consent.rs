@@ -7,7 +7,7 @@
 #[macro_use]
 mod common;
 
-use axum::http::StatusCode;
+use axum::http::{Method, StatusCode};
 use fuber_db::sqlx;
 use serde_json::{Value, json};
 
@@ -41,7 +41,10 @@ async fn new_terms_hold_back_new_rides_but_never_a_trip_under_way() {
         let (status, v) = t.trip_action(&trip, action, body).await;
         assert_eq!(status, StatusCode::OK, "{action}: {v}");
     }
-    let (status, v) = t.post(&format!("/v1/rides/{}/messages", trip.id), &trip.rider.access, json!({ "text": "Nearly there" })).await;
+    let chat = format!("/v1/rides/{}/messages", trip.id);
+    let (status, v) = t
+        .call_with(Method::POST, &chat, Some(&trip.rider.access), Some(json!({ "text": "Nearly there" })), &[("idempotency-key", &key())])
+        .await;
     assert!(status.is_success(), "{v}");
     let (status, v) = t.post("/v1/safety/sos", &trip.rider.access, json!({ "ride_id": trip.id })).await;
     assert!(status.is_success(), "{v}");
