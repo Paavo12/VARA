@@ -11,7 +11,9 @@
 		Details,
 		EmergencyContacts,
 		SignIn,
-		provideSession
+		provideSession,
+		startPush,
+		type Push
 	} from '@fuber/account';
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
@@ -37,9 +39,25 @@
 
 	const session = riderSession(() => {
 		me = null;
+		push = null;
 		view = 'signin';
 	});
 	provideSession(session);
+
+	// Push (App Flow §10) starts once onboarding is done, so she hears when she is verified. A
+	// tap just brings the app up to date: the ride screen shows RideCheck if one is waiting.
+	let push: Promise<Push> | null = null;
+
+	async function stopPush() {
+		const p = push;
+		push = null;
+		await (await p)?.stop();
+	}
+
+	async function signOut() {
+		await stopPush();
+		await session.signOut();
+	}
 
 	async function refresh() {
 		const { data, response } = await session.api
@@ -48,6 +66,7 @@
 		if (data) {
 			me = data;
 			view = next(data);
+			if (view === 'status') push ??= startPush(session, () => void refresh());
 		} else if (response?.status === 401) {
 			view = 'signin';
 		} else {
@@ -112,11 +131,17 @@
 		<Button variant="secondary" onclick={() => (view = 'contacts')}
 			>Emergency contacts ({me.emergency_contacts})</Button
 		>
-		<Button variant="secondary" onclick={() => session.signOut()}>Sign out</Button>
+		<Button variant="secondary" onclick={signOut}>Sign out</Button>
 		<Button variant="ghost" onclick={() => (view = 'delete')}>Delete account</Button>
 	</Screen>
 {:else if view === 'delete'}
-	<DeleteAccount onback={() => (view = 'settings')} ondeleted={() => (view = 'signin')} />
+	<DeleteAccount
+		onback={() => (view = 'settings')}
+		ondeleted={() => {
+			void stopPush();
+			view = 'signin';
+		}}
+	/>
 {:else if view === 'status' && me}
 	{#if me.verification === 'approved'}
 		<Booking {me} onsettings={() => (view = 'settings')} />

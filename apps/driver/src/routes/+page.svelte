@@ -11,7 +11,9 @@
 		Details,
 		EmergencyContacts,
 		SignIn,
-		provideSession
+		provideSession,
+		startPush,
+		type Push
 	} from '@fuber/account';
 	import { Button, Notice, Screen } from '@fuber/ui';
 	import { onMount } from 'svelte';
@@ -42,9 +44,25 @@
 	const session = driverSession(() => {
 		me = null;
 		app = null;
+		push = null;
 		view = 'signin';
 	});
 	provideSession(session);
+
+	// Push (App Flow §10) starts once she reaches the application, so she hears the review's
+	// decision and document reminders. A tap brings the app up to date.
+	let push: Promise<Push> | null = null;
+
+	async function stopPush() {
+		const p = push;
+		push = null;
+		await (await p)?.stop();
+	}
+
+	async function signOut() {
+		await stopPush();
+		await session.signOut();
+	}
 
 	async function refresh(go: View | null = null) {
 		const [m, a] = await Promise.all([
@@ -59,7 +77,10 @@
 		app = a.data;
 		if (!me.profile_complete) view = 'details';
 		else if (me.pending_consents.length > 0) view = 'consents';
-		else view = go ?? 'hub';
+		else {
+			view = go ?? 'hub';
+			push ??= startPush(session, () => void refresh());
+		}
 	}
 
 	async function submit() {
@@ -124,11 +145,17 @@
 {:else if view === 'contacts'}
 	<EmergencyContacts ondone={() => refresh('settings')} onback={() => (view = 'settings')} />
 {:else if view === 'delete'}
-	<DeleteAccount onback={() => (view = 'settings')} ondeleted={() => (view = 'signin')} />
+	<DeleteAccount
+		onback={() => (view = 'settings')}
+		ondeleted={() => {
+			void stopPush();
+			view = 'signin';
+		}}
+	/>
 {:else if view === 'settings'}
 	<Screen title="Settings" onback={() => (view = 'hub')}>
 		<Button variant="secondary" onclick={() => (view = 'contacts')}>Emergency contacts</Button>
-		<Button variant="secondary" onclick={() => session.signOut()}>Sign out</Button>
+		<Button variant="secondary" onclick={signOut}>Sign out</Button>
 		<Button variant="ghost" onclick={() => (view = 'delete')}>Delete account</Button>
 	</Screen>
 {:else if view === 'hub' && app && me}
